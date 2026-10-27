@@ -115,6 +115,7 @@ supabase/functions/referee/   Edge Function на съдията (index.ts се �
      (от папката на проекта), **или**
    - от таблото: **Edge Functions → Deploy a new function → Via Editor**, име `referee`, поставете
      съдържанието на `supabase/functions/referee/index.ts` и натиснете **Deploy**.
+   Ако Supabase даде друго име на функцията, впишете го в `config.js` → `supabase.refereeFunction`.
    Функцията ползва автоматичните променливи `SUPABASE_URL`, `SUPABASE_ANON_KEY` и
    `SUPABASE_SERVICE_ROLE_KEY` – не е нужно да въвеждате нищо.
    След промяна в правилата на тези игри изпълнете `python3 tools/build-referee.py` и публикувайте отново.

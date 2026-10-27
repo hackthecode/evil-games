@@ -9,6 +9,7 @@ import { createMatch, forSeat } from './referee/core.js';
 import { reducerFor } from './referee/games.js';
 import { randomHex } from '../store/hash.js';
 import { store } from '../store/index.js';
+import { CONFIG } from '../../config.js';
 
 export function createTable({ mode, gameId, key, seat, seats, opts }) {
   const listeners = new Set();
@@ -77,7 +78,7 @@ export function createTable({ mode, gameId, key, seat, seats, opts }) {
   let latest = 0; // най-новият сигнал от сървъра
   let pulling = null;
   const invoke = async (body) => {
-    const { data, error } = await sb.functions.invoke('referee', { body: { ...body, key } });
+    const { data, error } = await sb.functions.invoke(CONFIG.supabase.refereeFunction || 'referee', { body: { ...body, key } });
     if (error) throw new Error(error.message || 'Грешка от сървъра.');
     if (data?.error) throw new Error(data.error);
     return data;

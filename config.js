@@ -8,9 +8,10 @@
 //                        Виж README.md -> „Онлайн акаунти със Supabase“.
 export const CONFIG = {
   appName: 'Evil Games',
-  backend: 'local',
+  backend: 'supabase',
   supabase: {
-    url: '',      // напр. 'https://abcdxyz.supabase.co'
-    anonKey: '',  // публичният "anon" ключ от Project Settings -> API
+    url: 'https://ozjltqxazkufaauelfpk.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96amx0cXhhemt1ZmFhdWVsZnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNDc5NzYsImV4cCI6MjEwODYyMzk3Nn0.nmMu7kz80ViRRGh64RugjsR6huP8IsKHGmRdtJ3qznM',
+    refereeFunction: 'super-processor', // името на Edge Function на сървъра-съдия
   },
 };
