@@ -129,4 +129,5 @@ supabase/functions/referee/   Edge Function на съдията (index.ts се �
 - Web Crypto (PBKDF2) за хеширане на пароли в локален режим; Web Audio за синтезирани звуци.
 - Service Worker за офлайн работа и инсталиране като приложение.
 - Шахматни фигури: комплектът *cburnett* (Colin M.L. Burnett, лиценз GPLv2+/BSD) от проекта lichess.
+- Допълнителни шахматни комплекти от lichess (`assets/chess/`): *celtic* и *fantasy* (MIT), *rhosgfx* (CC0), *merida* (GPLv2+). Изборът е от бутона „🎨 Вид“ по време на игра.
 - Фигури на картите (вале, дама, поп): *English pattern* от Dmitry Fomin (Wikimedia Commons, CC0 – обществено достояние), префиоцветени в палитрата на портала (`assets/cards/`).

@@ -1,6 +1,6 @@
 // Service worker: офлайн работа и бързо зареждане.
 // При промяна на файловете увеличете VERSION, за да се обнови кешът.
-const VERSION = 'evil-v13';
+const VERSION = 'evil-v14';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

@@ -3,7 +3,7 @@ import { icon } from '../../icons.js';
 import { offlineNet } from '../../net/room.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
 import { rollDice3d } from '../tabla/dice3d.js';
-import { START, TRACK, LANES, YARDS, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
+import { START, TRACK, LANES, YARDS, ZONES, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
 
 const COLORS = [
   { name: 'червени', main: '#e23b4e', light: '#ff8a98', dark: '#7a0f1e' },
@@ -56,7 +56,7 @@ export async function mount(root, ctx) {
     const angle = ((3 - ME + 4) % 4) * 90;
 
     // ---------- DOM ----------
-    const svg = s('svg', { viewBox: '-24 -24 708 708', class: 'ludo-svg', role: 'img', 'aria-label': 'Дъска' });
+    const svg = s('svg', { viewBox: '-26 -26 712 712', class: 'ludo-svg', role: 'img', 'aria-label': 'Дъска' });
     const board = s('g', { transform: `rotate(${angle} 330 330)` });
     const hiLayer = s('g');
     const tokenLayer = s('g');
@@ -326,59 +326,82 @@ export async function mount(root, ctx) {
 function defs() {
   const d = s('defs');
   d.innerHTML = COLORS.map((c, i) => `
-    <radialGradient id="lp${i}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="${c.light}"/><stop offset=".55" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></radialGradient>`).join('') + `
-    <radialGradient id="lboard" cx=".5" cy=".5" r=".75"><stop offset="0" stop-color="#2a2233"/><stop offset="1" stop-color="#0b0910"/></radialGradient>
-    <radialGradient id="lcell" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#d9cfbd"/></radialGradient>
-    <filter id="lsh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity=".55"/></filter>`;
+    <radialGradient id="lp${i}" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="${c.light}"/><stop offset=".5" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></radialGradient>
+    <linearGradient id="lz${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.light}"/><stop offset=".45" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></linearGradient>
+    <linearGradient id="lc${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.light}"/><stop offset="1" stop-color="${c.main}"/></linearGradient>`).join('') + `
+    <radialGradient id="lboard" cx=".5" cy=".42" r=".8"><stop offset="0" stop-color="#2b2433"/><stop offset=".7" stop-color="#16121c"/><stop offset="1" stop-color="#0a080d"/></radialGradient>
+    <linearGradient id="lcell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf7"/><stop offset="1" stop-color="#ddd2bd"/></linearGradient>
+    <linearGradient id="lbrass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dd9b"/><stop offset=".35" stop-color="#b98a35"/><stop offset=".6" stop-color="#f1d58a"/><stop offset="1" stop-color="#7a5418"/></linearGradient>
+    <radialGradient id="lgloss" cx=".25" cy=".1" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lhole" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></radialGradient>
+    <filter id="lsh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity=".55"/></filter>
+    <filter id="ltile" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2.5" stdDeviation="1.6" flood-opacity=".45"/></filter>
+    <filter id="lnoise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 .06"/></filter>`;
   return d;
+}
+
+// Заоблена плочка на полето (с обем: сянка, горен отблясък, долен ръб).
+function tile(g, x, y, fill, stroke = 'rgba(0,0,0,.25)') {
+  const t = s('g', { filter: 'url(#ltile)' },
+    s('rect', { x: C(x) - 26, y: C(y) - 26, width: 52, height: 52, rx: 13, fill, stroke, 'stroke-width': 1.5 }),
+    s('rect', { x: C(x) - 22, y: C(y) - 23, width: 44, height: 16, rx: 8, fill: '#fff', opacity: 0.28 }),
+  );
+  g.append(t);
+  return t;
 }
 
 function staticBoard() {
   const g = s('g');
-  g.append(s('rect', { x: -18, y: -18, width: 696, height: 696, rx: 34, fill: 'url(#lboard)', stroke: 'rgba(255,255,255,.08)', 'stroke-width': 2 }));
-  // кошари
-  YARDS.forEach((cells, p) => {
-    const xs = cells.map((c) => c[0]), ys = cells.map((c) => c[1]);
-    const x = Math.min(...xs) * CS, y = Math.min(...ys) * CS;
-    g.append(s('rect', { x: x + 2, y: y + 2, width: CS * 2 - 4, height: CS * 2 - 4, rx: 22, fill: COLORS[p].main, opacity: 0.22, stroke: COLORS[p].main, 'stroke-width': 2 }));
-    for (const [cx, cy] of cells) g.append(s('circle', { cx: C(cx), cy: C(cy), r: 21, fill: 'rgba(0,0,0,.45)', stroke: COLORS[p].main, 'stroke-width': 2.5 }));
-  });
-  // пътят
-  TRACK.forEach(([x, y], i) => {
-    const owner = START.indexOf(i);
-    g.append(s('circle', {
-      cx: C(x), cy: C(y), r: 24, fill: owner >= 0 ? COLORS[owner].main : 'url(#lcell)',
-      stroke: owner >= 0 ? COLORS[owner].light : 'rgba(0,0,0,.35)', 'stroke-width': 2,
-    }));
-  });
-  // стрелки на стартовите полета
-  START.forEach((i, p) => {
-    const [x, y] = TRACK[i];
-    g.append(s('circle', { cx: C(x), cy: C(y), r: 9, fill: 'rgba(255,255,255,.75)' }));
-  });
-  // домашни редици и център
-  LANES.forEach((cells, p) => {
-    for (const [x, y] of cells) {
-      g.append(s('circle', { cx: C(x), cy: C(y), r: 24, fill: COLORS[p].main, opacity: 0.85, stroke: COLORS[p].light, 'stroke-width': 2 }));
+  // основа с месингова рамка, текстура и отблясък
+  g.append(s('rect', { x: -22, y: -22, width: 704, height: 704, rx: 40, fill: 'url(#lbrass)' }));
+  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, fill: 'url(#lboard)' }));
+  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, filter: 'url(#lnoise)', 'pointer-events': 'none' }));
+  // ъгловите зони с кошарите
+  ZONES.forEach(([zx, zy], p) => {
+    const x = zx * CS + 6, y = zy * CS + 6, w = 4 * CS - 12;
+    g.append(s('rect', { x, y, width: w, height: w, rx: 30, fill: `url(#lz${p})`, stroke: COLORS[p].light, 'stroke-width': 2 }));
+    g.append(s('rect', { x: x + 22, y: y + 22, width: w - 44, height: w - 44, rx: 24, fill: 'rgba(255,255,255,.9)' }));
+    g.append(s('rect', { x: x + 22, y: y + 22, width: w - 44, height: w - 44, rx: 24, fill: 'none', stroke: COLORS[p].dark, 'stroke-opacity': 0.35, 'stroke-width': 3 }));
+    for (const [cx, cy] of YARDS[p]) {
+      g.append(s('circle', { cx: C(cx), cy: C(cy), r: 24, fill: `url(#lz${p})`, opacity: 0.35 }));
+      g.append(s('circle', { cx: C(cx), cy: C(cy), r: 20, fill: 'url(#lhole)', stroke: COLORS[p].main, 'stroke-width': 2.5 }));
     }
   });
-  // център: триъгълник към домашната редица на всеки играч (0 отляво, 1 отгоре, 2 отдясно, 3 отдолу)
-  const c = 330, r = 26;
-  g.append(s('polygon', { points: `${c - r},${c - r} ${c},${c} ${c - r},${c + r}`, fill: COLORS[0].main }));
-  g.append(s('polygon', { points: `${c - r},${c - r} ${c},${c} ${c + r},${c - r}`, fill: COLORS[1].main }));
-  g.append(s('polygon', { points: `${c + r},${c - r} ${c},${c} ${c + r},${c + r}`, fill: COLORS[2].main }));
-  g.append(s('polygon', { points: `${c - r},${c + r} ${c},${c} ${c + r},${c + r}`, fill: COLORS[3].main }));
+  // пътят: светли плочки; стартовите са в цвета на играча със стрелка по посоката
+  TRACK.forEach(([x, y], i) => {
+    const owner = START.indexOf(i);
+    tile(g, x, y, owner >= 0 ? `url(#lc${owner})` : 'url(#lcell)', owner >= 0 ? COLORS[owner].dark : 'rgba(0,0,0,.25)');
+    if (owner >= 0) {
+      const [nx, ny] = TRACK[(i + 1) % TRACK.length];
+      const a = (Math.atan2(ny - y, nx - x) * 180) / Math.PI;
+      g.append(s('path', { d: 'M -9 -10 L 11 0 L -9 10 Z', fill: '#fff', opacity: 0.9, transform: `translate(${C(x)} ${C(y)}) rotate(${a})` }));
+    }
+  });
+  // домашните редици
+  LANES.forEach((cells, p) => cells.forEach(([x, y]) => tile(g, x, y, `url(#lc${p})`, COLORS[p].dark)));
+  // център: четирицветна звезда към домашните редици
+  const c = 330, r = 30, k = 10;
+  const tri = (pts, p) => g.append(s('polygon', { points: pts, fill: `url(#lz${p})`, stroke: 'rgba(0,0,0,.35)', 'stroke-width': 1.5 }));
+  tri(`${c - r - k},${c - r} ${c},${c} ${c - r - k},${c + r}`, 0);
+  tri(`${c - r},${c - r - k} ${c},${c} ${c + r},${c - r - k}`, 1);
+  tri(`${c + r + k},${c - r} ${c},${c} ${c + r + k},${c + r}`, 2);
+  tri(`${c - r},${c + r + k} ${c},${c} ${c + r},${c + r + k}`, 3);
+  g.append(s('circle', { cx: c, cy: c, r: 9, fill: '#fff', opacity: 0.85 }));
+  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, fill: 'url(#lgloss)', 'pointer-events': 'none' }));
   return g;
 }
 
-// Пешка с обем: сянка, основа, тяло и глава.
+// Пешка с обем: сянка, основа с ръб, тяло с отблясък и глава.
 function pawn(p) {
-  const f = `url(#lp${p})`;
-  return s('g', { filter: 'url(#lsh)' },
-    s('ellipse', { cx: 0, cy: 14, rx: 17, ry: 6, fill: 'rgba(0,0,0,.35)' }),
-    s('ellipse', { cx: 0, cy: 11, rx: 15, ry: 6, fill: f, stroke: COLORS[p].dark, 'stroke-width': 1.2 }),
-    s('path', { d: 'M -10 10 Q -7 -2 -5 -8 L 5 -8 Q 7 -2 10 10 Z', fill: f, stroke: COLORS[p].dark, 'stroke-width': 1.2 }),
-    s('circle', { cx: 0, cy: -14, r: 8.5, fill: f, stroke: COLORS[p].dark, 'stroke-width': 1.2 }),
-    s('ellipse', { cx: -3, cy: -17, rx: 3, ry: 2, fill: 'rgba(255,255,255,.7)' }),
+  const f = `url(#lp${p})`, d = COLORS[p].dark;
+  return s('g', { filter: 'url(#lsh)', transform: 'scale(1.12)' },
+    s('ellipse', { cx: 0, cy: 15, rx: 18, ry: 6.5, fill: 'rgba(0,0,0,.35)' }),
+    s('ellipse', { cx: 0, cy: 12, rx: 16, ry: 6.5, fill: f, stroke: d, 'stroke-width': 1.2 }),
+    s('ellipse', { cx: 0, cy: 9.5, rx: 13, ry: 4.5, fill: f, stroke: d, 'stroke-width': .8 }),
+    s('path', { d: 'M -10.5 10 Q -8 -1 -5.5 -8 L 5.5 -8 Q 8 -1 10.5 10 Z', fill: f, stroke: d, 'stroke-width': 1.2 }),
+    s('ellipse', { cx: 0, cy: -8, rx: 7.5, ry: 2.6, fill: f, stroke: d, 'stroke-width': 1 }),
+    s('circle', { cx: 0, cy: -15, r: 9, fill: f, stroke: d, 'stroke-width': 1.2 }),
+    s('path', { d: 'M -6 8 Q -5 -1 -3 -6', stroke: '#fff', 'stroke-opacity': .45, 'stroke-width': 2.2, fill: 'none', 'stroke-linecap': 'round' }),
+    s('ellipse', { cx: -3.2, cy: -18.5, rx: 3.4, ry: 2.2, fill: 'rgba(255,255,255,.8)' }),
   );
 }

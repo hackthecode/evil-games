@@ -1,6 +1,6 @@
-import { h, toast } from '../../ui.js';
+import { h, toast, modal } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
+import { setupScreen, showResult, confirmDialog, sound, muteButton, loadPrefs, savePrefs, seg } from '../common.js';
 import {
   START_FEN, fromFEN, toFEN, legalMoves, makeMove, inCheck, gameStatus, toSAN,
   positionKey, kingSquare, colorOf,
@@ -22,7 +22,16 @@ const REASONS = {
   desync: 'Грешка в синхронизацията',
 };
 
-const pieceSrc = (p) => `assets/chess/${p < 'a' ? 'w' : 'b'}${p.toUpperCase()}.svg`;
+// Комплекти фигури (свободни лицензи, от проекта lichess) и теми на дъската.
+export const PIECE_SETS = {
+  celtic: 'Келтски', fantasy: 'Фентъзи', rhosgfx: 'Дървени', merida: 'Мерида', cburnett: 'Класически',
+};
+export const BOARD_THEMES = { wine: 'Бордо', wood: 'Дърво', marble: 'Мрамор', green: 'Турнир', ocean: 'Лед' };
+let look = loadPrefs('chess.look', { pieces: 'celtic', board: 'wine' });
+const pieceSrc = (p) => {
+  const f = `${p < 'a' ? 'w' : 'b'}${p.toUpperCase()}.svg`;
+  return look.pieces === 'cburnett' || !PIECE_SETS[look.pieces] ? `assets/chess/${f}` : `assets/chess/${look.pieces}/${f}`;
+};
 
 export async function mount(root, ctx) {
   const net = ctx.online || null; // онлайн мач срещу реален играч
@@ -88,11 +97,16 @@ export async function mount(root, ctx) {
     const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), 'Предай се');
     const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), 'Нова игра');
     const drawBtn = h('button', { class: 'btn', onclick: offerDraw }, '½ Реми?');
-    const tools = net ? [flipBtn, drawBtn, resignBtn, muteButton()] : [undoBtn, flipBtn, resignBtn, newBtn, muteButton()];
+    const lookBtn = h('button', { class: 'btn', onclick: chooseLook }, '🎨 Вид');
+    const tools = net ? [flipBtn, drawBtn, resignBtn, lookBtn, muteButton()] : [undoBtn, flipBtn, resignBtn, newBtn, lookBtn, muteButton()];
+    // координатите са в рамката около дъската
+    const filesEl = h('div', { class: 'cb-files' }, Array.from({ length: 8 }, () => h('span')));
+    const ranksEl = h('div', { class: 'cb-ranks' }, Array.from({ length: 8 }, () => h('span')));
+    const frame = h('div', { class: 'cb-frame', 'data-theme': look.board }, ranksEl, board, filesEl);
 
     root.replaceChildren(
       h('div', { class: 'chess-layout' },
-        h('div', { class: 'cb-col' }, aiBar.el, h('div', { class: 'cb-frame' }, board), meBar.el),
+        h('div', { class: 'cb-col' }, aiBar.el, frame, meBar.el),
         h('aside', { class: 'cb-side glass' },
           statusEl,
           h('div', { class: 'cb-moves-wrap' }, movesEl),
@@ -132,12 +146,29 @@ export async function mount(root, ctx) {
         if (sq === checkSq) el.classList.add('check');
         if (targets.has(sq)) el.classList.add(targets.get(sq) ? 'cap' : 'dot');
         el.dataset.sq = sq;
-        // координати
-        const vr = v >> 3, vc = v & 7;
-        el.replaceChildren();
-        if (vc === 0) el.append(h('span', { class: 'coord rank' }, 8 - r));
-        if (vr === 7) el.append(h('span', { class: 'coord file' }, 'abcdefgh'[c]));
       }
+      [...filesEl.children].forEach((x, i) => (x.textContent = 'abcdefgh'[flipped ? 7 - i : i]));
+      [...ranksEl.children].forEach((x, i) => (x.textContent = flipped ? i + 1 : 8 - i));
+    }
+
+    // Избор на фигури и дъска – прилага се веднага и се запомня.
+    function chooseLook() {
+      const apply = (patch) => {
+        look = { ...look, ...patch };
+        savePrefs('chess.look', look);
+        frame.dataset.theme = look.board;
+        rebuildPieces();
+        renderInfo();
+      };
+      const preview = () => h('div', { class: 'look-pieces' }, ['K', 'Q', 'N', 'k', 'q', 'n'].map((p) => h('img', { src: pieceSrc(p), alt: '' })));
+      let pv = preview();
+      const box = h('div', { class: 'look-box' },
+        h('div', { class: 'opt-group' }, h('span', null, 'Фигури'),
+          seg(Object.entries(PIECE_SETS), look.pieces, (v) => { apply({ pieces: v }); const n = preview(); pv.replaceWith(n); pv = n; })),
+        pv,
+        h('div', { class: 'opt-group' }, h('span', null, 'Дъска'), seg(Object.entries(BOARD_THEMES), look.board, (v) => apply({ board: v }))),
+      );
+      modal({ title: 'Вид на дъската', body: box, actions: [{ label: 'Готово', value: true, primary: true }], className: 'modal-wide' });
     }
 
     function rebuildPieces() {
