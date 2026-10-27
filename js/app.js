@@ -123,12 +123,12 @@ function renderChrome() {
           ],
     ),
   );
-  tabbarEl.replaceChildren(
+  tabbarEl.replaceChildren(...[
     navLink('home', '/', 'Игри', 'grid'),
     navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
     u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
     navLink('profile', u ? '/profile' : '/login', u ? 'Профил' : 'Вход', 'user'),
-  );
+  ].filter(Boolean));
 }
 
 async function logout() {
