@@ -1,0 +1,72 @@
+/* ===== Табла ===== */
+.game-tabla { container-type: size; }
+.tb-layout {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center;
+  padding: 10px 12px 6px; gap: 6px;
+}
+.tb-board-wrap {
+  flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center;
+}
+.tb-svg {
+  width: min(100%, calc((100cqh - 128px) * 980 / 760), 1100px);
+  height: auto; max-height: 100%;
+  border-radius: 18px;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255,255,255,.06);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.tb-svg.rot { width: min(100%, calc((100cqh - 128px) * 760 / 980), 640px); }
+.tb-svg.rot .tb-num, .tb-svg.rot .tb-count { transform-box: fill-box; transform-origin: center; transform: rotate(-90deg); }
+/* черните виждат дъската обърната вертикално – надписите се обръщат обратно */
+.tb-svg.flip .tb-num, .tb-svg.flip .tb-count { transform-box: fill-box; transform-origin: center; transform: scale(1, -1); }
+.tb-svg.rot.flip .tb-num, .tb-svg.rot.flip .tb-count { transform: scale(1, -1) rotate(-90deg); }
+.tb-num { font-size: 12px; font-weight: 700; fill: rgba(255, 236, 200, .45); text-anchor: middle; font-family: var(--font); }
+.tb-count { font-size: 22px; font-weight: 800; text-anchor: middle; font-family: var(--font); pointer-events: none; }
+.tb-ck { filter: url(#sh); }
+.tb-src { fill: rgba(255, 217, 120, .18); stroke: #ffd978; stroke-width: 5; stroke-dasharray: 10 6; animation: tb-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+.tb-src.sel { stroke: #ffd978; stroke-width: 6; stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(255, 217, 120, .9)); }
+.tb-dst { fill: rgba(255, 217, 120, .45); stroke: #ffd978; stroke-width: 5; animation: tb-glow 1.2s ease-in-out infinite alternate; }
+.tb-die { transition: opacity .25s; filter: url(#sh); transform-box: fill-box; transform-origin: center; }
+.tb-die.used { opacity: .3; }
+.tb-die.pop { animation: tb-pop .35s cubic-bezier(.3,1.5,.5,1) both; }
+@keyframes tb-pop { from { transform: scale(0); opacity: 0; } }
+
+/* 3D зарове по време на хвърляне */
+.d3-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+.d3 { position: absolute; left: 0; top: 0; width: var(--S); height: var(--S); will-change: transform; }
+.d3-shadow { position: absolute; inset: 10%; border-radius: 30%; background: rgba(0, 0, 0, .6); filter: blur(calc(var(--S) * .07)); }
+.d3-lift { position: absolute; inset: 0; display: grid; place-items: center; perspective: calc(var(--c) * 5); }
+.d3-cube { position: relative; width: var(--c); height: var(--c); transform-style: preserve-3d; }
+.d3-face {
+  position: absolute; inset: 0; border-radius: 20%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: radial-gradient(circle at 30% 25%, #ffffff 0, #fbf7ee 45%, #e3d8bf 100%);
+  box-shadow: inset 0 0 0 1.5px #c9b994, inset 0 -3px 6px rgba(120, 100, 60, .25);
+}
+.d3-core { position: absolute; inset: 4%; background: #e3d8bf; }
+.d3-pip { position: absolute; width: 19.3%; height: 19.3%; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle at 40% 35%, #5c4c3c, #2a2018 70%); }
+.d3.dark .d3-face { background: radial-gradient(circle at 30% 25%, #50383f 0, #2b1e22 50%, #170e11 100%); box-shadow: inset 0 0 0 1.5px #000, inset 0 -3px 6px rgba(0, 0, 0, .4); }
+.d3.dark .d3-core { background: #170e11; }
+.d3.dark .d3-pip { background: radial-gradient(circle at 40% 35%, #fffaf0, #e6d6b2 70%); }
+@keyframes tb-spin { to { transform: rotate(360deg); } }
+@keyframes tb-glow { from { fill-opacity: .5; } to { fill-opacity: 1; } }
+
+.tb-score { width: min(100%, 1100px); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+.tb-pl { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; border: 1px solid transparent; font-size: 14px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.tb-pl.right { justify-content: flex-end; }
+.tb-pl.on { border-color: rgba(255, 51, 88, .55); background: var(--accent-soft); }
+.tb-chip { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+.tb-chip.light { background: radial-gradient(circle at 35% 30%, #fff, #cbbd9c); }
+.tb-chip.dark { background: radial-gradient(circle at 35% 30%, #6e2a35, #1d070b); border: 1px solid #555; }
+.tb-match { display: flex; align-items: center; gap: 10px; padding: 4px 14px; border-radius: 999px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.tb-match b { font-size: 20px; }
+.tb-match span { font-size: 12px; color: var(--muted); }
+.tb-roll.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 51, 88, .6); } 50% { box-shadow: 0 0 0 10px rgba(255, 51, 88, 0); } }
+
+@container (max-width: 600px) {
+  .tb-layout { padding: 6px 4px; }
+  .tb-svg { border-radius: 10px; }
+  .tb-pl { padding: 4px 6px; font-size: 13px; gap: 5px; }
+  .tb-pl .muted { display: none; }
+  .tb-layout .g-toolbar { gap: 6px; padding: 6px; }
+  .tb-layout .g-toolbar .btn { padding: 0 10px; font-size: 13px; }
+}

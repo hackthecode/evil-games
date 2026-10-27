@@ -1,0 +1,235 @@
+/* ===== Карти ===== */
+.card {
+  --cw: 72px;
+  position: relative; flex: none;
+  width: var(--cw); aspect-ratio: 5 / 7;
+  border-radius: calc(var(--cw) * 0.09);
+  container-type: inline-size;
+  user-select: none; -webkit-user-select: none;
+}
+.card-face {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(160deg, #ffffff 0%, #f7f3ea 100%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 0 0 1px rgba(0,0,0,.18), 0 6px 14px -4px rgba(0,0,0,.45);
+  overflow: hidden;
+}
+.card.red { color: #cf2f36; }
+.card.black { color: #19202e; }
+.card .suit { fill: currentColor; }
+.ci { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: 1; width: 17cqw; }
+.ci.tl { left: 5cqw; top: 5cqw; }
+.ci.br { right: 5cqw; bottom: 5cqw; transform: rotate(180deg); }
+.cr { font-family: var(--font-card); font-weight: 700; font-size: 21cqw; letter-spacing: -0.06em; }
+.ci .suit { width: 13cqw; height: 13cqw; margin-top: 2cqw; }
+.cc { position: absolute; inset: 16cqw 18cqw; }
+.pips { position: absolute; inset: 0; }
+.pip { position: absolute; width: 22cqw; height: 22cqw; transform: translate(-50%, -50%); }
+.pip.flip { transform: translate(-50%, -50%) rotate(180deg); }
+.pip .suit { width: 100%; height: 100%; }
+.ace { position: absolute; inset: 0; display: grid; place-items: center; }
+.ace .suit { width: 52cqw; height: 52cqw; filter: drop-shadow(0 2px 2px rgba(0,0,0,.15)); }
+/* Фигури: илюстрацията (2:3) е центрирана по височина; оригиналните ъглови индекси
+   са изрязани с маска, а на тяхно място стоят нашите (.ci), както при картите с числа. */
+.court-art {
+  position: absolute; top: 0; left: 50%; height: 100%; width: auto; aspect-ratio: 2 / 3;
+  transform: translateX(-50%); pointer-events: none; user-select: none; -webkit-user-drag: none;
+  clip-path: polygon(15.5% 0, 100% 0, 100% 73%, 84.5% 73%, 84.5% 100%, 0 100%, 0 27%, 15.5% 27%);
+}
+.court .ci { width: 14cqw; }
+.court .ci.tl { left: 4cqw; top: 4cqw; }
+.court .ci.br { right: 4cqw; bottom: 4cqw; }
+.court .cr { font-size: 19cqw; }
+.court .ci .suit { width: 11.5cqw; height: 11.5cqw; }
+
+.card.back .card-back {
+  position: absolute; inset: 0; border-radius: inherit;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cg fill=%27%23ffb3c1%27 fill-opacity=%27.9%27%3E%3Cpath d=%27M15 21 C9 16 7 9 9 2 C13 9 19 12 26 15 Z%27/%3E%3Cpath d=%27M49 21 C55 16 57 9 55 2 C51 9 45 12 38 15 Z%27/%3E%3C/g%3E%3Crect x=%279%27 y=%2715%27 width=%2746%27 height=%2746%27 rx=%2713%27 fill=%27none%27 stroke=%27%23ffb3c1%27 stroke-opacity=%27.9%27 stroke-width=%273%27/%3E%3Cg fill=%27%23ffb3c1%27 fill-opacity=%27.9%27%3E%3Cpath d=%27M17 31 Q23 31.5 29.5 35.5 Q28.5 41.5 23 41 Q17.5 40 17 31 Z%27/%3E%3Cpath d=%27M47 31 Q41 31.5 34.5 35.5 Q35.5 41.5 41 41 Q46.5 40 47 31 Z%27/%3E%3C/g%3E%3Cpath d=%27M21 48 Q32 56 43 48%27 fill=%27none%27 stroke=%27%23ffb3c1%27 stroke-opacity=%27.9%27 stroke-width=%273.2%27 stroke-linecap=%27round%27/%3E%3C/svg%3E") center / 46% no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,.55) 0 24%, transparent 25%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.07) 0 2px, transparent 2px 7px),
+    radial-gradient(circle at 50% 40%, #a3122e, #5c0516 75%);
+  box-shadow: inset 0 0 0 3px #f5ece4, inset 0 0 0 4.5px #000, inset 0 0 0 6px rgba(255, 90, 120, .5), 0 0 0 1px rgba(0,0,0,.35), 0 6px 14px -4px rgba(0,0,0,.55);
+}
+
+/* ===== Маса за карти ===== */
+.game-belot, .game-santase { container-type: size; }
+.ct-table {
+  --tcw: clamp(48px, min(12.5cqw, 15cqh), 112px);
+  --cw-small: calc(var(--tcw) * 0.55);
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  /* филц с фина текстура; краищата преливат в черно (OLED) */
+  --felt: #1b6a43; --felt-2: #0c3a24;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27180%27 height=%27180%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.85%27 numOctaves=%272%27 stitchTiles=%27stitch%27/%3E%3CfeColorMatrix values=%271 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 .07%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url%28%23n%29%27/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 62% at 50% 46%, rgba(255,255,255,.09), transparent 70%),
+    radial-gradient(ellipse 85% 80% at 50% 48%, var(--felt) 0%, var(--felt-2) 62%, #000 100%);
+  box-shadow: inset 0 0 140px rgba(0,0,0,.75);
+}
+.game-santase .ct-table { --felt: #6e1830; --felt-2: #3a0a17; }
+.ct-table .card { --cw: var(--tcw); }
+
+.seat { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
+.seat.north { top: 10px; left: 50%; transform: translateX(-50%); flex-direction: column; }
+.seat.south { bottom: 6px; left: 0; right: 0; flex-direction: column; z-index: 5; }
+.seat.west { left: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
+.seat.east { right: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
+
+.seat-name {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(0,0,0,.35); font-size: 12.5px; font-weight: 700; white-space: nowrap;
+  border: 1px solid transparent; transition: border-color .3s, background .3s;
+}
+.seat.turn .seat-name { border-color: #ffd978; background: rgba(255, 217, 120, .18); box-shadow: 0 0 16px rgba(255, 217, 120, .35); }
+.seat-name .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.12); color: #ffe7a6; }
+
+.opp-hand { display: flex; }
+.opp-hand .card { --cw: var(--cw-small); }
+.seat.north .opp-hand .card + .card { margin-left: calc(var(--cw-small) * -0.62); }
+.seat.west .opp-hand, .seat.east .opp-hand { flex-direction: column; }
+.seat.west .opp-hand .card + .card, .seat.east .opp-hand .card + .card { margin-top: calc(var(--cw-small) * -1.18); }
+
+.my-hand { display: flex; justify-content: center; padding: 14px 8px 4px; min-height: calc(var(--tcw) * 1.4 + 18px); }
+.my-hand .card { transition: transform .2s var(--ease), filter .2s, opacity .2s; transform: translateY(var(--lift, 0)) rotate(var(--rot, 0)); transform-origin: 50% 120%; cursor: default; }
+.my-hand .card + .card { margin-left: calc(var(--tcw) * -0.38); }
+.my-hand.n-few .card + .card { margin-left: calc(var(--tcw) * -0.12); }
+.my-hand .card.playable { cursor: pointer; }
+.my-hand.active .card.playable:hover, .my-hand.active .card.playable:focus-visible { transform: translateY(calc(var(--lift, 0px) - 18px)) rotate(var(--rot, 0)); outline: none; }
+.my-hand.active .card.playable .card-face { box-shadow: 0 0 0 2px rgba(255, 217, 120, .9), 0 10px 20px -6px rgba(0,0,0,.6); }
+.my-hand.active .card.disabled { filter: brightness(.6) saturate(.6); }
+
+.ct-center { position: absolute; left: 50%; top: 46%; width: calc(var(--tcw) * 3.3); height: calc(var(--tcw) * 2.9); transform: translate(-50%, -50%); }
+.slot { position: absolute; }
+.slot .card { box-shadow: none; }
+.slot.s0 { left: 50%; bottom: 0; transform: translateX(-50%) rotate(2deg); }
+.slot.s1 { right: 0; top: 50%; transform: translateY(-50%) rotate(-6deg); }
+.slot.s2 { left: 50%; top: 0; transform: translateX(-50%) rotate(-3deg); }
+.slot.s3 { left: 0; top: 50%; transform: translateY(-50%) rotate(7deg); }
+.slot.win .card-face { box-shadow: 0 0 0 3px #ffd978, 0 0 24px rgba(255, 217, 120, .6); }
+
+.bubble {
+  position: absolute; z-index: 30; pointer-events: none;
+  padding: 6px 12px; border-radius: 12px; font-weight: 800; font-size: 14px; white-space: nowrap;
+  background: #fffaf0; color: #1d1a12; box-shadow: 0 8px 20px rgba(0,0,0,.4);
+  animation: bubble-in .25s var(--ease);
+}
+.bubble.gold { background: linear-gradient(180deg, #ffe08a, #f0a23f); }
+.bubble.out { opacity: 0; transform: translateY(-6px); transition: all .3s; }
+.bubble .suit { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; }
+.bubble .red { fill: #cf2f36; }
+@keyframes bubble-in { from { opacity: 0; transform: scale(.8); } }
+
+.ct-hud {
+  position: absolute; top: 10px; left: 10px; z-index: 6;
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px;
+  background: rgba(0,0,0,.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 13px; min-width: 130px; border: 1px solid rgba(255,255,255,.08);
+}
+.ct-hud .row { display: flex; justify-content: space-between; gap: 14px; }
+.ct-hud .row b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.ct-hud .goal { font-size: 11px; color: rgba(255,255,255,.55); }
+.contract-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px; background: rgba(255,255,255,.1); font-weight: 700; font-size: 12.5px; }
+.contract-badge .suit { width: 14px; height: 14px; fill: #fff; }
+.contract-badge .suit.red { fill: #ff7a7f; }
+.ct-tools { position: absolute; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; }
+.ct-tools .btn { height: 34px; padding: 0 12px; font-size: 13px; background: rgba(0,0,0,.35); }
+
+.bid-panel {
+  position: absolute; z-index: 20; left: 50%; bottom: calc(var(--tcw) * 1.4 + 34px); transform: translateX(-50%);
+  width: min(560px, calc(100% - 16px)); padding: 12px; border-radius: 18px;
+  background: rgba(0, 0, 0, .86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 50px rgba(0,0,0,.6);
+  animation: bubble-in .25s var(--ease);
+}
+.bid-panel h3 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-align: center; }
+.bid-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.bid-grid .btn { height: 44px; padding: 0 8px; font-size: 14px; gap: 6px; }
+.bid-grid .btn .suit { width: 18px; height: 18px; fill: currentColor; }
+.bid-grid .btn.red .suit { fill: #ff6b70; }
+.bid-grid .wide { grid-column: span 2; }
+
+.ct-msg {
+  position: absolute; z-index: 8; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  padding: 10px 18px; border-radius: 14px; background: rgba(0,0,0,.55); font-weight: 700; text-align: center;
+  pointer-events: none; animation: bubble-in .25s var(--ease); max-width: 80%;
+}
+
+.summary-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.summary-table th, .summary-table td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+.summary-table th:first-child, .summary-table td:first-child { text-align: left; color: var(--muted); }
+.summary-table tr.total td { font-weight: 800; font-size: 17px; color: var(--text); border-bottom: 0; }
+.summary-note { text-align: center; font-weight: 700; margin: 0 0 8px; font-size: 16px; }
+
+/* Сантасе: тесте и коз */
+.stock { position: absolute; left: 14%; top: 46%; transform: translateY(-50%); width: calc(var(--tcw) * 1.6); height: calc(var(--tcw) * 1.4); }
+.stock .trump-card { position: absolute; left: calc(var(--tcw) * 0.75); top: calc(var(--tcw) * 0.2); transform: rotate(90deg); }
+.stock .pile { position: absolute; left: 0; top: 0; }
+.stock .pile .card { position: absolute; left: 0; top: 0; }
+.stock .count { position: absolute; left: 0; bottom: calc(var(--tcw) * -0.5); width: var(--tcw); text-align: center; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.75); }
+.stock.closed .pile { transform: rotate(-12deg); }
+.stock.closed .trump-card { filter: brightness(.6); }
+.ct-center.duo { width: calc(var(--tcw) * 2.6); height: calc(var(--tcw) * 1.8); left: 55%; }
+.ct-center.duo .slot.s0 { left: 0; bottom: auto; top: 50%; transform: translateY(-40%) rotate(-5deg); }
+.ct-center.duo .slot.s1 { right: 0; left: auto; top: 50%; transform: translateY(-60%) rotate(6deg); }
+.won-pile { position: absolute; right: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: rgba(255,255,255,.7); font-weight: 700; }
+.won-pile .card { --cw: var(--cw-small); }
+.won-pile.me { bottom: calc(var(--tcw) * 1.4 + 40px); }
+.won-pile.opp { top: calc(var(--cw-small) * 1.4 + 50px); }
+.santase-actions { position: absolute; z-index: 7; left: 50%; transform: translateX(-50%); bottom: calc(var(--tcw) * 1.4 + 64px); display: flex; gap: 8px; }
+.santase-actions .btn { height: 38px; background: rgba(0,0,0,.45); }
+
+@container (max-width: 560px) {
+  .ct-table { --tcw: clamp(44px, min(15cqw, 13cqh), 90px); }
+  .ct-hud { padding: 6px 9px; min-width: 104px; font-size: 12px; top: 6px; left: 6px; }
+  .ct-hud .row b { font-size: 15px; }
+  .ct-tools { top: 6px; right: 6px; }
+  .ct-tools .btn { height: 30px; padding: 0 9px; font-size: 12px; }
+  .seat.north { top: 64px; }
+  .bid-grid .btn { height: 40px; font-size: 13px; gap: 4px; padding: 0 4px; }
+  .seat.west { left: 4px; } .seat.east { right: 4px; }
+  .seat-name { font-size: 11px; padding: 2px 8px; }
+  .my-hand .card + .card { margin-left: calc(var(--tcw) * -0.5); }
+  .stock { left: 6%; }
+}
+
+/* ===== Летящи карти ===== */
+.fly { position: fixed; left: 0; top: 0; z-index: 900; pointer-events: none; perspective: 1000px; will-change: transform; --l: 0; }
+.fly-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+.fly .card { position: absolute; inset: 0; width: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.fly .card.fly-back { transform: rotateY(180deg); }
+.fly .card-face, .fly .card-back {
+  box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 calc(6px + var(--l) * 16px) calc(14px + var(--l) * 22px) -4px rgba(0,0,0,.55);
+}
+.fly .card-back { box-shadow: inset 0 0 0 3px #f5ece4, inset 0 0 0 4.5px #000, inset 0 0 0 6px rgba(255, 90, 120, .5), 0 calc(6px + var(--l) * 16px) calc(14px + var(--l) * 22px) -4px rgba(0,0,0,.55); }
+
+/* Тесте за раздаване */
+.deal-deck { position: absolute; z-index: 4; width: var(--tcw); aspect-ratio: 5 / 7; transform: translate(-50%, -50%); transition: opacity .35s, left .4s var(--ease), top .4s var(--ease); left: 50%; top: 46%; }
+.deal-deck .card { position: absolute; left: 0; top: 0; transform: translate(calc(var(--i) * -1.2px), calc(var(--i) * -1.2px)); }
+.deal-deck[data-seat="0"] { top: 62%; }
+.deal-deck[data-seat="1"] { left: 70%; }
+.deal-deck[data-seat="2"] { top: 30%; }
+.deal-deck[data-seat="3"] { left: 30%; }
+.deal-deck.out { opacity: 0; }
+.shuffle .card:nth-child(odd) { animation: riffle-l .42s var(--ease) 2; animation-delay: calc(var(--i) * 25ms); }
+.shuffle .card:nth-child(even) { animation: riffle-r .42s var(--ease) 2; animation-delay: calc(var(--i) * 25ms); }
+@keyframes riffle-l { 45% { transform: translate(-62%, -4%) rotate(-9deg); } }
+@keyframes riffle-r { 45% { transform: translate(62%, -4%) rotate(9deg); } }
+.pending { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shuffle .card { animation: none !important; }
+}
+
+/* ===== Блато ===== */
+.game-blato { container-type: size; }
+.blato-table { --felt: #3b2a6b; --felt-2: #1a1036; }
+.blato-table .my-hand .card + .card { margin-left: 0; }
+.blato-kitty { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); display: flex; z-index: 3; }
+.blato-kitty .card { --cw: var(--cw-small); }
+.blato-kitty .card + .card { margin-left: calc(var(--cw-small) * -0.55); }
+.my-hand .card.picked { transform: translateY(calc(var(--lift, 0px) - 24px)) rotate(var(--rot, 0)) !important; }
+.my-hand .card.picked .card-face { box-shadow: 0 0 0 3px #ffd978, 0 12px 22px -6px rgba(0,0,0,.6) !important; }
+.select-panel { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.select-panel h3 { margin: 0; }
+.summary-table td.pos { color: var(--good); font-weight: 800; }
+.summary-table td.neg { color: var(--bad); font-weight: 800; }

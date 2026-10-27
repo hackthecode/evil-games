@@ -1,0 +1,24 @@
+/* ===== Не се сърди, човече ===== */
+.game-ludo { container-type: size; }
+.ludo-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 8px 12px 4px; gap: 6px; }
+.ludo-wrap { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+.ludo-svg { width: min(100%, calc(100cqh - 132px), 760px); height: auto; aspect-ratio: 1; user-select: none; -webkit-user-select: none; touch-action: manipulation; filter: drop-shadow(0 30px 50px rgba(0,0,0,.7)); }
+.ludo-tok { transition: transform .16s cubic-bezier(.3,.7,.3,1); cursor: default; }
+.ludo-tok.instant { transition: none; }
+.ludo-tok.moving > g { animation: ludo-hop .16s ease-in-out infinite alternate; }
+.ludo-tok.captured { transition: transform .55s cubic-bezier(.5,0,.3,1); }
+.ludo-tok.can { cursor: pointer; }
+.ludo-tok.can > g { animation: ludo-can .9s ease-in-out infinite alternate; }
+@keyframes ludo-hop { to { translate: 0 -10px; } }
+@keyframes ludo-can { to { translate: 0 -6px; filter: drop-shadow(0 0 8px #ffd978); } }
+.ludo-dst { fill: rgba(255, 217, 120, .25); stroke: #ffd978; stroke-width: 3; stroke-dasharray: 6 5; pointer-events: none; animation: tb-glow 1s ease-in-out infinite alternate; }
+.ludo-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.ludo-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 13.5px; transition: all .3s; }
+.ludo-chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.ludo-chip span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ludo-chip.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+@container (max-width: 560px) {
+  .ludo-layout { padding: 6px 4px; }
+  .ludo-chip { padding: 4px 9px; font-size: 12px; }
+  .ludo-layout .g-toolbar .btn { padding: 0 10px; font-size: 13px; }
+}

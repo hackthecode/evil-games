@@ -1,0 +1,537 @@
+// Блато: интерфейсът се управлява от сървъра-съдия (js/games/blato/referee.js).
+// Играта получава стъпки { seat, type, pub, view } и само ги анимира; собствените
+// карти идват от изгледа, а чуждите не се знаят.
+import { h, sleep, modal, toast, motion } from '../../ui.js';
+import { createTable } from '../../net/table.js';
+import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
+import { cardEl, layoutFan } from '../cards/cards.js';
+import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
+import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
+import { SUITS, next } from './engine.js';
+
+const BOT_NAMES = [null, 'Георги', 'Петър'];
+const POS = ['south', 'east', 'west']; // аз, следващият (вдясно), последният (вляво)
+const SLOT = ['s0', 's1', 's3'];
+const DECK_SEAT = [0, 1, 3];
+
+export async function mount(root, ctx) {
+  const online = ctx.online || null;
+  let destroyed = false;
+  let matchId = 0;
+  let cleanup = () => {};
+
+  const start = async () => {
+    matchId++;
+    cleanup();
+    root.replaceChildren();
+    if (online) {
+      const r = online.referee;
+      return runMatch(createTable({ mode: r.mode, gameId: 'blato', key: r.key, seat: online.seat, seats: r.seats, opts: online.opts }), r.seats.map((s) => s.name), matchId);
+    }
+    const opts = await setupScreen(root, {
+      gameId: 'blato',
+      title: 'Нова игра на блато',
+      subtitle: 'Вие срещу Георги и Петър. Раздаващият взема 8 ръце, следващият 5, третият 3.',
+      groups: [{ key: 'target', label: 'Игра до', value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
+    });
+    if (destroyed) return;
+    const seats = [ctx.user.displayName, ...BOT_NAMES.slice(1)].map((name, i) => ({ bot: i !== 0, name }));
+    runMatch(createTable({ mode: 'local', gameId: 'blato', seat: 0, seats, opts }), seats.map((s) => s.name), matchId);
+  };
+
+  async function runMatch(table, names, myId) {
+    if (!online) ctx.newMatch();
+    const gone = () => destroyed || myId !== matchId;
+    const ME = table.seat;
+    const V = (p) => (p - ME + 3) % 3;
+    let v = null;
+    let over = false;
+    const pendingMine = new Set();
+    const pendingOpp = [0, 0, 0];
+
+    // ---------- DOM ----------
+    const table$ = h('div', { class: 'ct-table blato-table' });
+    const seats = [0, 1, 2].map((p) => {
+      const nameEl = h('span', { class: 'seat-name' }, names[p]);
+      const handEl = p === ME ? h('div', { class: 'my-hand' }) : h('div', { class: 'opp-hand' });
+      const el = h('div', { class: `seat ${POS[V(p)]}` }, p === ME ? [handEl, nameEl] : [nameEl, handEl]);
+      table$.append(el);
+      return { el, nameEl, handEl };
+    });
+    const center = h('div', { class: 'ct-center' });
+    const slots = [0, 1, 2].map((p) => {
+      const s = h('div', { class: `slot ${SLOT[V(p)]}` });
+      center.append(s);
+      return s;
+    });
+    const kittyEl = h('div', { class: 'blato-kitty' });
+    const hud = h('div', { class: 'ct-hud' });
+    const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
+    const tools = h('div', { class: 'ct-tools' },
+      h('button', { class: 'btn', onclick: resign }, 'Предай се'),
+      !online && h('button', { class: 'btn', onclick: newGame }, 'Нова'),
+      muteBtn,
+    );
+    table$.append(center, kittyEl, hud, tools);
+    root.replaceChildren(table$);
+
+    const order3 = [ME, next(ME), next(next(ME))];
+    const sign = (x) => (x > 0 ? '+' : '') + x;
+
+    // ---------- рендиране от изгледа ----------
+    function renderHud() {
+      hud.replaceChildren(...[
+        ...order3.map((p) => h('div', { class: 'row' }, h('span', null, p === ME ? 'Вие' : names[p]), h('b', null, sign(v?.score[p] ?? 0)))),
+        h('div', { class: 'goal' }, `игра до +${v?.target ?? ''}`),
+        v?.trump && h('div', { class: 'contract-badge', html: `Коз: ${suitSvg(v.trump, 'suit' + (isRed(v.trump) ? ' red' : ''))} ${SUIT_NAMES[v.trump]}` }),
+      ].filter(Boolean));
+      seats.forEach((s, p) => {
+        s.nameEl.textContent = names[p] + (v?.targets ? ` · ${v.tricks[p]}/${v.targets[p]}` : '');
+        s.el.classList.toggle('turn', v?.turn === p);
+      });
+    }
+
+    function renderKitty() {
+      kittyEl.replaceChildren(...Array.from({ length: v?.kitty || 0 }, () => cardEl(null, { faceDown: true })));
+    }
+
+    // Ръката: при много карти припокриването се сгъстява, за да се събере на екрана.
+    function renderHands({ playable = null, select = null } = {}) {
+      if (!v?.hand) {
+        seats.forEach((s) => s.handEl.replaceChildren());
+        return;
+      }
+      for (let p = 0; p < 3; p++) {
+        if (p === ME) continue;
+        const n = v.counts[p];
+        seats[p].handEl.replaceChildren(...Array.from({ length: n }, (_, i) => cardEl(null, { faceDown: true, cls: i >= n - pendingOpp[p] ? 'pending' : '' })));
+      }
+      const mine = seats[ME].handEl;
+      const els = v.hand.map((c) => {
+        const el = cardEl(c, { cls: pendingMine.has(c.id) ? 'pending' : '' });
+        if (playable) el.classList.add(playable.includes(c.id) ? 'playable' : 'disabled');
+        if (select) {
+          el.classList.add('playable');
+          if (select.has(c.id)) el.classList.add('picked');
+        }
+        return el;
+      });
+      flipHand(mine, () => {
+        mine.replaceChildren(...els);
+        squeeze(mine);
+      });
+      mine.classList.toggle('active', !!(playable || select));
+      layoutFan(mine, { spreadDeg: 1.6, lift: 0.5 });
+    }
+
+    function squeeze(mine) {
+      const cards = [...mine.children];
+      if (cards.length < 2) return;
+      const cw = cards[0].offsetWidth;
+      const avail = table$.clientWidth - 24;
+      const step = Math.min(cw * 0.62, (avail - cw) / (cards.length - 1));
+      cards.forEach((c, i) => (c.style.marginLeft = i ? `${step - cw}px` : '0'));
+    }
+
+    function renderTrick() {
+      slots.forEach((s) => s.replaceChildren());
+      for (const t of v?.trick || []) slots[t.p].append(cardEl(t.card));
+    }
+
+    function bubble(p, html, gold = false, ms = 1700) {
+      if (motion.fast) return;
+      const vv = V(p);
+      const r = seats[p].nameEl.getBoundingClientRect();
+      const tr = table$.getBoundingClientRect();
+      const b = h('div', { class: `bubble ${gold ? 'gold' : ''}`, html });
+      table$.append(b);
+      const bw = b.offsetWidth, bh = b.offsetHeight;
+      let x = r.left - tr.left + r.width / 2 - bw / 2, y;
+      if (vv === 0) y = tr.height - seats[ME].handEl.offsetHeight - bh - 40;
+      else {
+        x = vv === 1 ? r.left - tr.left - bw - 8 : r.right - tr.left + 8;
+        y = r.top - tr.top;
+      }
+      b.style.left = Math.max(6, Math.min(x, tr.width - bw - 6)) + 'px';
+      b.style.top = Math.max(6, y) + 'px';
+      setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 300); }, ms);
+    }
+
+    function message(text, ms = 1600) {
+      if (motion.fast) return;
+      const m = h('div', { class: 'ct-msg' }, text);
+      table$.append(m);
+      setTimeout(() => m.remove(), ms);
+    }
+
+    // ---------- решения на играча ----------
+    let picking = false;
+    let selection = null;
+    let lastFrom = null;
+    seats[ME].handEl.addEventListener('click', (e) => {
+      const el = e.target.closest('.card.playable');
+      if (!el) return;
+      if (selection) return selection.toggle(el.dataset.id);
+      if (!picking) return;
+      picking = false;
+      lastFrom = snap(el);
+      send('card', el.dataset.id);
+    });
+
+    // Избор на N карти (подаряване или сваляне) с потвърждение.
+    function selectCards(count, title, type) {
+      const picked = new Set();
+      const btn = h('button', { class: 'btn btn-primary', disabled: true }, 'Потвърди');
+      const info = h('span', null, `${title} (0/${count})`);
+      const panel = h('div', { class: 'bid-panel select-panel' }, h('h3', null, info), btn);
+      const refresh = () => {
+        info.textContent = `${title} (${picked.size}/${count})`;
+        btn.disabled = picked.size !== count;
+        renderHands({ select: picked });
+      };
+      selection = {
+        toggle(id) {
+          if (picked.has(id)) picked.delete(id);
+          else if (picked.size < count) picked.add(id);
+          refresh();
+        },
+      };
+      btn.onclick = () => {
+        selection = null;
+        panel.remove();
+        send(type, [...picked]);
+      };
+      table$.append(panel);
+      refresh();
+    }
+
+    function chooseTrump() {
+      const panel = h('div', { class: 'bid-panel' },
+        h('h3', null, 'Изберете коз'),
+        h('div', { class: 'bid-grid' }, SUITS.map((s) => h('button', {
+          class: `btn ${isRed(s) ? 'red' : ''}`,
+          html: `${suitSvg(s)} ${SUIT_NAMES[s]}`,
+          onclick: () => { panel.remove(); send('trump', s); },
+        }))),
+      );
+      table$.append(panel);
+    }
+
+    function showDecision() {
+      table$.querySelectorAll('.bid-panel').forEach((x) => x.remove());
+      selection = null;
+      picking = false;
+      const d = v?.decision;
+      if (!d || over) return renderHands();
+      if (d.type === 'card') {
+        picking = true;
+        return renderHands({ playable: d.legal });
+      }
+      renderHands();
+      if (d.type === 'give') selectCards(d.count, `Дайте ${d.count} ${d.count === 1 ? 'карта' : 'карти'} на ${names[d.to]}`, 'give');
+      else if (d.type === 'discard') selectCards(4, 'Свалете 4 карти', 'discard');
+      else if (d.type === 'trump') chooseTrump();
+    }
+
+    async function send(type, data) {
+      renderHands();
+      try {
+        await table.submit(type, data);
+      } catch (e) {
+        toast(e.message, 'error');
+        showDecision();
+      }
+    }
+
+    // ---------- анимации по стъпки ----------
+    const handSnap = (p) => {
+      const kids = seats[p].handEl.children;
+      return snap(kids[kids.length >> 1] || seats[p].handEl);
+    };
+    const toHand = (p, card) => (p === ME
+      ? () => seats[ME].handEl.querySelector(`[data-id="${card.id}"]`)
+      : handSnap(p));
+
+    async function animDeal(e, nv) {
+      slots.forEach((s) => s.replaceChildren());
+      kittyEl.replaceChildren();
+      v = { ...nv, kitty: 0 };
+      nv.hand.forEach((c) => pendingMine.add(c.id));
+      for (let p = 0; p < 3; p++) if (p !== ME) pendingOpp[p] = nv.counts[p];
+      renderHud();
+      renderHands();
+      const deckBox = deckEl(52);
+      deckBox.dataset.seat = DECK_SEAT[V(e.pub.dealer)];
+      table$.querySelector('.deal-deck')?.remove();
+      table$.append(deckBox);
+      message(`Раздава ${e.pub.dealer === ME ? 'вие' : names[e.pub.dealer]}`, 1100);
+      sound('dice');
+      await shuffleDeck(deckBox, 900);
+      if (gone()) return;
+      // по 4 карти на всеки, 4 пъти; блатото – 4 карти в средата
+      let left = 52;
+      const mine = nv.hand.slice();
+      let mi = 0;
+      const flights = [];
+      for (let round = 0; round < 4; round++) {
+        for (let i = 1; i <= 3; i++) {
+          const p = (e.pub.dealer + i) % 3;
+          for (let j = 0; j < 4; j++) {
+            let to, card = null;
+            if (p === ME) {
+              card = mine[mi++];
+              pendingMine.delete(card.id);
+              const id = card.id;
+              to = () => seats[ME].handEl.querySelector(`[data-id="${id}"]`);
+            } else {
+              const idx = nv.counts[p] - pendingOpp[p]--;
+              to = () => seats[p].handEl.children[idx];
+            }
+            const top = deckBox.lastElementChild || deckBox;
+            flights.push(fly({
+              card, from: { ...snap(top), a: 0 }, to, faceFrom: false, faceTo: p === ME,
+              duration: 400, delay: j * 60, spin: (Math.random() - 0.5) * 40, arc: 0.05,
+              onStart: () => { sound('deal'); setDeckCount(deckBox, --left); },
+            }));
+          }
+          await sleep(300);
+          if (gone()) return;
+        }
+      }
+      v = nv;
+      renderKitty();
+      setDeckCount(deckBox, 0);
+      await Promise.all(flights);
+      deckBox.remove();
+    }
+
+    async function animGive(e, nv) {
+      const { from, to, count } = e.pub;
+      message(`${from === ME ? 'Вие давате' : `${names[from]} дава`} ${count} ${count === 1 ? 'карта' : 'карти'} на ${to === ME ? 'вас' : names[to]}`, 1800);
+      if (e.seat !== ME && !motion.fast) await sleep(900);
+      const involved = from === ME || to === ME;
+      const ex = involved ? nv.exchanged[nv.exchanged.length - 1] : null;
+      // какво отиде от „from“ към „to“ и какво се върна (виждат само участниците)
+      const forward = involved ? (from === ME ? ex.gave : ex.got) : Array(count).fill(null);
+      const backward = involved ? (from === ME ? ex.got : ex.gave) : Array(count).fill(null);
+      const mySnaps = new Map();
+      if (from === ME) for (const c of forward) mySnaps.set(c.id, snap(seats[ME].handEl.querySelector(`[data-id="${c.id}"]`) || seats[ME].handEl));
+      const fromSnap = from === ME ? null : handSnap(from);
+      v = nv;
+      renderHands();
+      if (!motion.fast) {
+        await Promise.all(forward.map((c, j) => fly({
+          card: c, from: from === ME ? mySnaps.get(c.id) : fromSnap, to: toHand(to, c || {}),
+          faceFrom: from === ME, faceTo: to === ME, duration: 520, delay: j * 90, arc: 0.12, onStart: () => sound('deal'),
+        })));
+        await Promise.all(backward.map((c, j) => fly({
+          card: c, from: handSnap(to), to: toHand(from, c || {}),
+          faceFrom: to === ME, faceTo: from === ME, duration: 520, delay: j * 90, arc: 0.12, onStart: () => sound('deal'),
+        })));
+      }
+      if (involved) bubble(to, `Върна: ${backward.map((c) => c.r + suitSvg(c.s, 'suit' + (isRed(c.s) ? ' red' : ''))).join(' ')}`, true, 2600);
+    }
+
+    async function animTake(e, nv) {
+      const dealer = e.pub.dealer;
+      message(`${dealer === ME ? 'Вие вземате' : `${names[dealer]} взема`} блатото`, 1300);
+      const from = snap(kittyEl);
+      const prev = new Set((v?.hand || []).map((c) => c.id));
+      const got = dealer === ME ? nv.hand.filter((c) => !prev.has(c.id)) : Array(4).fill(null);
+      if (dealer === ME) got.forEach((c) => pendingMine.add(c.id));
+      else pendingOpp[dealer] = 4;
+      v = nv;
+      renderKitty();
+      renderHands();
+      renderHud();
+      await Promise.all(got.map((c, j) => {
+        let to;
+        if (dealer === ME) {
+          pendingMine.delete(c.id);
+          to = () => seats[ME].handEl.querySelector(`[data-id="${c.id}"]`);
+        } else {
+          const idx = nv.counts[dealer] - pendingOpp[dealer]--;
+          to = () => seats[dealer].handEl.children[idx];
+        }
+        return fly({ card: c, from, to, faceFrom: false, faceTo: dealer === ME, duration: 460, delay: j * 80 });
+      }));
+    }
+
+    async function animDiscard(e, nv) {
+      const from = handSnap(e.seat);
+      v = nv;
+      renderHands();
+      if (!motion.fast) {
+        await Promise.all([0, 1, 2, 3].map((j) => fly({ card: null, from, to: snap(kittyEl), faceFrom: false, faceTo: false, duration: 420, delay: j * 70, toOpacity: 0 })));
+      }
+    }
+
+    async function animCard(e, nv) {
+      const p = e.seat;
+      const card = e.pub.card;
+      const from = p === ME
+        ? (lastFrom && !motion.fast ? lastFrom : snap(seats[ME].handEl.querySelector(`[data-id="${card.id}"]`) || seats[ME].handEl))
+        : handSnap(p);
+      lastFrom = null;
+      v = nv;
+      const el = cardEl(card);
+      slots[p].replaceChildren(el);
+      sound('card');
+      renderHands();
+      renderHud();
+      await fly({ card, from, to: () => el, faceFrom: p === ME, duration: 380, spin: p === ME ? 0 : (Math.random() - 0.5) * 40 }).then(() => land(el));
+      if (!e.pub.trick) return;
+      const w = e.pub.trick.winner;
+      slots[w].classList.add('win');
+      await sleep(700);
+      if (gone()) return;
+      slots[w].classList.remove('win');
+      sound('deal');
+      await collectTrick(slots.map((s) => s.firstElementChild).filter(Boolean), slots[w].firstElementChild, seats[w].nameEl, { duration: 560 });
+      slots.forEach((s) => { s.replaceChildren(); s.classList.remove('win'); });
+    }
+
+    async function showSummary(pub) {
+      const row = (p) => h('tr', null,
+        h('td', null, p === ME ? 'Вие' : names[p]),
+        h('td', null, pub.tricks[p] - pub.diff[p]),
+        h('td', null, pub.tricks[p]),
+        h('td', { class: pub.diff[p] > 0 ? 'pos' : pub.diff[p] < 0 ? 'neg' : '' }, sign(pub.diff[p])),
+        h('td', null, sign(pub.score[p])));
+      await modal({
+        title: `Раздаване ${pub.dealNo}`,
+        body: h('div', null,
+          h('table', { class: 'summary-table' },
+            h('tr', null, h('th', null, ''), h('th', null, 'Цел'), h('th', null, 'Взети'), h('th', null, '±'), h('th', null, 'Общо')),
+            order3.map(row)),
+          pub.diff.some((x) => x !== 0) && h('p', { class: 'muted small', style: { marginTop: '10px' } },
+            'В следващото раздаване играчите, взели повече, разменят карти с изостаналите.'),
+        ),
+        actions: [{ label: 'Продължи', value: true, primary: true }],
+      });
+    }
+
+    async function animate(e) {
+      const nv = e.view;
+      switch (e.type) {
+        case 'deal': return animDeal(e, nv);
+        case 'give': return animGive(e, nv);
+        case 'take': return animTake(e, nv);
+        case 'trump':
+          if (e.seat !== ME && !motion.fast) await sleep(900);
+          v = nv;
+          bubble(e.seat, `Коз ${suitSvg(e.pub.trump, 'suit' + (isRed(e.pub.trump) ? ' red' : ''))} ${SUIT_NAMES[e.pub.trump]}`, true);
+          sound('notify');
+          renderHud();
+          renderHands();
+          return;
+        case 'discard':
+          if (e.seat !== ME && !motion.fast) await sleep(900);
+          return animDiscard(e, nv);
+        case 'card':
+          if (e.seat !== ME && !motion.fast) await sleep(600);
+          return animCard(e, nv);
+        case 'score': {
+          v = nv;
+          renderHud();
+          if (!motion.fast && nv.phase !== 'over') await showSummary(e.pub);
+          if (nv.phase === 'over') {
+            const best = Math.max(...nv.score);
+            const w = nv.score.indexOf(best);
+            endMatch(w === ME ? 'win' : 'loss', w === ME ? `Стигнахте ${sign(best)} първи!` : `${names[w]} стигна ${sign(best)} първи.`);
+          }
+          return;
+        }
+      }
+    }
+
+    // Стъпките се анимират една по една; след последната – решението на играча.
+    const queue = [];
+    let busy = false;
+    let skipBelow = 0;
+    async function pump() {
+      if (busy) return;
+      busy = true;
+      while (queue.length && !gone()) {
+        const e = queue.shift();
+        if (e.n < skipBelow) continue;
+        await animate(e);
+      }
+      busy = false;
+      if (!gone()) {
+        renderHud();
+        showDecision();
+      }
+    }
+    const off = table.onEntries((entries) => {
+      queue.push(...entries);
+      pump();
+    });
+
+    // ---------- край ----------
+    async function endMatch(outcome, text) {
+      if (over) return;
+      over = true;
+      matchId++;
+      online?.finish();
+      picking = false;
+      table$.querySelectorAll('.bid-panel').forEach((p) => p.remove());
+      const sc = v?.score || [0, 0, 0];
+      const sum = `${sign(sc[ME])} · ${[next(ME), next(next(ME))].map((p) => `${names[p]} ${sign(sc[p])}`).join(', ')}`;
+      await ctx.report(outcome, online ? { summary: `Онлайн · ${sum}`, online: true } : { summary: `${sum} · до +${v?.target}` });
+      if (destroyed) return;
+      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      if (c === 'again') online ? online.rematch() : start();
+      else if (c === 'exit') location.hash = online ? '#/online/blato' : '#/';
+    }
+
+    async function resign() {
+      if (over) return;
+      if (!(await confirmDialog('Предаване', 'Играта ще се отчете като загуба. Продължаване?', 'Предай се', true))) return;
+      if (online) online.resign();
+      else endMatch('loss', 'Предадохте играта.');
+    }
+
+    async function newGame() {
+      if (!(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+      start();
+    }
+
+    const offEvents = online ? online.onEvent((e) => {
+      if (over || destroyed) return;
+      if (e.kind === 'resign') endMatch(e.seat === ME ? 'loss' : 'win', e.seat === ME ? 'Предадохте играта.' : `${names[e.seat]} се предаде.`);
+      else if (e.kind === 'forfeit') endMatch(e.winner === ME ? 'win' : 'loss', 'Служебна победа.');
+    }) : () => {};
+    const offTakeover = online ? online.onTakeover((seat) => table.takeover(seat).catch(() => {})) : () => {};
+
+    cleanup = () => {
+      off();
+      offEvents();
+      offTakeover();
+      table.close();
+    };
+
+    // ---------- свързване ----------
+    try {
+      const res = await table.connect();
+      if (gone()) return;
+      v = res.view;
+      skipBelow = res.n;
+      renderHud();
+      renderHands();
+      renderKitty();
+      renderTrick();
+      pump();
+    } catch (e) {
+      table$.append(h('div', { class: 'ct-msg' }, 'Няма връзка със съдията: ' + e.message));
+    }
+  }
+
+  start();
+  return {
+    destroy() {
+      destroyed = true;
+      cleanup();
+    },
+  };
+}

@@ -1,0 +1,61 @@
+/* ===== Пасианс ===== */
+.game-solitaire { container-type: size; }
+.sol-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sol-board {
+  --cw: 80px;
+  position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 40%, rgba(255,255,255,.07), transparent 70%),
+    radial-gradient(ellipse 90% 85% at 50% 45%, #14506a 0%, #0a2b3b 62%, #000 100%);
+  box-shadow: inset 0 0 140px rgba(0,0,0,.75);
+}
+
+/* карта: постоянен елемент с лице и гръб (обръщане в 3D) */
+.sc {
+  position: absolute; left: 0; top: 0; width: var(--cw); height: calc(var(--cw) * 1.4);
+  transition: transform .26s cubic-bezier(.2,.8,.2,1); perspective: 900px; cursor: grab;
+  will-change: transform;
+}
+.sc.no-anim, .sc.drag { transition: none; }
+.sc.drag { cursor: grabbing; filter: drop-shadow(0 14px 14px rgba(0,0,0,.55)); }
+.sc-in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .38s cubic-bezier(.3,.7,.3,1); }
+.sc.down .sc-in { transform: rotateY(180deg); }
+.sc.down { cursor: default; }
+.sc .card { position: absolute; inset: 0; width: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.sc .card.back { transform: rotateY(180deg); }
+.sc .card-face { box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 3px 8px -2px rgba(0,0,0,.5); }
+.sc.hint .card-face, .sc.hint .card-back, .sol-slot.hint { animation: sol-hint 1.3s ease-in-out; }
+@keyframes sol-hint {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 217, 120, 0); }
+  30%, 70% { box-shadow: 0 0 0 3px #ffd978, 0 0 22px rgba(255, 217, 120, .8); }
+}
+
+.sol-slot {
+  position: absolute; left: 0; top: 0; width: var(--cw); height: calc(var(--cw) * 1.4);
+  border-radius: calc(var(--cw) * .09); border: 2px dashed rgba(255,255,255,.16);
+  display: grid; place-items: center; color: rgba(255,255,255,.18);
+  font-family: var(--font-card); font-weight: 700; font-size: calc(var(--cw) * .38);
+}
+.sol-slot.stock { cursor: pointer; border-style: solid; }
+.sol-slot.stock span { opacity: 0; transition: opacity .2s; }
+.sol-slot.stock.empty span { opacity: 1; color: rgba(255,255,255,.4); }
+.sol-slot.stock.done { cursor: default; }
+.sol-slot.stock.done span { opacity: .25; }
+
+.sol-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 12px; }
+.sol-stats { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+.sol-stats .sep { opacity: .5; }
+.sol-bar .g-toolbar { padding: 6px 0; }
+
+.sol-rivals { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 12px 0; }
+.sol-rival { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 13px; }
+.sol-rival.out { opacity: .5; text-decoration: line-through; }
+.sol-prog { width: 90px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+.sol-prog i { display: block; height: 100%; background: linear-gradient(90deg, #ff4f70, #ffd978); transition: width .4s var(--ease); }
+
+@container (max-width: 560px) {
+  .sol-bar { padding: 2px 6px; justify-content: center; }
+  .sol-bar .g-toolbar { gap: 6px; }
+  .sol-bar .g-toolbar .btn { padding: 0 10px; font-size: 13px; height: 36px; }
+}

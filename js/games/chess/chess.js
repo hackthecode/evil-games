@@ -1,0 +1,476 @@
+import { h, toast } from '../../ui.js';
+import { icon } from '../../icons.js';
+import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
+import {
+  START_FEN, fromFEN, toFEN, legalMoves, makeMove, inCheck, gameStatus, toSAN,
+  positionKey, kingSquare, colorOf,
+} from './engine.js';
+import { search, LEVELS } from './ai.js';
+
+const LEVEL_NAMES = { easy: 'Лесно', medium: 'Средно', hard: 'Трудно' };
+const PIECE_VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
+const REASONS = {
+  checkmate: 'Мат',
+  stalemate: 'Пат',
+  fifty: 'Правило на 50-те хода',
+  repetition: 'Трикратно повторение',
+  material: 'Недостатъчен материал',
+  resign: 'Предаване',
+  agreement: 'Реми по споразумение',
+  abandon: 'Противникът напусна',
+  stall: 'Бездействие',
+  desync: 'Грешка в синхронизацията',
+};
+
+const pieceSrc = (p) => `assets/chess/${p < 'a' ? 'w' : 'b'}${p.toUpperCase()}.svg`;
+
+export async function mount(root, ctx) {
+  const net = ctx.online || null; // онлайн мач срещу реален играч
+  let destroyed = false;
+  let offEvents = () => {};
+  let worker = null;
+  try {
+    worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  } catch {}
+
+  const startGame = async () => {
+    root.replaceChildren();
+    if (net) return play(net.seat === 0 ? 'w' : 'b', 'online');
+    const opts = await setupScreen(root, {
+      gameId: 'chess',
+      title: 'Нова игра',
+      subtitle: 'Изберете цвят и ниво на компютъра.',
+      groups: [
+        { key: 'color', label: 'Играете с', value: 'w', options: [['w', 'Белите'], ['b', 'Черните'], ['r', 'Случайно']] },
+        { key: 'level', label: 'Трудност', value: 'medium', options: Object.entries(LEVEL_NAMES) },
+      ],
+    });
+    if (destroyed) return;
+    const human = opts.color === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : opts.color;
+    play(human, opts.level);
+  };
+
+  function play(human, level) {
+    ctx.newMatch();
+    let st = fromFEN(START_FEN);
+    let history = []; // {st, move, san}
+    let reps = new Map([[positionKey(st), 1]]);
+    let flipped = human === 'b';
+    let selected = -1;
+    let legal = legalMoves(st);
+    let over = false;
+    let thinking = false;
+    let reqId = 0;
+    let lastMove = null;
+    let moveResolver = null; // онлайн: чака хода на играча
+    let localAnim = true;
+    const opp = net ? net.name(1 - net.seat) : 'Компютър';
+
+    // ---------- DOM ----------
+    const squaresEl = h('div', { class: 'cb-squares' });
+    const piecesEl = h('div', { class: 'cb-pieces' });
+    const board = h('div', { class: 'cb-board' }, squaresEl, piecesEl);
+    const sqEls = [];
+    for (let i = 0; i < 64; i++) {
+      const el = h('div', { class: 'cb-sq' });
+      sqEls.push(el);
+      squaresEl.append(el);
+    }
+    const pieceEls = new Map();
+
+    const aiBar = playerBar(net ? opp : 'Компютър · ' + LEVEL_NAMES[level], human === 'w' ? 'b' : 'w');
+    const meBar = playerBar(ctx.user.displayName, human);
+    const movesEl = h('ol', { class: 'cb-moves' });
+    const statusEl = h('div', { class: 'g-status' });
+
+    const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), 'Върни');
+    const flipBtn = h('button', { class: 'btn', onclick: () => { flipped = !flipped; renderAll(); } }, icon('flip', 16), 'Обърни');
+    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), 'Предай се');
+    const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), 'Нова игра');
+    const drawBtn = h('button', { class: 'btn', onclick: offerDraw }, '½ Реми?');
+    const tools = net ? [flipBtn, drawBtn, resignBtn, muteButton()] : [undoBtn, flipBtn, resignBtn, newBtn, muteButton()];
+
+    root.replaceChildren(
+      h('div', { class: 'chess-layout' },
+        h('div', { class: 'cb-col' }, aiBar.el, h('div', { class: 'cb-frame' }, board), meBar.el),
+        h('aside', { class: 'cb-side glass' },
+          statusEl,
+          h('div', { class: 'cb-moves-wrap' }, movesEl),
+          h('div', { class: 'g-toolbar' }, tools),
+        ),
+      ),
+    );
+
+    function playerBar(name, color) {
+      const caps = h('span', { class: 'cb-caps' });
+      const el = h('div', { class: 'cb-player' },
+        h('span', { class: `cb-swatch ${color}` }),
+        h('span', { class: 'cb-name' }, name),
+        caps,
+      );
+      return { el, caps, color };
+    }
+
+    // ---------- рендиране ----------
+    const view = (sq) => (flipped ? 63 - sq : sq);
+    const placeEl = (el, sq) => {
+      const v = view(sq);
+      el.style.transform = `translate(${(v & 7) * 100}%, ${(v >> 3) * 100}%)`;
+    };
+
+    function renderSquares() {
+      const checkSq = inCheck(st) ? kingSquare(st.board, st.turn) : -1;
+      const targets = new Map();
+      if (selected >= 0) for (const m of legal) if (m.from === selected) targets.set(m.to, !!m.captured);
+      for (let sq = 0; sq < 64; sq++) {
+        const v = view(sq);
+        const el = sqEls[v];
+        const r = sq >> 3, c = sq & 7;
+        el.className = 'cb-sq ' + ((r + c) % 2 ? 'dark' : 'light');
+        if (lastMove && (sq === lastMove.from || sq === lastMove.to)) el.classList.add('last');
+        if (sq === selected) el.classList.add('sel');
+        if (sq === checkSq) el.classList.add('check');
+        if (targets.has(sq)) el.classList.add(targets.get(sq) ? 'cap' : 'dot');
+        el.dataset.sq = sq;
+        // координати
+        const vr = v >> 3, vc = v & 7;
+        el.replaceChildren();
+        if (vc === 0) el.append(h('span', { class: 'coord rank' }, 8 - r));
+        if (vr === 7) el.append(h('span', { class: 'coord file' }, 'abcdefgh'[c]));
+      }
+    }
+
+    function rebuildPieces() {
+      piecesEl.replaceChildren();
+      pieceEls.clear();
+      st.board.forEach((p, sq) => {
+        if (!p) return;
+        const el = h('img', { class: 'cb-piece', src: pieceSrc(p), alt: p, draggable: 'false' });
+        placeEl(el, sq);
+        piecesEl.append(el);
+        pieceEls.set(sq, el);
+      });
+    }
+
+    function renderInfo() {
+      // взети фигури и материално предимство
+      const count = (b) => {
+        const m = {};
+        for (const p of b) if (p && p.toUpperCase() !== 'K') m[p] = (m[p] || 0) + 1;
+        return m;
+      };
+      const now = count(st.board);
+      const start = count(fromFEN(START_FEN).board);
+      let mat = 0;
+      for (const p of 'PNBRQ') mat += ((now[p] || 0) - (now[p.toLowerCase()] || 0)) * PIECE_VAL[p];
+      for (const bar of [aiBar, meBar]) {
+        const enemyCase = bar.color === 'w' ? (x) => x.toLowerCase() : (x) => x;
+        bar.caps.replaceChildren();
+        for (const t of 'QRBNP') {
+          const p = enemyCase(t);
+          const lost = (start[p] || 0) - (now[p] || 0);
+          for (let i = 0; i < lost; i++) bar.caps.append(h('img', { src: pieceSrc(p), alt: '' }));
+        }
+        const adv = bar.color === 'w' ? mat : -mat;
+        if (adv > 0) bar.caps.append(h('span', { class: 'adv' }, '+' + adv));
+        bar.el.classList.toggle('to-move', !over && st.turn === bar.color);
+      }
+      // ходове
+      movesEl.replaceChildren();
+      for (let i = 0; i < history.length; i += 2) {
+        movesEl.append(h('li', null,
+          h('span', { class: 'mv' }, history[i].san),
+          history[i + 1] ? h('span', { class: 'mv' }, history[i + 1].san) : '',
+        ));
+      }
+      movesEl.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'end' });
+      undoBtn.disabled = thinking || over || history.length < (human === 'w' ? 1 : 2);
+      resignBtn.disabled = over;
+      drawBtn.disabled = over;
+      if (!over) {
+        statusEl.textContent = thinking ? 'Компютърът мисли…'
+          : st.turn === human ? (inCheck(st) ? 'Шах! Вие сте на ход.' : 'Вие сте на ход')
+          : net ? `${opp} е на ход…` : '';
+      }
+    }
+
+    function renderAll() {
+      renderSquares();
+      rebuildPieces();
+      renderInfo();
+    }
+
+    // ---------- ходове ----------
+    function applyMove(m, animate = true) {
+      const san = toSAN(st, m, legal);
+      history.push({ st, move: m, san });
+      // анимация на фигурите
+      const el = pieceEls.get(m.from);
+      const capSq = m.flag === 'ep' ? m.to + (st.turn === 'w' ? 8 : -8) : m.to;
+      const capEl = m.captured ? pieceEls.get(capSq) : null;
+      if (capEl) {
+        capEl.classList.add('gone');
+        setTimeout(() => capEl.remove(), 250);
+        pieceEls.delete(capSq);
+      }
+      if (el) {
+        if (!animate) {
+          el.classList.add('no-anim');
+          requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('no-anim')));
+        }
+        placeEl(el, m.to);
+        pieceEls.delete(m.from);
+        pieceEls.set(m.to, el);
+        if (m.promo) setTimeout(() => (el.src = pieceSrc(st.turn === 'w' ? m.promo.toUpperCase() : m.promo)), 150);
+      }
+      if (m.flag === 'castleK' || m.flag === 'castleQ') {
+        const [rf, rt] = m.flag === 'castleK' ? [m.to + 1, m.to - 1] : [m.to - 2, m.to + 1];
+        const rEl = pieceEls.get(rf);
+        if (rEl) {
+          placeEl(rEl, rt);
+          pieceEls.delete(rf);
+          pieceEls.set(rt, rEl);
+        }
+      }
+      st = makeMove(st, m);
+      lastMove = m;
+      selected = -1;
+      legal = legalMoves(st);
+      const key = positionKey(st);
+      reps.set(key, (reps.get(key) || 0) + 1);
+      sound(inCheck(st) ? 'check' : m.captured ? 'capture' : 'move');
+      renderSquares();
+      renderInfo();
+      checkEnd();
+    }
+
+    function checkEnd() {
+      const res = gameStatus(st, reps.get(positionKey(st)));
+      if (!res) {
+        if (!net && st.turn !== human) aiMove();
+        return;
+      }
+      finish(res.reason, res.winner);
+    }
+
+    async function finish(reason, winner) {
+      if (over) return;
+      over = true;
+      thinking = false;
+      net?.finish();
+      renderInfo();
+      const outcome = !winner ? 'draw' : winner === human ? 'win' : 'loss';
+      const moves = Math.ceil(history.length / 2);
+      statusEl.textContent = `${REASONS[reason]} – ${{ win: 'вие печелите!', loss: `${net ? opp : 'компютърът'} печели.`, draw: 'реми.' }[outcome]}`;
+      if (reason === 'desync') return;
+      await ctx.report(outcome, net
+        ? { summary: `Онлайн срещу ${opp} · ${REASONS[reason]} · ${moves} хода`, online: true, opponent: opp, color: human }
+        : { summary: `${REASONS[reason]} · ${LEVEL_NAMES[level]} · ${moves} хода`, level, color: human });
+      if (destroyed) return;
+      const choice = await showResult({ outcome, text: `${REASONS[reason]} след ${moves} хода.`, again: net ? 'Реванш' : undefined });
+      if (choice === 'again') net ? net.rematch() : startGame();
+      else if (choice === 'exit') location.hash = net ? '#/online/chess' : '#/';
+    }
+
+    // ---------- онлайн ----------
+    const findLegal = (d) => d && legal.find((x) => x.from === d.from && x.to === d.to && (x.promo || null) === (d.promo || null));
+    async function turnLoop() {
+      while (!over && !destroyed) {
+        const seat = st.turn === 'w' ? 0 : 1;
+        const mine = st.turn === human;
+        const mv = await net.decide(seat, 'move', () => new Promise((r) => (moveResolver = r)), (d) => !!findLegal(d));
+        if (over || destroyed) return;
+        moveResolver = null;
+        applyMove(findLegal(mv), mine ? localAnim : true);
+      }
+    }
+    async function offerDraw() {
+      if (over) return;
+      net.offerDraw();
+      toast('Предложихте реми.');
+    }
+    offEvents();
+    offEvents = net ? net.onEvent(async (e) => {
+      if (destroyed) return;
+      const mine = net.seat;
+      if (e.kind === 'resign') finish('resign', e.seat === 0 ? 'b' : 'w');
+      else if (e.kind === 'forfeit') finish(e.reason === 'stall' ? 'stall' : 'abandon', e.winner === 0 ? 'w' : 'b');
+      else if (e.kind === 'draw') finish('agreement', null);
+      else if (e.kind === 'desync') finish('desync', null);
+      else if (e.kind === 'draw-declined' && e.seat !== mine) toast('Противникът отказа ремито.');
+      else if (e.kind === 'draw-offer' && e.seat !== mine) {
+        net.answerDraw(await confirmDialog('Предложение за реми', `${opp} предлага реми. Приемате ли?`, 'Приемам'));
+      }
+    }) : () => {};
+
+    function aiMove() {
+      thinking = true;
+      renderInfo();
+      const id = ++reqId;
+      const fen = toFEN(st);
+      const started = Date.now();
+      const done = (mv) => {
+        if (destroyed || id !== reqId || over) return;
+        const wait = Math.max(0, 350 - (Date.now() - started));
+        setTimeout(() => {
+          if (destroyed || id !== reqId || over) return;
+          thinking = false;
+          const m = legal.find((x) => x.from === mv.from && x.to === mv.to && (x.promo || null) === (mv.promo || null)) || legal[0];
+          applyMove(m);
+        }, wait);
+      };
+      if (worker) {
+        worker.onmessage = (e) => e.data.id === id && done(e.data.move);
+        worker.postMessage({ fen, level, id });
+      } else {
+        setTimeout(() => done(search(fromFEN(fen), LEVELS[level])), 30);
+      }
+    }
+
+    async function tryHumanMove(from, to, animate = true) {
+      const cands = legal.filter((m) => m.from === from && m.to === to);
+      if (!cands.length) return false;
+      let m = cands[0];
+      if (cands.length > 1) {
+        const promo = await pickPromotion(to);
+        if (!promo) return false;
+        m = cands.find((x) => x.promo === promo);
+      }
+      if (net) {
+        if (!moveResolver) return false;
+        localAnim = animate;
+        moveResolver({ from: m.from, to: m.to, promo: m.promo || null });
+        return true;
+      }
+      applyMove(m, animate);
+      return true;
+    }
+
+    function pickPromotion(to) {
+      return new Promise((resolve) => {
+        const v = view(to);
+        const picker = h('div', { class: 'cb-promo', style: { left: `${(v & 7) * 12.5}%`, [v >> 3 === 0 ? 'top' : 'bottom']: '0' } },
+          ['q', 'r', 'b', 'n'].map((p) =>
+            h('button', { onclick: () => { picker.remove(); resolve(p); } },
+              h('img', { src: pieceSrc(human === 'w' ? p.toUpperCase() : p), alt: p })),
+          ),
+        );
+        const cancel = h('div', { class: 'cb-promo-shade', onclick: () => { picker.remove(); cancel.remove(); resolve(null); } });
+        picker.addEventListener('click', () => cancel.remove());
+        board.append(cancel, picker);
+      });
+    }
+
+    // ---------- въвеждане (клик и влачене) ----------
+    let drag = null;
+    const sqFromPoint = (x, y) => {
+      const r = board.getBoundingClientRect();
+      const c = Math.floor(((x - r.left) / r.width) * 8);
+      const rr = Math.floor(((y - r.top) / r.height) * 8);
+      if (c < 0 || c > 7 || rr < 0 || rr > 7) return -1;
+      return view(rr * 8 + c);
+    };
+
+    board.addEventListener('pointerdown', (e) => {
+      if (over || thinking || st.turn !== human || e.button > 0) return;
+      const sq = sqFromPoint(e.clientX, e.clientY);
+      if (sq < 0) return;
+      const p = st.board[sq];
+      if (selected >= 0 && sq !== selected && legal.some((m) => m.from === selected && m.to === sq)) {
+        tryHumanMove(selected, sq);
+        return;
+      }
+      if (p && colorOf(p) === human) {
+        const wasSelected = selected === sq;
+        selected = sq;
+        renderSquares();
+        const el = pieceEls.get(sq);
+        if (el) {
+          const r = board.getBoundingClientRect();
+          drag = { sq, el, startX: e.clientX, startY: e.clientY, moved: false, size: r.width / 8, r, wasSelected };
+          board.setPointerCapture(e.pointerId);
+        }
+      } else if (selected >= 0) {
+        selected = -1;
+        renderSquares();
+      }
+    });
+
+    board.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+      drag.moved = true;
+      drag.el.classList.add('dragging');
+      const x = e.clientX - drag.r.left - drag.size / 2;
+      const y = e.clientY - drag.r.top - drag.size / 2;
+      drag.el.style.transform = `translate(${x}px, ${y}px) scale(1.12)`;
+    });
+
+    const endDrag = async (e) => {
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      d.el.classList.remove('dragging');
+      if (!d.moved) {
+        if (d.wasSelected) {
+          selected = -1;
+          renderSquares();
+        }
+        return;
+      }
+      const to = sqFromPoint(e.clientX, e.clientY);
+      const isLegal = to >= 0 && legal.some((m) => m.from === d.sq && m.to === to);
+      if (!isLegal || !(await tryHumanMove(d.sq, to, false))) placeEl(d.el, d.sq);
+    };
+    board.addEventListener('pointerup', endDrag);
+    board.addEventListener('pointercancel', endDrag);
+
+    // ---------- бутони ----------
+    function undo() {
+      if (thinking || over) return;
+      let n = st.turn === human ? 2 : 1;
+      while (n-- > 0 && history.length) {
+        const last = history.pop();
+        const k = positionKey(st);
+        reps.set(k, reps.get(k) - 1);
+        st = last.st;
+      }
+      lastMove = history.length ? history[history.length - 1].move : null;
+      legal = legalMoves(st);
+      selected = -1;
+      renderAll();
+      if (st.turn !== human) aiMove();
+    }
+
+    async function resign() {
+      if (over) return;
+      if (!(await confirmDialog('Предаване', 'Сигурни ли сте, че искате да се предадете? Играта ще се отчете като загуба.', 'Предай се', true))) return;
+      reqId++;
+      if (net) net.resign(); // събитието завършва играта и при двамата
+      else finish('resign', human === 'w' ? 'b' : 'w');
+    }
+
+    async function newGame() {
+      if (!over && history.length > 0 &&
+          !(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+      reqId++;
+      over = true;
+      startGame();
+    }
+
+    renderAll();
+    if (net) turnLoop();
+    else if (st.turn !== human) aiMove();
+  }
+
+  startGame();
+
+  return {
+    destroy() {
+      destroyed = true;
+      offEvents();
+      worker?.terminate();
+    },
+  };
+}
