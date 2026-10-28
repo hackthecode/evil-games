@@ -2,6 +2,7 @@
 // хвърлят, подскачат, търкалят и въртят, а накрая кацат точно на мястото и със
 // стойността от играта. Резерва (без интернет/WebGL): CSS кубчета.
 import { sound } from '../common.js';
+import { loadDiceSounds, diceShake, diceRollAudio } from '../dicesound.js';
 import { motion } from '../../ui.js';
 
 // Точки върху стена (в единици от кутия 58) – същите като SVG заровете.
@@ -25,7 +26,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
  */
 export async function rollDice3d(opts) {
   if (motion.fast) return;
-  sound('dice');
+  // разклащане в ръката (истински запис; ако не стане – синтезиран звук)
+  diceShake().then((ok) => { if (!ok) sound('dice'); });
   if (reduced()) return;
   const libs = await preloadDice();
   if (libs) {
@@ -45,6 +47,7 @@ let libsP = null;
 
 // Зарежда библиотеките предварително (при отваряне на играта), за да няма забавяне.
 export function preloadDice() {
+  loadDiceSounds();
   if (!libsP) {
     libsP = Promise.all([import(THREE_URL), import(CANNON_URL)])
       .then(([THREE, CANNON]) => ({ THREE, CANNON }))
@@ -320,7 +323,6 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
     holder.visible = false;
     scene.add(holder);
     const delay = i * 0.09;
-    for (const h of sim.hits) setTimeout(() => sound('dieHit'), (delay + h.t) * 1000);
     return { sim, p, holder, to, delay };
   });
 
@@ -345,6 +347,19 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
   };
 
   const total = Math.max(...dice.map((d) => d.delay + (d.sim.frames.length - 1) / 60));
+  // звук: ударите от физиката (сила и посока) и търкалянето по дъската
+  const audio = dice.map((d) => {
+    const fr = d.sim.frames;
+    const at = (t) => fr[Math.min(fr.length - 1, Math.round(t * 60))];
+    const panOf = (t) => Math.max(-1, Math.min(1, ((d.to[0] + (at(t)[0] + d.p.off.x) * edge) / (W / 2)) * 0.7));
+    const roll = [];
+    for (let i = 1; i < fr.length; i += 2) {
+      const a = fr[i - 1], b = fr[i];
+      roll.push({ t: d.delay + i / 60, contact: b[2] < 0.62, speed: Math.hypot(b[0] - a[0], b[1] - a[1]) * 60 });
+    }
+    return { hits: d.sim.hits.map((h) => ({ t: d.delay + h.t, v: h.v, pan: panOf(h.t) })), roll };
+  });
+  diceRollAudio(audio, window.__diceSlow || 1);
   await new Promise((resolve) => {
     const t0 = performance.now();
     const frame = () => {
@@ -419,7 +434,6 @@ function rollCss({ items, size, rotZ = 0, duration = 1100 }) {
       { transform: `rotateZ(${rotZ + rnd(-120, 120)}deg) rotateX(${rnd(-180, 180)}deg) rotateY(${rnd(-180, 180)}deg)` },
       { transform: `rotateZ(${rotZ}deg) rotateX(${fx + sx * 360 * 2}deg) rotateY(${fy + sy * 360 * (Math.random() < 0.5 ? 1 : 2)}deg)` },
     ];
-    for (const k of [1, 3, 5]) setTimeout(() => sound('dieHit'), delay + O[k] * duration);
     return Promise.all([
       d.root.animate(pos, opt).finished,
       d.lift.animate(lift, opt).finished,
@@ -427,6 +441,11 @@ function rollCss({ items, size, rotZ = 0, duration = 1100 }) {
       d.cube.animate(spin, { ...opt, duration: duration * 0.84, easing: 'cubic-bezier(.2,.6,.3,1)' }).finished,
     ]).catch(() => {});
   });
+  // удари при кацане и отскоците
+  diceRollAudio(items.map((it, i) => ({
+    hits: [1, 3, 5].map((k, j) => ({ t: (i * 90 + O[k] * duration) / 1000, v: [18, 9, 5][j], pan: (it.to.x / innerWidth) * 1.4 - 0.7 })),
+    roll: [],
+  })));
   return Promise.all(anims).then(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => layer.remove()));
   });
