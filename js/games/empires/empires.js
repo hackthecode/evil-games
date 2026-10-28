@@ -15,7 +15,8 @@ import { fight, power } from './battle.js';
 import { tileAt, dist, tileKey, inWorld } from './worldgen.js';
 import { worldApi, viewApi, allocateHome, setLease, clearLease, leaseFresh, WORLD_KEY } from './world.js';
 import { openTactical } from './battleui.js';
-import { cityAudio, audioPrefs, setAudioPref, preloadBattleSounds } from './audio.js';
+import { createChat } from './chatui.js';
+import { cityAudio, audioPrefs, setAudioPref, preloadBattleSounds, battleMusic } from './audio.js';
 import { store } from '../../store/index.js';
 import { CONFIG } from '../../../config.js';
 
@@ -114,10 +115,12 @@ export function mount(root, ctx) {
     if (!s || destroyed || ONLINE || e.key !== WORLD_KEY) return;
     W.refresh();
     if (ui.tab === 'alliance') refreshChat();
+    chat.refresh();
   };
   window.addEventListener('storage', onStorage);
 
   const wrap = h('div', { class: 'ee' });
+  const chat = createChat({ uid, user: ctx.user, W, doWorld: (name, args) => doWorld(name, args) });
   root.append(wrap);
   const cur = () => E.cityOf(s, ui.city);
   const now = () => Date.now();
@@ -226,6 +229,7 @@ export function mount(root, ctx) {
         h('button', { class: 'ee-crest-b', title: 'Империята', onclick: settings, html: emblem(s.race, 40) }),
         h('span', { class: 'ee-crest-t' }, h('b', null, s.name), h('small', { class: 'ee-ep' }, EPOCHS[s.epoch - 1].name), citySel),
         h('span', { class: 'ee-tools' },
+          chat.button,
           h('button', { class: 'ee-tool', title: 'Настройки и звук', 'aria-label': 'Настройки и звук', onclick: settings }, '⚙'),
           h('button', { class: 'ee-tool', title: isMuted() ? 'Включи звука' : 'Изключи звука', 'aria-label': 'Звук', onclick: () => { setMuted(!isMuted()); updateAudio(); renderTop(); } }, isMuted() ? '🔇' : '🔊')),
         E.isProtected(s, now()) && h('span', { class: 'ee-prot', title: 'Защита за новаци – никой не може да ви напада' }, '🛡 ', h('span', { class: 'ee-timer', dataset: { end: s.protectedUntil } }))),
@@ -398,6 +402,7 @@ export function mount(root, ctx) {
       applyServer(await call({ op: 'sync' }));
       if (!s) return;
       if (!afterChange() && ui.tab === 'alliance') refreshChat();
+      chat.refresh();
     } catch (e) {
       console.warn('sync', e);
     }
@@ -405,7 +410,7 @@ export function mount(root, ctx) {
   function scheduleSync() {
     clearTimeout(syncTimer);
     if (!ONLINE || destroyed) return;
-    syncTimer = setTimeout(async () => { await syncNow(); scheduleSync(); }, ui.tab === 'alliance' ? 6000 : 20000);
+    syncTimer = setTimeout(async () => { await syncNow(); scheduleSync(); }, ui.tab === 'alliance' || chat.isOpen() ? 6000 : 20000);
   }
 
   // Действие на играча: локално – направо в логиката; онлайн – през сървъра.
@@ -494,6 +499,7 @@ export function mount(root, ctx) {
   async function openBattle(m) {
     let saved = [];
     try { saved = JSON.parse(localStorage.getItem(TAC_KEY(m.id))) || []; } catch {}
+    battleMusic(true);
     const moves = await openTactical({
       battle: m.battle,
       title: `Битка: ${m.target.name || 'цел'}`,
@@ -502,6 +508,7 @@ export function mount(root, ctx) {
       saved,
       onProgress: (mv) => { try { localStorage.setItem(TAC_KEY(m.id), JSON.stringify(mv)); } catch {} },
     });
+    battleMusic(false);
     if (!moves) return;
     if (await doAct('tactical', [m.id, moves], 'Битката приключи.')) localStorage.removeItem(TAC_KEY(m.id));
   }
@@ -533,7 +540,7 @@ export function mount(root, ctx) {
   let sceneKey = '';
   function updateAudio() {
     if (!s || destroyed) return cityAudio(null);
-    cityAudio({ hour: Math.floor(E.localHour(now())), weather: weatherNow(), smithy: E.lv(cur(), 'smithy') > 0 });
+    cityAudio({ hour: Math.floor(E.localHour(now())), weather: weatherNow(), smithy: E.lv(cur(), 'smithy') > 0, race: s.race });
   }
 
   // ---------- Град ----------
@@ -737,13 +744,25 @@ export function mount(root, ctx) {
     const map = new Map();
     for (const camp of s.camps) map.set(tileKey(camp.x, camp.y), { type: 'camp', lvl: camp.lvl, down: !!camp.respawn, camp });
     for (const a of s.adventures) map.set(tileKey(a.x, a.y), { type: 'adventure', hard: a.diff === 'hard', adv: a });
-    for (const n of E.activeNpcs(s, env)) map.set(tileKey(n.x, n.y), { type: 'npc', npc: n });
+    // градът гори няколко часа след обсада (стена/сгради/лоялност)
+    const BURN = (6 * 3600000) / (s.speed || 1);
+    const burning = (bt, loyalty) => (bt && t - bt < BURN) || (loyalty != null && loyalty < 99);
+    for (const n of E.activeNpcs(s, env)) {
+      const st = W.npcState?.(n.id);
+      map.set(tileKey(n.x, n.y), { type: 'npc', npc: n, burning: !!st && burning(Math.max(st.wallT || 0, st.loyT || 0), E.npcInfo(s, n, t, env).loyalty) });
+    }
     for (const p of W.players()) {
       if (p.uid === uid) continue;
       const rel = W.relation(uid, p.uid) || 'neutral';
-      for (const pc of p.cities) map.set(tileKey(pc.x, pc.y), { type: 'city', rel, player: p, city: pc, capital: pc.id === 'c1', protected: p.protectedUntil > t });
+      for (const pc of p.cities) map.set(tileKey(pc.x, pc.y), { type: 'city', rel, player: p, city: pc, capital: pc.id === 'c1', protected: p.protectedUntil > t, burning: burning(pc.burnT, pc.loyalty), conquered: pc.captured });
     }
-    for (const c of s.cities) map.set(tileKey(c.x, c.y), { type: 'city', rel: 'self', own: c, capital: c.id === 'c1', protected: E.isProtected(s, t) });
+    for (const c of s.cities) map.set(tileKey(c.x, c.y), { type: 'city', rel: 'self', own: c, capital: c.id === 'c1', protected: E.isProtected(s, t), burning: burning(c.burnT, c.loyalty), conquered: !!c.captured });
+    // катапулти пред стените: мои походи с обсадни машини, които са стигнали целта или са на път
+    for (const m of s.marches) {
+      if (!m.units?.catapult || m.phase === 'back' || m.target?.x == null) continue;
+      const o = map.get(tileKey(m.target.x, m.target.y));
+      if (o) o.siege = m.phase === 'battle' || m.phase === 'wait' ? 'here' : 'coming';
+    }
     return map;
   }
 
@@ -1405,6 +1424,7 @@ export function mount(root, ctx) {
       window.removeEventListener('storage', onStorage);
       markSeen();
       cityAudio(null);
+      chat.destroy();
       if (ONLINE) return;
       clearLease(uid);
       if (s) { E.advance(s, Date.now(), env); writeSave(uid, s); W.publish(E.snapshot(s)); }

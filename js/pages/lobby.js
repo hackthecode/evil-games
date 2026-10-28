@@ -6,8 +6,9 @@ import { GAMES, gameById } from '../games/registry.js';
 import { newRoomId } from '../net/room.js';
 import { NEW_ROOM_KEY } from './online.js';
 import { INVITE_AFTER_KEY } from './friends.js';
-import { h, toast, avatar } from '../ui.js';
+import { h, toast, avatar, modal } from '../ui.js';
 import { icon } from '../icons.js';
+import { admin } from '../net/admin.js';
 
 const time = (iso) => new Date(iso).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
 
@@ -25,7 +26,8 @@ export async function renderLobby(view) {
     const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
     list.replaceChildren(...(msgs.length ? msgs : []).map((m) => h('div', { class: `lobby-msg ${m.user_id === me.id ? 'me' : ''}` },
       avatar({ displayName: m.name, color: m.color }, 28),
-      h('div', null, h('b', null, m.name || 'Играч'), h('small', { class: 'muted' }, ' ' + time(m.created_at)), h('p', null, m.body)))));
+      h('div', null, h('b', null, m.name || 'Играч'), h('small', { class: 'muted' }, ' ' + time(m.created_at)), h('p', null, m.body)),
+      m.user_id !== me.id && h('button', { class: 'lobby-report', title: 'Жалба', 'aria-label': 'Жалба за съобщението', onclick: () => reportMsg(m) }, '⚑'))));
     if (!msgs.length) list.append(h('p', { class: 'muted lobby-empty' }, 'Още няма съобщения. Кажете „Здравейте“!'));
     if (atBottom) list.scrollTop = list.scrollHeight;
   });
@@ -48,6 +50,17 @@ export async function renderLobby(view) {
       input.focus();
     },
   }, input, sendBtn);
+
+  async function reportMsg(m) {
+    const reason = h('input', { class: 'lobby-input', maxlength: 300, placeholder: 'Напр. обиди, спам…', 'aria-label': 'Причина' });
+    const ok = await modal({
+      title: `Жалба за съобщение от ${m.name || 'играч'}`,
+      body: h('div', null, h('blockquote', { class: 'lobby-quote' }, m.body), reason),
+      actions: [{ label: 'Отказ', value: false }, { label: 'Изпрати жалбата', value: true, primary: true }],
+    });
+    if (!ok) return;
+    try { await admin.report({ messageId: m.id, reason: reason.value, user: me, body: m.body, target: m.user_id }); toast('Жалбата е изпратена на администраторите.', 'success'); } catch (e) { toast(e.message, 'error'); }
+  }
 
   // ---------- бърза игра ----------
   const onlineGames = GAMES.filter((g) => g.online);

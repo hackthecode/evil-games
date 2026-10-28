@@ -1,5 +1,5 @@
-// Evil Empires – атмосфера: музика (запис, CC0), звуци на града (синтезирани – птици,
-// щурци, вятър, дъжд, ковачница) и звуци на битките (записи на мечове, CC0).
+// Evil Empires – атмосфера: музика за всяка раса и за битките, звуци на града (записи на птици,
+// щурци, дъжд и наковалня; вятърът и бухалът са синтезирани) и звуци на битките. Всички записи са CC0.
 import { isMuted } from '../common.js';
 
 const PREF = 'ee.audio';
@@ -16,7 +16,8 @@ export function setAudioPref(key, on) {
 let ctx = null, out = null, noiseBuf = null;
 let musicEl = null;
 let amb = null; // активните звуци на града
-let want = null; // { hour, weather, smithy }
+let want = null; // { hour, weather, smithy, race }
+let battleOn = false;
 let timers = [];
 
 function getCtx() {
@@ -45,23 +46,75 @@ window.addEventListener('pointerdown', unlock, { once: true, capture: true });
 window.addEventListener('keydown', unlock, { once: true, capture: true });
 
 // ---------- музика ----------
-function setMusic(on) {
-  if (on && !musicEl) {
-    musicEl = new Audio('assets/sounds/music/bards-tale.mp3');
-    musicEl.loop = true;
-    musicEl.volume = 0;
-  }
-  if (!musicEl) return;
-  const target = on ? 0.22 : 0;
-  if (on && musicEl.paused) musicEl.play().catch(() => {});
+const MUSIC = { humans: 'bards-tale', undead: 'undead', orcs: 'orcs', vesheri: 'vesheri', battle: 'battle' };
+const MUSIC_VOL = { orcs: 0.16, battle: 0.2 };
+let musicKey = null;
+function fadeTo(el, target, done) {
+  clearTimeout(el._fade);
   const step = () => {
-    const v = musicEl.volume;
-    const nv = v + Math.sign(target - v) * Math.min(0.02, Math.abs(target - v));
-    musicEl.volume = Math.max(0, Math.min(1, nv));
-    if (Math.abs(target - musicEl.volume) > 0.005) setTimeout(step, 80);
-    else if (!on) musicEl.pause();
+    const v = el.volume;
+    el.volume = Math.max(0, Math.min(1, v + Math.sign(target - v) * Math.min(0.02, Math.abs(target - v))));
+    if (Math.abs(target - el.volume) > 0.005) el._fade = setTimeout(step, 80);
+    else done?.();
   };
   step();
+}
+// Пуска мелодията key (или спира музиката при null) с плавен преход.
+function setMusic(key) {
+  if (key === musicKey) return;
+  const old = musicEl;
+  if (old) fadeTo(old, 0, () => old.pause());
+  musicKey = key;
+  musicEl = null;
+  if (!key) return;
+  musicEl = new Audio(`assets/sounds/music/${MUSIC[key] || MUSIC.humans}.mp3`);
+  musicEl.loop = true;
+  musicEl.volume = 0;
+  musicEl.play().catch(() => {});
+  fadeTo(musicEl, MUSIC_VOL[key] ?? 0.22);
+}
+
+// ---------- записи ----------
+const bufs = {};
+function sample(name) {
+  if (!bufs[name]) bufs[name] = (async () => getCtx().decodeAudioData(await (await fetch(`assets/sounds/ambient/${name}.mp3`)).arrayBuffer()))().catch(() => null);
+  return bufs[name];
+}
+// Безкраен запис (дъжд, птици, щурци) – тих старт, без пукане в края (пропуска тишината на mp3).
+function sampleLoop(name, gain) {
+  const c = getCtx();
+  const g = c.createGain();
+  g.gain.value = 0;
+  g.connect(out);
+  const node = { g, src: null, stopped: false };
+  sample(name).then((buf) => {
+    if (!buf || node.stopped) return;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.loopStart = 0.06;
+    src.loopEnd = buf.duration - 0.06;
+    src.connect(g);
+    src.start(c.currentTime, Math.random() * buf.duration * 0.8);
+    g.gain.setTargetAtTime(gain, c.currentTime, 1.2);
+    node.src = src;
+  });
+  return node;
+}
+function playSample(name, gain, rate = 1) {
+  sample(name).then((buf) => {
+    if (!buf) return;
+    const c = getCtx();
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    g.gain.value = gain;
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan) pan.pan.value = Math.random() * 0.8 - 0.4;
+    src.connect(g).connect(pan || out);
+    if (pan) pan.connect(out);
+    src.start();
+  });
 }
 
 // ---------- звуци на града ----------
@@ -82,42 +135,6 @@ function noiseLoop(type, freq, q, gain) {
   return { src, g, f };
 }
 
-function chirp(base, n, gain) {
-  const c = getCtx();
-  let t = c.currentTime + 0.02;
-  const pan = c.createStereoPanner ? c.createStereoPanner() : null;
-  if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(out); }
-  for (let i = 0; i < n; i++) {
-    const o = c.createOscillator(), g = c.createGain();
-    const f0 = base * (0.9 + Math.random() * 0.25);
-    o.frequency.setValueAtTime(f0, t);
-    o.frequency.exponentialRampToValueAtTime(f0 * (1.3 + Math.random() * 0.5), t + 0.05);
-    o.frequency.exponentialRampToValueAtTime(f0 * 0.9, t + 0.09);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
-    o.connect(g).connect(pan || out);
-    o.start(t);
-    o.stop(t + 0.12);
-    t += 0.09 + Math.random() * 0.06;
-  }
-}
-
-function cricket(gain) {
-  const c = getCtx();
-  const t = c.currentTime + 0.02;
-  const o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
-  o.frequency.value = 4300 + Math.random() * 500;
-  lfo.frequency.value = 28 + Math.random() * 8;
-  lg.gain.value = gain;
-  lfo.connect(lg).connect(g.gain);
-  g.gain.setValueAtTime(0, t);
-  o.connect(g).connect(out);
-  const len = 0.25 + Math.random() * 0.3;
-  o.start(t); lfo.start(t);
-  o.stop(t + len); lfo.stop(t + len);
-}
-
 function owl() {
   const c = getCtx();
   let t = c.currentTime + 0.05;
@@ -136,22 +153,6 @@ function owl() {
   }
 }
 
-function anvil() {
-  const c = getCtx();
-  const t = c.currentTime + 0.02;
-  const pan = c.createStereoPanner ? c.createStereoPanner() : null;
-  if (pan) { pan.pan.value = -0.3 + Math.random() * 0.6; pan.connect(out); }
-  for (const [f, a, d] of [[1180, 0.05, 0.9], [2960, 0.03, 0.5], [4310, 0.02, 0.35], [6020, 0.012, 0.2]]) {
-    const o = c.createOscillator(), g = c.createGain();
-    o.frequency.value = f * (0.98 + Math.random() * 0.04);
-    g.gain.setValueAtTime(a, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    o.connect(g).connect(pan || out);
-    o.start(t);
-    o.stop(t + d);
-  }
-}
-
 function every(fn, min, max) {
   let id;
   const loop = () => { id = setTimeout(() => { fn(); loop(); }, min + Math.random() * (max - min)); timers.push(id); };
@@ -163,7 +164,7 @@ function stopAmb() {
   timers = [];
   if (amb) {
     const c = getCtx();
-    for (const n of amb.loops) { n.g.gain.setTargetAtTime(0, c.currentTime, 0.6); n.src.stop(c.currentTime + 3); }
+    for (const n of amb.loops) { n.stopped = true; n.g.gain.setTargetAtTime(0, c.currentTime, 0.6); n.src?.stop(c.currentTime + 3); }
     amb = null;
   }
 }
@@ -171,26 +172,33 @@ function stopAmb() {
 function startAmb(w) {
   stopAmb();
   const day = w.hour >= 6 && w.hour < 20;
-  const loops = [noiseLoop('bandpass', 380, 0.6, 0.035)]; // вятър
-  if (w.weather === 'rain') loops.push(noiseLoop('highpass', 1800, 0.5, 0.11), noiseLoop('lowpass', 900, 0.4, 0.06));
+  const loops = [noiseLoop('bandpass', 380, 0.6, 0.03)]; // вятър
+  if (w.weather === 'rain') loops.push(sampleLoop('rain', 0.5));
   if (w.weather === 'snow') loops.push(noiseLoop('bandpass', 260, 0.4, 0.05));
   amb = { loops };
   if (w.weather !== 'rain') {
-    if (day) every(() => chirp(2600 + Math.random() * 1600, 2 + Math.floor(Math.random() * 4), 0.025), 1200, 4200);
-    else { every(() => cricket(0.012), 400, 1400); every(owl, 9000, 20000); }
+    if (day) loops.push(sampleLoop('birds', 0.35));
+    else { loops.push(sampleLoop('crickets', 0.22)); every(owl, 12000, 26000); }
   }
-  if (w.smithy && day) every(() => { anvil(); setTimeout(anvil, 420); }, 3500, 7000);
+  // ковачът удря наковалнята (запис с три удара)
+  if (w.smithy && day) every(() => playSample('anvil', 0.18, 0.95 + Math.random() * 0.1), 6000, 11000);
 }
 
 function apply() {
   if (!unlocked) return;
   const p = audioPrefs();
   const active = !!want && !isMuted();
-  setMusic(active && p.music);
+  setMusic(active && p.music ? (battleOn ? 'battle' : want.race || 'humans') : null);
   if (active && p.ambient) {
     const key = JSON.stringify(want);
     if (!amb || amb.key !== key) { startAmb(want); amb.key = key; }
   } else stopAmb();
+}
+
+/** Музика за битка (тактическият екран) – вкл./изкл. */
+export function battleMusic(on) {
+  battleOn = on;
+  apply();
 }
 
 /** Пуска/обновява атмосферата на града; null – спира всичко (изход от играта). */

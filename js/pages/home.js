@@ -4,6 +4,7 @@ import { GAMES } from '../games/registry.js';
 import { ART } from '../art.js';
 import { h, fmtDuration, pct } from '../ui.js';
 import { icon } from '../icons.js';
+import { installBanner } from '../pwa.js';
 
 export async function renderHome(view) {
   const u = session.user;
@@ -36,6 +37,7 @@ export async function renderHome(view) {
         stat('Време в игра', fmtDuration(tot.timeMs)),
       ),
     ),
+    installBanner(),
     h('section', { class: 'games-grid' },
       GAMES.map((g, i) => gameCard(g, stats[g.id], i)),
       h('article', { class: 'game-card soon' },

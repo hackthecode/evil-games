@@ -11,16 +11,22 @@ import { renderOnline } from './pages/online.js';
 import { checkAbandoned } from './pages/room-ui.js';
 import { renderFriends } from './pages/friends.js';
 import { renderLobby } from './pages/lobby.js';
+import { renderAdmin } from './pages/admin.js';
+import { admin } from './net/admin.js';
 import { social } from './net/social.js';
 import { modal } from './ui.js';
+import './pwa.js'; // улавя предложението за инсталиране още при зареждането
 
 export const session = {
   user: null,
+  isAdmin: false,
   setUser(u) {
     this.user = u;
+    this.isAdmin = false;
     social.start(u);
     refreshBadge();
     renderChrome();
+    checkAdmin();
   },
 };
 
@@ -38,6 +44,7 @@ const routes = [
   { re: /^\/online\/(\w+)$/, page: (v, p) => renderOnline(v, p[0]), nav: 'home', auth: true },
   { re: /^\/friends$/, page: (v) => renderFriends(v), nav: 'friends', auth: true },
   { re: /^\/lobby$/, page: (v) => renderLobby(v), nav: 'lobby', auth: true },
+  { re: /^\/admin$/, page: (v) => renderAdmin(v), nav: 'admin', auth: true },
 ];
 
 const appEl = document.getElementById('app');
@@ -113,6 +120,7 @@ function renderChrome() {
       navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
       u && navLink('lobby', '/lobby', 'Лоби', 'chat'),
       u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
+      u && session.isAdmin && navLink('admin', '/admin', 'Админ', 'settings'),
     ),
     h('div', { class: 'header-right' },
       u
@@ -133,6 +141,16 @@ function renderChrome() {
     u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
     navLink('profile', u ? '/profile' : '/login', u ? 'Профил' : 'Вход', 'user'),
   ].filter(Boolean));
+}
+
+// Връзката „Админ“ се показва само на администраторите (правата се проверяват на сървъра).
+async function checkAdmin() {
+  const u = session.user;
+  const ok = !!u && (await admin.isAdmin());
+  if (session.user === u && ok !== session.isAdmin) {
+    session.isAdmin = ok;
+    renderChrome();
+  }
 }
 
 async function logout() {
@@ -178,6 +196,7 @@ async function boot() {
     toast('Неуспешна връзка със сървъра: ' + e.message, 'error', 6000);
   }
   renderChrome();
+  checkAdmin();
   window.addEventListener('hashchange', route);
   social.start(session.user);
   refreshBadge();

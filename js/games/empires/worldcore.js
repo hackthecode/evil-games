@@ -26,7 +26,7 @@ export function buildView(w, uid) {
   for (const [id, p] of Object.entries(w.players)) {
     players[id] = id === uid ? p : {
       uid: p.uid, name: p.name, race: p.race, epoch: p.epoch, score: p.score, protectedUntil: p.protectedUntil, alliance: p.alliance, t: p.t,
-      cities: p.cities.map((c) => ({ id: c.id, name: c.name, x: c.x, y: c.y, hall: c.hall })),
+      cities: p.cities.map((c) => ({ id: c.id, name: c.name, x: c.x, y: c.y, hall: c.hall, loyalty: c.loyalty, burnT: c.burnT, captured: c.captured })),
     };
   }
   const alliances = {};
@@ -35,8 +35,11 @@ export function buildView(w, uid) {
   }
   const results = {};
   for (const [id, r] of Object.entries(w.results)) if (id.startsWith(`${uid}:`)) results[id] = r;
+  // лични съобщения: само разговорите на играча
+  const dms = {};
+  for (const [k, list] of Object.entries(w.dms || {})) if (k.split('|').includes(uid)) dms[k] = list;
   return {
-    v: 1, seed: w.seed, created: w.created, players, alliances, results, npc: w.npc, oases: w.oases,
+    v: 1, seed: w.seed, created: w.created, players, alliances, results, dms, npc: w.npc, oases: w.oases,
     incoming: { [uid]: w.incoming[uid] || [] },
     stationed: w.stationed.filter((x) => x.toUid === uid || x.fromUid === uid),
   };
@@ -75,6 +78,7 @@ export function makeWorld(store, uid) {
         }
         delete w.players[id];
         delete w.incoming[id];
+        for (const k of Object.keys(w.dms || {})) if (k.split('|').includes(id)) delete w.dms[k];
         for (const [k, o] of Object.entries(w.oases)) if (o.uid === id) delete w.oases[k];
         for (const st of w.stationed) if (st.toUid === id || st.fromUid === id) st.sendBack = true;
       });
@@ -229,6 +233,21 @@ export function makeWorld(store, uid) {
         a.chat.push({ sys: true, text: `Дипломация с [${o.tag}]: ${{ ally: 'съюзници', pact: 'пакт за ненападение', war: 'война' }[rel] || 'неутрални'}.`, t: Date.now() });
       });
     },
+    // Лично съобщение до друг владетел (пазят се последните 60 във всеки разговор).
+    dm(toUid, text) {
+      text = String(text || '').trim().slice(0, 400);
+      toUid = String(toUid || '');
+      if (!text) return;
+      mut((w) => {
+        if (!w.players[toUid] || toUid === uid) fail('Няма такъв владетел.');
+        const k = dmKey(uid, toUid);
+        w.dms ||= {};
+        const list = (w.dms[k] ||= []);
+        list.push({ uid, name: w.players[uid]?.name || 'Владетел', text, t: Date.now() });
+        if (list.length > 60) list.splice(0, list.length - 60);
+      });
+    },
+    dms: () => W().dms || {},
     say(text) {
       text = String(text || '').trim().slice(0, 400);
       if (!text) return;
@@ -243,4 +262,6 @@ export function makeWorld(store, uid) {
 }
 
 // Действията със съюзи, които играчът може да поиска (и през сървъра).
-export const WORLD_OPS = ['createAlliance', 'invite', 'acceptInvite', 'declineInvite', 'leave', 'kick', 'setRelation', 'say', 'sendBackStationed'];
+export const WORLD_OPS = ['createAlliance', 'invite', 'acceptInvite', 'declineInvite', 'leave', 'kick', 'setRelation', 'say', 'dm', 'sendBackStationed'];
+
+export const dmKey = (a, b) => [a, b].sort().join('|');

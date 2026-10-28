@@ -533,7 +533,24 @@ const SPR = {
   guild: { w: 400, h: 397, x0: 2, x1: 367, by: 395, size: 90, lights: [[140, 300], [300, 280], [330, 210]], smoke: [[150, 10]] },
   lumber: { w: 240, h: 189, x0: 1, x1: 226, by: 187, size: 74 },
   cranny: { w: 230, h: 223, x0: 2, x1: 209, by: 221, size: 62 },
+  // сглобени от части на rubberduck (OpenGameArt, CC0): fires – огньове, glow – магическо сияние
+  'orc-camp': { w: 300, h: 289, x0: 0, x1: 300, by: 289, size: 104, fires: [[136, 267]] },
+  crypt: { w: 300, h: 369, x0: 0, x1: 300, by: 369, size: 92, glow: [[149, 251]] },
+  altar: { w: 300, h: 451, x0: 0, x1: 300, by: 451, size: 70, fires: [[38, 271], [263, 273]] },
 };
+
+// Дребни предмети (палатки, сандъци, бъчви, камъни) – w×h на файла в assets/empires/props.
+const PROPS = {
+  leanto: [120, 109], leanto2: [120, 124], crates: [60, 39], barrels: [60, 44], firewood: [60, 44],
+  stones: [60, 53], stones2: [60, 31], spikes: [60, 57], cauldron: [50, 34],
+};
+// Предметът стои с долния си ръб в точката (u, v); w – ширина в сцената.
+function prop(name, u, v, w) {
+  const [pw, ph] = PROPS[name];
+  const [x, y] = P(u, v);
+  const hh = (ph * w) / pw;
+  return `<image href="assets/empires/props/${name}.png" x="${f1(x - w / 2)}" y="${f1(y - hh)}" width="${f1(w)}" height="${f1(hh)}"/>`;
+}
 
 export function spriteKey(id, L, epoch) {
   switch (id) {
@@ -571,6 +588,8 @@ function spriteImg(key, race, mul = 1, ox, oy) {
     out += `<g class="ee-wheel"${filt}>${[0, 1, 2, 3, 4].map((i) => `<image href="assets/empires/mill-wheel${i}.png" x="${f1(wx)}" y="${f1(wy)}" width="${f1(166 * k)}" height="${f1(141 * k)}" style="animation-delay:${(-i * 0.24).toFixed(2)}s"/>`).join('')}</g>`;
   }
   for (const [px, py] of s.smoke || []) out += smoke(x + px * k, y + py * k, 3);
+  for (const [px, py] of s.fires || []) out += fire(x + px * k, y + py * k, 0.38);
+  for (const [px, py] of s.glow || []) out += glowAtPx(x + px * k, y + py * k, 22);
   return out;
 }
 
@@ -588,6 +607,14 @@ const spriteMul = (id, L) => (id === 'hall' ? 0.82 + 0.03 * Math.min(L, 10) : 0.
 export function buildingSvg(id, race, L, epoch = 1) {
   if (id === 'unique' && race === 'humans') return spriteImg('guild', race, spriteMul(id, L));
   if (id === 'unique' && race === 'vesheri') return spriteImg('tower-stone', 'vesheri-arcane', 1.15) + glowAtPx(0, -78, 26);
+  if (id === 'unique' && race === 'orcs') return spriteImg('orc-camp', null, 1) + flag(0.36, -0.1, 30, pal(race, epoch).banner);
+  if (id === 'unique' && race === 'undead') return spriteImg('crypt', null, 1);
+  if (id === 'altar') {
+    // олтарът: руини с мангали и кристал от мана над каменната площадка
+    const { k, x, y } = spriteFit('altar', 1);
+    const cx = x + 151 * k, cy = y + 378 * k;
+    return spriteImg('altar', null, 1) + `<g class="ee-pulse">${halo(cx, cy - 22, 24, 'mana')}</g><polygon points="${pts([cx, cy - 40], [cx + 7, cy - 21], [cx, cy - 4], [cx - 7, cy - 21])}" fill="#7d63b8"/><polygon points="${pts([cx, cy - 40], [cx + 7, cy - 21], [cx, cy - 4])}" fill="#4f3c80"/><polyline points="${pts([cx - 7, cy - 21], [cx, cy - 40])}" stroke="#c9b8f0" stroke-opacity=".6" stroke-width="1" fill="none"/>`;
+  }
   const key = spriteKey(id, L, epoch);
   if (key) {
     // дъскорезницата: навес с трупи около него
@@ -595,8 +622,14 @@ export function buildingSvg(id, race, L, epoch = 1) {
     return spriteImg(key, race, spriteMul(id, L)) + extra;
   }
   const sc = levelScale(L);
-  return shadow(48 * sc, 22 * sc) + `<g transform="scale(${sc.toFixed(3)})">${DRAW[id](pal(race, epoch), race, L)}</g>`;
+  return shadow(48 * sc, 22 * sc) + `<g transform="scale(${sc.toFixed(3)})">${DRAW[id](pal(race, epoch), race, L)}${PROPS_AT[id]?.(L) || ''}</g>`;
 }
+
+// Истински предмети върху рисуваните сгради.
+const PROPS_AT = {
+  quarry: (L) => prop('stones', 0.06, 0.38, 24) + (L >= 3 ? prop('stones2', -0.22, 0.4, 24) : '') + prop('crates', -0.38, 0.12, 20) + prop('leanto', 0.38, 0.3, 34),
+  mine: (L) => prop('leanto2', -0.34, 0.2, 38) + prop('barrels', 0.34, 0.12, 20) + prop('firewood', -0.12, 0.42, 20) + (L >= 3 ? prop('crates', 0.36, 0.38, 20) : ''),
+};
 
 export const decorSvg = (kind, race, seed, epoch = 1) => (kind === 'well' ? spriteImg('well', null, 1, 4, 18) : DECOR_DRAW[kind](pal(race, epoch), seed));
 
@@ -945,6 +978,22 @@ function mapGround(kind, x, y) {
 
 const RES_DOT = { wood: '#7b5a36', stone: '#8e8b93', food: '#c9a23a', gold: '#e2b553' };
 
+// Обсада на картата: пушек и огън над горящ град, катапулти пред стените, знаме на завладелия.
+function siegeMarks(o, col) {
+  let s = '';
+  if (o.conquered) s += `<line x1="31" y1="18" x2="31" y2="1" stroke="#2b2620" stroke-width="1.2"/><path class="ee-flag" d="M31 1 Q35 0 39 2 L38 7 Q35 5 31 6Z" fill="${col}" stroke="#000" stroke-width=".4"/>`;
+  if (o.burning) {
+    s += `<g class="ee-smoke" pointer-events="none">${[0, 1, 2].map((i) => `<circle cx="${14 + i * 6}" cy="12" r="${3 + i}" fill="#5c5a5e" style="animation-delay:${(i * 1.4).toFixed(1)}s"/>`).join('')}</g>`;
+    s += [[13, 18, 0.55], [25, 16, 0.65]].map(([x, y, k]) => `<g class="ee-flame" style="transform-origin:${x}px ${y}px"><path d="M${x - 3 * k} ${y} Q${x - 4 * k} ${y - 6 * k} ${x} ${y - 11 * k} Q${x + 1 * k} ${y - 6 * k} ${x + 3 * k} ${y - 8 * k} Q${x + 4 * k} ${y - 3 * k} ${x + 3 * k} ${y}Z" fill="#e0662a"/><path d="M${x - 1.5 * k} ${y} Q${x - 2 * k} ${y - 4 * k} ${x} ${y - 6 * k} Q${x + 2 * k} ${y - 4 * k} ${x + 1.5 * k} ${y}Z" fill="#f6c26a"/></g>`).join('');
+  }
+  if (o.siege) {
+    // два катапулта пред стената (в долния ляв ъгъл)
+    const cat = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-4" y="-1.5" width="8" height="2.4" fill="#6a4a2c"/><circle cx="-3" cy="1.4" r="1.4" fill="#3a2a1c"/><circle cx="3" cy="1.4" r="1.4" fill="#3a2a1c"/><line x1="-2" y1="-1" x2="4" y2="-7" stroke="#7a5a3a" stroke-width="1.3"/><circle cx="4.3" cy="-7.4" r="1.3" fill="#8a857c"/></g>`;
+    s += `<g opacity="${o.siege === 'here' ? 1 : 0.55}">${cat(6, 36)}${cat(15, 38)}</g>`;
+  }
+  return s;
+}
+
 function mapObject(o) {
   if (!o) return '';
   if (o.type === 'oasis') {
@@ -969,7 +1018,7 @@ function mapObject(o) {
       <rect x="18" y="23" width="4" height="7" fill="#1a120c"/>
       <line x1="20" y1="10" x2="20" y2="2" stroke="#2b2620" stroke-width="1"/><path d="M20 2 l7 2 l-7 2Z" fill="${col}"/>
       ${o.protected ? '<circle cx="34" cy="34" r="4.5" fill="#6aa8ff"/><path d="M34 31.5 l2.5 1 v1.6 q0 2 -2.5 3 q-2.5 -1 -2.5 -3 v-1.6Z" fill="#fff"/>' : ''}
-      <rect x="0.8" y="0.8" width="38.4" height="38.4" rx="5" fill="none" stroke="${col}" stroke-width="1.4" stroke-opacity=".75"/>`;
+      <rect x="0.8" y="0.8" width="38.4" height="38.4" rx="5" fill="none" stroke="${col}" stroke-width="1.4" stroke-opacity=".75"/>${siegeMarks(o, col)}`;
   }
   return '';
 }

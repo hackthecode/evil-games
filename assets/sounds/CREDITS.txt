@@ -1,4 +1,16 @@
-Звуци и музика (всички са CC0 – обществено достояние):
-- dice/  – Kenney „Casino Audio“ (kenney.nl), OpenGameArt.org
-- battle/ – StarNinjas „20 Sword Sound Effects (Attacks and Clashes)“, https://opengameart.org/users/starninjas
-- music/bards-tale.mp3 – RandomMind „Medieval: The Bard's Tale“, OpenGameArt.org
+Звуци и музика (всички са CC0 – обществено достояние, OpenGameArt.org):
+- dice/            – Kenney „Casino Audio“ (kenney.nl)
+- battle/          – StarNinjas „20 Sword Sound Effects (Attacks and Clashes)“
+- music/bards-tale – RandomMind „Medieval: The Bard's Tale“ (хора)
+- music/undead     – kindland „Forgoten tomb ambience“ (немъртви)
+- music/orcs       – William Hector „Horde War Drums loop“ (орки)
+- music/vesheri    – congusbongus „Cathedral in the forest (ambient loop)“ (Вешери)
+- music/battle     – Emma_MA „Determined Pursuit (epic orchestra loop)“ (битки)
+- ambient/birds    – isaiah658 „Ambient Bird Sounds“
+- ambient/rain     – kindland „Rain and thunders“ (откъс)
+- ambient/crickets – Wolfgang_ „Crickets Ambient Noise – loopable“
+- ambient/anvil    – themightyglider „Hammer on Anvil“
+
+Изображения на сгради (assets/empires/, CC0, rubberduck, OpenGameArt.org):
+- isometric medieval buildings #1 и #2, isometric props and tents, free isometric ruins.
+  orc-camp, crypt и altar са сглобени от тези части; props/ – отделни предмети.

@@ -781,6 +781,8 @@ function resolveDefense(s, c, att, prep, r, t, env) {
     }
   }
   if (!win) bump(s, t, 'defWins');
+  // градът гори след обсада (за картата)
+  if (!captured && (siege.wall || siege.buildings?.length || siege.loyalty != null)) c.burnT = t;
   report(s, {
     kind: 'defense', t, title: captured ? `Градът е завладян: ${c.name}` : `${win ? 'Градът е ограбен' : 'Нападението е отбито'}: ${c.name}`, win: !win, enemy: att.name,
     att: r.att, def: r.def.map((g, i) => ({ ...g, key: prep.side[i]?.key || g.key, ally: prep.side[i]?.stId ? true : undefined })), loot, trapped: prep.trapped, night: prep.night, wall: lv(c, 'wall'), rounds: r.rounds, siege, tactical: r.tactical,
@@ -808,6 +810,7 @@ function addCapturedCity(s, t, data) {
   const city = newCity(id, data.name, data.x, data.y, data.res);
   city.b = { ...data.b };
   city.loyalty = 30;
+  city.captured = t;
   s.cities.push(city);
   report(s, { kind: 'found', t, title: `Завладян град: ${data.name} (${data.x}|${data.y})`, win: true });
   log(s, t, `Завладяхте ${data.name}!`, 'epoch');
@@ -1451,7 +1454,7 @@ export function snapshot(s, alliance = null) {
   return {
     uid: s.uid, name: s.name, race: s.race, epoch: s.epoch, score: score(s), protectedUntil: s.protectedUntil, alliance, t: s.t,
     cities: s.cities.map((c) => ({
-      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), loyalty: Math.round(c.loyalty ?? 100), wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
+      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), loyalty: Math.round(c.loyalty ?? 100), burnT: c.burnT || 0, captured: !!c.captured, wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
       units: Object.fromEntries(FIGHTERS.filter((u) => c.units[u] > 0).map((u) => [u, c.units[u]])), scouts: c.units.scout || 0,
       res: Object.fromEntries(['gold', 'wood', 'stone', 'food'].map((k) => [k, Math.floor(c.res[k])])),
     })),

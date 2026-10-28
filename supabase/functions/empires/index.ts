@@ -1561,6 +1561,8 @@ function resolveDefense(s, c, att, prep, r, t, env) {
     }
   }
   if (!win) bump(s, t, 'defWins');
+  // градът гори след обсада (за картата)
+  if (!captured && (siege.wall || siege.buildings?.length || siege.loyalty != null)) c.burnT = t;
   report(s, {
     kind: 'defense', t, title: captured ? `Градът е завладян: ${c.name}` : `${win ? 'Градът е ограбен' : 'Нападението е отбито'}: ${c.name}`, win: !win, enemy: att.name,
     att: r.att, def: r.def.map((g, i) => ({ ...g, key: prep.side[i]?.key || g.key, ally: prep.side[i]?.stId ? true : undefined })), loot, trapped: prep.trapped, night: prep.night, wall: lv(c, 'wall'), rounds: r.rounds, siege, tactical: r.tactical,
@@ -1588,6 +1590,7 @@ function addCapturedCity(s, t, data) {
   const city = newCity(id, data.name, data.x, data.y, data.res);
   city.b = { ...data.b };
   city.loyalty = 30;
+  city.captured = t;
   s.cities.push(city);
   report(s, { kind: 'found', t, title: `Завладян град: ${data.name} (${data.x}|${data.y})`, win: true });
   log(s, t, `Завладяхте ${data.name}!`, 'epoch');
@@ -2231,7 +2234,7 @@ function snapshot(s, alliance = null) {
   return {
     uid: s.uid, name: s.name, race: s.race, epoch: s.epoch, score: score(s), protectedUntil: s.protectedUntil, alliance, t: s.t,
     cities: s.cities.map((c) => ({
-      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), loyalty: Math.round(c.loyalty ?? 100), wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
+      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), loyalty: Math.round(c.loyalty ?? 100), burnT: c.burnT || 0, captured: !!c.captured, wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
       units: Object.fromEntries(FIGHTERS.filter((u) => c.units[u] > 0).map((u) => [u, c.units[u]])), scouts: c.units.scout || 0,
       res: Object.fromEntries(['gold', 'wood', 'stone', 'food'].map((k) => [k, Math.floor(c.res[k])])),
     })),
@@ -2308,7 +2311,7 @@ function buildView(w, uid) {
   for (const [id, p] of Object.entries(w.players)) {
     players[id] = id === uid ? p : {
       uid: p.uid, name: p.name, race: p.race, epoch: p.epoch, score: p.score, protectedUntil: p.protectedUntil, alliance: p.alliance, t: p.t,
-      cities: p.cities.map((c) => ({ id: c.id, name: c.name, x: c.x, y: c.y, hall: c.hall })),
+      cities: p.cities.map((c) => ({ id: c.id, name: c.name, x: c.x, y: c.y, hall: c.hall, loyalty: c.loyalty, burnT: c.burnT, captured: c.captured })),
     };
   }
   const alliances = {};
@@ -2317,8 +2320,11 @@ function buildView(w, uid) {
   }
   const results = {};
   for (const [id, r] of Object.entries(w.results)) if (id.startsWith(`${uid}:`)) results[id] = r;
+  // лични съобщения: само разговорите на играча
+  const dms = {};
+  for (const [k, list] of Object.entries(w.dms || {})) if (k.split('|').includes(uid)) dms[k] = list;
   return {
-    v: 1, seed: w.seed, created: w.created, players, alliances, results, npc: w.npc, oases: w.oases,
+    v: 1, seed: w.seed, created: w.created, players, alliances, results, dms, npc: w.npc, oases: w.oases,
     incoming: { [uid]: w.incoming[uid] || [] },
     stationed: w.stationed.filter((x) => x.toUid === uid || x.fromUid === uid),
   };
@@ -2357,6 +2363,7 @@ function makeWorld(store, uid) {
         }
         delete w.players[id];
         delete w.incoming[id];
+        for (const k of Object.keys(w.dms || {})) if (k.split('|').includes(id)) delete w.dms[k];
         for (const [k, o] of Object.entries(w.oases)) if (o.uid === id) delete w.oases[k];
         for (const st of w.stationed) if (st.toUid === id || st.fromUid === id) st.sendBack = true;
       });
@@ -2511,6 +2518,21 @@ function makeWorld(store, uid) {
         a.chat.push({ sys: true, text: `Дипломация с [${o.tag}]: ${{ ally: 'съюзници', pact: 'пакт за ненападение', war: 'война' }[rel] || 'неутрални'}.`, t: Date.now() });
       });
     },
+    // Лично съобщение до друг владетел (пазят се последните 60 във всеки разговор).
+    dm(toUid, text) {
+      text = String(text || '').trim().slice(0, 400);
+      toUid = String(toUid || '');
+      if (!text) return;
+      mut((w) => {
+        if (!w.players[toUid] || toUid === uid) fail('Няма такъв владетел.');
+        const k = dmKey(uid, toUid);
+        w.dms ||= {};
+        const list = (w.dms[k] ||= []);
+        list.push({ uid, name: w.players[uid]?.name || 'Владетел', text, t: Date.now() });
+        if (list.length > 60) list.splice(0, list.length - 60);
+      });
+    },
+    dms: () => W().dms || {},
     say(text) {
       text = String(text || '').trim().slice(0, 400);
       if (!text) return;
@@ -2525,9 +2547,11 @@ function makeWorld(store, uid) {
 }
 
 // Действията със съюзи, които играчът може да поиска (и през сървъра).
-const WORLD_OPS = ['createAlliance', 'invite', 'acceptInvite', 'declineInvite', 'leave', 'kick', 'setRelation', 'say', 'sendBackStationed'];
+const WORLD_OPS = ['createAlliance', 'invite', 'acceptInvite', 'declineInvite', 'leave', 'kick', 'setRelation', 'say', 'dm', 'sendBackStationed'];
 
-return { freshWorld, allocateHomeIn, buildView, makeWorld, WORLD_OPS };
+const dmKey = (a, b) => [a, b].sort().join('|');
+
+return { freshWorld, allocateHomeIn, buildView, makeWorld, WORLD_OPS, dmKey };
 })();
 
 __m['js/games/empires/server.js'] = (() => {
@@ -2798,7 +2822,8 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const body = await req.json();
-    const db = makeDb(createClient(URL_, SERVICE, { auth: { persistSession: false } }));
+    const svc = createClient(URL_, SERVICE, { auth: { persistSession: false } });
+    const db = makeDb(svc);
     if (body?.op === 'cron') {
       if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) return json({ error: 'Забранено.' }, 403);
       return json(await cron(db, Date.now(), sendPush));
@@ -2807,6 +2832,9 @@ Deno.serve(async (req: Request) => {
     const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await asUser.auth.getUser();
     if (!user) return json({ error: 'Не сте влезли.' }, 401);
+    // блокиран акаунт (supabase/admin.sql); ако таблицата я няма – без проверка
+    const { data: ban } = await svc.from('bans').select('until, reason').eq('user_id', user.id).gt('until', new Date().toISOString()).maybeSingle();
+    if (ban) return json({ error: `Акаунтът е блокиран до ${new Date(ban.until).toLocaleString('bg-BG', { timeZone: 'Europe/Sofia' })}${ban.reason ? ` (${ban.reason})` : ''}.` }, 403);
     return json(await handle(db, user.id, body));
   } catch (e) {
     return json({ error: (e as Error).message || String(e) });

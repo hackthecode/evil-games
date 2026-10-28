@@ -77,7 +77,8 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const body = await req.json();
-    const db = makeDb(createClient(URL_, SERVICE, { auth: { persistSession: false } }));
+    const svc = createClient(URL_, SERVICE, { auth: { persistSession: false } });
+    const db = makeDb(svc);
     if (body?.op === 'cron') {
       if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) return json({ error: 'Забранено.' }, 403);
       return json(await cron(db, Date.now(), sendPush));
@@ -86,6 +87,9 @@ Deno.serve(async (req: Request) => {
     const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await asUser.auth.getUser();
     if (!user) return json({ error: 'Не сте влезли.' }, 401);
+    // блокиран акаунт (supabase/admin.sql); ако таблицата я няма – без проверка
+    const { data: ban } = await svc.from('bans').select('until, reason').eq('user_id', user.id).gt('until', new Date().toISOString()).maybeSingle();
+    if (ban) return json({ error: `Акаунтът е блокиран до ${new Date(ban.until).toLocaleString('bg-BG', { timeZone: 'Europe/Sofia' })}${ban.reason ? ` (${ban.reason})` : ''}.` }, 403);
     return json(await handle(db, user.id, body));
   } catch (e) {
     return json({ error: (e as Error).message || String(e) });

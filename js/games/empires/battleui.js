@@ -54,28 +54,86 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
       resolve(v);
     }
 
+    let busy = false;
     function record(mv) {
-      if (st.over) return;
-      const before = st.k;
+      if (st.over || busy) return;
+      const from = new Map(st.units.map((u) => [u.id, [u.q, u.r, u.n]]));
       const logLen = st.log.length;
       if (T.applyMove(st, mv)) {
         moves.push(mv);
         onProgress?.(moves);
       }
       if (mv.end || mv.auto) sel = null;
-      // звук за всеки нов удар (ходовете на компютъра – един след друг)
-      const fresh = st.log.slice(Math.max(0, st.log.length - Math.min(8, st.k - before)));
-      void logLen;
-      fresh.forEach((e, i) => {
-        const a = st.units.find((u) => u.id === e.a);
-        battleSound(a.cls === 'ranged' ? 'sword' : 'clash', Math.min(1, 0.3 + e.kills / 10), i * 0.18);
+      animate(from, st.log.slice(logLen));
+    }
+
+    // Анимация на хода: придвижване, после ударите един след друг (стрели летят, пехотата
+    // напада, загиналите падат), със звук за всеки удар. При „Автоматично“ – само първите удари.
+    const MOVE_MS = 380, HIT_MS = 300, MAX_ANIM = 10;
+    function animate(from, fresh) {
+      const shown = fresh.slice(0, MAX_ANIM);
+      const moved = st.units.filter((u) => { const f = from.get(u.id); return f[0] !== u.q || f[1] !== u.r; });
+      const t0 = moved.length ? MOVE_MS : 0;
+      // кога пада всяка унищожена единица
+      const dieAt = new Map();
+      shown.forEach((e, i) => { const t = st.units.find((u) => u.id === e.t), a = st.units.find((u) => u.id === e.a); if (t.n <= 0) dieAt.set(t.id, t0 + i * HIT_MS + 200); if (e.back && a.n <= 0) dieAt.set(a.id, t0 + i * HIT_MS + 260); });
+      draw({ from, dieAt });
+      if (!moved.length && !shown.length) return;
+      busy = true;
+      const svg = board.querySelector('svg');
+      const gOf = (id) => board.querySelector(`.ee-unit[data-id="${id}"] .ee-ub`);
+      // 1) придвижване – единиците тръгват от старото си място
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        for (const u of moved) board.querySelector(`.ee-unit[data-id="${u.id}"]`)?.style.removeProperty('transform');
+      }));
+      // 2) ударите
+      shown.forEach((e, i) => {
+        const at = t0 + i * HIT_MS;
+        const a = st.units.find((u) => u.id === e.a), t = st.units.find((u) => u.id === e.t);
+        const [ax, ay] = pos(a.q, a.r), [tx, ty] = pos(t.q, t.r);
+        const ranged = Math.hypot(tx - ax, ty - ay) > W * 1.5;
+        battleSound(ranged ? 'sword' : 'clash', Math.min(1, 0.3 + e.kills / 10), at / 1000 + (ranged ? 0 : 0.12));
+        setTimeout(() => {
+          if (!svg.isConnected) return;
+          if (ranged) {
+            // стрела по дъга
+            const ang = (Math.atan2(ty - ay, tx - ax) * 180) / Math.PI;
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            arrow.innerHTML = `<g transform="rotate(${ang.toFixed(1)})"><line x1="-9" y1="0" x2="7" y2="0" stroke="#d9cbb0" stroke-width="1.6"/><path d="M7 -3 L12 0 L7 3Z" fill="#e8e2d4"/><path d="M-9 0 l-3 -3 M-9 0 l-3 3" stroke="#c84" stroke-width="1.2"/></g>`;
+            svg.append(arrow);
+            const lift = Math.min(60, Math.hypot(tx - ax, ty - ay) * 0.3);
+            arrow.animate([
+              { transform: `translate(${ax}px,${ay - 8}px)` },
+              { transform: `translate(${(ax + tx) / 2}px,${(ay + ty) / 2 - 8 - lift}px)`, offset: 0.5 },
+              { transform: `translate(${tx}px,${ty - 8}px)` },
+            ], { duration: 230, easing: 'linear' }).onfinish = () => arrow.remove();
+          } else {
+            const dx = (tx - ax) * 0.35, dy = (ty - ay) * 0.35;
+            gOf(a.id)?.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx}px,${dy}px)`, offset: 0.45 }, { transform: 'translate(0,0)' }], { duration: 260, easing: 'ease-in-out' });
+          }
+          setTimeout(() => {
+            gOf(t.id)?.animate([{ filter: 'none' }, { filter: 'brightness(2.2) saturate(0) sepia(1) hue-rotate(-40deg)', offset: 0.3 }, { filter: 'none' }], { duration: 260 });
+            floatText(svg, tx, ty - 30, `−${e.kills}`, t.side === 'A' ? '#ff8a95' : '#ffd27a');
+            if (e.back) floatText(svg, ax, ay - 30, `−${e.back}`, a.side === 'A' ? '#ff8a95' : '#ffd27a');
+          }, ranged ? 220 : 120);
+        }, at);
       });
-      draw();
+      setTimeout(() => { busy = false; if (root.isConnected) draw(); }, t0 + shown.length * HIT_MS + 420);
+    }
+
+    function floatText(svg, x, y, text, color) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      el.setAttribute('x', x); el.setAttribute('y', y);
+      el.setAttribute('text-anchor', 'middle'); el.setAttribute('font-size', '12'); el.setAttribute('font-weight', '800');
+      el.setAttribute('fill', color); el.setAttribute('stroke', '#000'); el.setAttribute('stroke-width', '3'); el.setAttribute('paint-order', 'stroke');
+      el.textContent = text;
+      svg.append(el);
+      el.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(-18px)', opacity: 0 }], { duration: 800, easing: 'ease-out' }).onfinish = () => el.remove();
     }
 
     function unitName(u) { return names(u.side, u.key); }
 
-    function draw() {
+    function draw(anim) {
       const [bw] = pos(st.cols, 0);
       const [, bh] = pos(0, st.rows - 1);
       const reach = sel ? T.reachable(st, sel) : new Map();
@@ -90,22 +148,26 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
         }
       }
       for (const u of st.units) {
-        if (u.n <= 0) continue;
+        const dying = anim?.dieAt.has(u.id);
+        if (u.n <= 0 && !dying) continue;
         const [x, y] = pos(u.q, u.r);
+        const f = anim?.from.get(u.id);
+        const [fx, fy] = f ? pos(f[0], f[1]) : [x, y];
+        const off = fx !== x || fy !== y ? ` style="transform:translate(${(fx - x).toFixed(1)}px,${(fy - y).toFixed(1)}px)"` : '';
         const isTarget = tg.includes(u);
         const isSel = sel === u;
         const done = u.side === 'A' && u.acted;
         const col = colors[u.side];
         const icon = unitIcon(u.cls === 'hero' ? 'hero' : u.cls, col, 34).replace('<svg ', `<svg x="${(x - 17).toFixed(1)}" y="${(y - 20).toFixed(1)}" `);
         const hp = Math.max(0, 1 - u.dmg / u.hp);
-        svg += `<g class="ee-unit${u.side === 'A' ? ' mine' : ''}${done ? ' done' : ''}" data-id="${u.id}">
+        svg += `<g class="ee-unit${u.side === 'A' ? ' mine' : ''}${done ? ' done' : ''}" data-id="${u.id}"${off}><g class="ee-ub${dying ? ' ee-dying' : ''}" style="transform-origin:${x}px ${y}px${dying ? `;animation-delay:${anim.dieAt.get(u.id)}ms` : ''}">
           <circle cx="${x}" cy="${y - 3}" r="${S * 0.66}" fill="${u.side === 'A' ? '#14121a' : '#1c0d10'}" stroke="${isSel ? '#fff' : isTarget ? '#ff5d6c' : col}" stroke-width="${isSel || isTarget ? 3 : 1.6}"/>
           ${icon}
           <rect x="${x - 15}" y="${y + 12}" width="30" height="12" rx="6" fill="#0b0a0d" stroke="${col}" stroke-opacity=".7"/>
-          <text x="${x}" y="${y + 21}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">${u.n}</text>
+          <text x="${x}" y="${y + 21}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">${dying ? f?.[2] ?? 0 : u.n}</text>
           ${u.n > 0 && hp < 1 ? `<rect x="${x - 13}" y="${y + 25}" width="${(26 * hp).toFixed(1)}" height="2.5" fill="#3ee08f"/>` : ''}
           ${isTarget ? `<text x="${x}" y="${y - 25}" text-anchor="middle" font-size="9" font-weight="700" fill="#ffb3ba">−${Math.min(u.n, Math.floor(T.strike(st, sel, u) / u.hp))}</text>` : ''}
-        </g>`;
+        </g></g>`;
       }
       board.innerHTML = `<svg viewBox="0 0 ${bw + PAD + W / 2} ${bh + S + PAD}" class="ee-tac-svg">${svg}</svg>`;
       turnEl.textContent = st.over ? (st.win === 'att' ? 'Победа!' : 'Поражение') : `Ход ${st.turn} от ${TACTIC.maxTurns}`;
@@ -132,7 +194,7 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
     }
 
     board.addEventListener('click', (e) => {
-      if (st.over) return;
+      if (st.over || busy) return;
       const ug = e.target.closest('.ee-unit');
       if (ug) {
         const u = st.units.find((x) => x.id === +ug.dataset.id);
