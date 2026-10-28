@@ -1,6 +1,7 @@
 // Илюстрации за картите на игрите в портала: прожекторна светлина, обемни сенки
 // и краища, които преливат в черно (OLED). Всяка илюстрация има собствени id-та.
 import { SUIT_PATHS } from './games/cards/suits.js';
+import { buildingSvg, tile, PALETTE, defs as eeDefs } from './games/empires/art.js';
 
 const suit = (s, x, y, size, fill) =>
   `<g transform="translate(${x} ${y}) scale(${size / 100})" fill="${fill}">${SUIT_PATHS[s]}</g>`;
@@ -183,4 +184,24 @@ export const ART = {
     <text x="250" y="110" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="54" font-weight="800" fill="url(#sa-gold)" filter="url(#sa-glow)">66</text>
     <text x="250" y="136" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#ffc9d3">САНТАСЕ</text>
   </svg>`,
+  empires: (() => {
+    const at = (x, y, sc, id, race, L) => `<g transform="translate(${x} ${y}) scale(${sc})">${tile(PALETTE[race], 'built')}${buildingSvg(id, race, L)}</g>`;
+    return `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
+    ${eeDefs(PALETTE.vesheri)}
+    <defs>${defs('ee')}
+      <radialGradient id="eep-sky" cx=".5" cy=".15" r=".9"><stop offset="0" stop-color="#3b1f5c"/><stop offset=".55" stop-color="#140a22"/><stop offset="1" stop-color="#000"/></radialGradient>
+      <radialGradient id="eep-moon" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff1d6"/><stop offset=".6" stop-color="#ffcf8a"/><stop offset="1" stop-color="#ff8a3c" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="320" height="180" fill="url(#eep-sky)"/>
+    <circle cx="252" cy="40" r="34" fill="url(#eep-moon)" opacity=".9"/>
+    <circle cx="252" cy="40" r="16" fill="#fff4dc"/>
+    <polygon points="160,74 290,139 160,204 30,139" fill="#120d19"/>
+    ${at(98, 128, 0.62, 'houses', 'humans', 4)}
+    ${at(226, 128, 0.62, 'unique', 'vesheri', 3)}
+    ${at(160, 108, 0.8, 'hall', 'undead', 6)}
+    ${at(122, 150, 0.6, 'barracks', 'orcs', 3)}
+    ${at(198, 152, 0.6, 'altar', 'vesheri', 2)}
+    ${overlay('ee')}
+  </svg>`;
+  })(),
 };

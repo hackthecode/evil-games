@@ -131,3 +131,19 @@ supabase/functions/referee/   Edge Function на съдията (index.ts се �
 - Шахматни фигури: комплектът *cburnett* (Colin M.L. Burnett, лиценз GPLv2+/BSD) от проекта lichess.
 - Допълнителни шахматни комплекти от lichess (`assets/chess/`): *celtic* и *fantasy* (MIT), *rhosgfx* (CC0), *merida* (GPLv2+). Изборът е от бутона „🎨 Вид“ по време на игра.
 - Фигури на картите (вале, дама, поп): *English pattern* от Dmitry Fomin (Wikimedia Commons, CC0 – обществено достояние), префиоцветени в палитрата на портала (`assets/cards/`).
+
+## Evil Empires – онлайн сървър
+
+Стратегията работи в два режима: **локален** (светът е в браузъра – за тестове) и **онлайн** (Supabase – общ свят, сървърът проверява всяко действие, push известия).
+
+1. **SQL:** изпълнете `supabase/empires.sql` в SQL Editor (таблици `ee_world`, `ee_saves`, `ee_push` и функция `ee_commit`).
+2. **Функция:** `python3 tools/build-empires.py` → създайте Edge Function **empires** и поставете съдържанието на `supabase/functions/empires/index.ts`. Ако името е друго – сменете `empiresFunction` в `config.js`.
+3. **Тайни** (Edge Functions → Secrets): `VAPID_PUBLIC`, `VAPID_PRIVATE`, `CRON_SECRET` – от локалния файл `supabase/empires-secrets.local.txt` (не се качва в git). Публичният VAPID ключ е и в `config.js` (`empiresPush`).
+4. **Нощен процес:** изпълнете `supabase/empires-cron.local.sql` (pg_cron на всеки 2 минути: придвижва империите и праща известия).
+
+Логиката е една и съща в браузъра и на сървъра (`js/games/empires/engine.js`); `tools/empires-sim.js` е симулация за баланса.
+
+### Графика на Evil Empires – източници
+- Сгради (замък, къщи, ковачница, конюшня, казарма, стрелбище, стражеви кули): **feudalwars**, OpenGameArt.org, CC0 (обществено достояние).
+- Воденица, сгради 01 и 03, кладенец: **Bleed** – http://remusprites.carbonmade.com/ (OpenGameArt.org, CC-BY 3.0).
+- Файловете са в `assets/empires/` (изрязани и смалени); останалото е рисувано с SVG в `js/games/empires/art.js`.
