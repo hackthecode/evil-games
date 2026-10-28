@@ -2,7 +2,7 @@ import { h, s, sleep } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
 import { variantEngine } from './variants.js';
-import { rollDice3d } from './dice3d.js';
+import { rollDice3d, preloadDice } from './dice3d.js';
 import { offlineNet } from '../../net/room.js';
 
 const LEVEL_NAMES = { easy: 'Лесно', medium: 'Средно', hard: 'Трудно' };
@@ -40,6 +40,7 @@ function offXY(p, k) {
 }
 
 export async function mount(root, ctx) {
+  preloadDice();
   const online = ctx.online || null;
   const variant = VARIANTS[ctx.gameId] ? ctx.gameId : 'tabla';
   const E = variantEngine(variant);

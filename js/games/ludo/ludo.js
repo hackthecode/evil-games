@@ -2,7 +2,7 @@ import { h, s, sleep, toast } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { offlineNet } from '../../net/room.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
-import { rollDice3d } from '../tabla/dice3d.js';
+import { rollDice3d, preloadDice } from '../tabla/dice3d.js';
 import { START, TRACK, LANES, YARDS, ZONES, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
 
 const COLORS = [
@@ -18,6 +18,7 @@ const LEVELS = { easy: 'Лесно', normal: 'Нормално' };
 const PIP = { 1: [[29, 29]], 2: [[16, 16], [42, 42]], 3: [[15, 15], [29, 29], [43, 43]], 4: [[16, 16], [42, 16], [16, 42], [42, 42]], 5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]], 6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]] };
 
 export async function mount(root, ctx) {
+  preloadDice();
   const online = ctx.online || null;
   let destroyed = false;
   let matchId = 0;
