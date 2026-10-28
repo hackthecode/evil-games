@@ -1,5 +1,5 @@
-// Evil Empires – atmosphere: music for each race and for battles, city sounds (recordings of birds,
-// crickets and an anvil; the wind and the owl are synthesized) and battle sounds. All recordings are CC0.
+// Evil Empires – atmosphere: music for each race and for battles, city sounds (short bird calls
+// and the owl are synthesized, the anvil is a recording) and battle sounds. All recordings are CC0.
 // Two volume levels (0–100): music, and all other sounds (city and battles).
 import { isMuted } from '../common.js';
 
@@ -21,7 +21,7 @@ export function setAudioPref(key, value) {
   apply();
 }
 
-let ctx = null, out = null, noiseBuf = null;
+let ctx = null, out = null;
 let musicEl = null;
 let amb = null; // the active city sounds
 let want = null; // { hour, weather, smithy, race }
@@ -34,9 +34,6 @@ function getCtx() {
     out = ctx.createGain();
     out.gain.value = 0.8 * (audioPrefs().sfx / 100);
     out.connect(ctx.destination);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
@@ -89,27 +86,6 @@ function sample(name) {
   if (!bufs[name]) bufs[name] = (async () => getCtx().decodeAudioData(await (await fetch(`assets/sounds/ambient/${name}.mp3`)).arrayBuffer()))().catch(() => null);
   return bufs[name];
 }
-// An endless recording (birds, crickets) – quiet start, no click at the end (skips the mp3 silence).
-function sampleLoop(name, gain) {
-  const c = getCtx();
-  const g = c.createGain();
-  g.gain.value = 0;
-  g.connect(out);
-  const node = { g, src: null, stopped: false };
-  sample(name).then((buf) => {
-    if (!buf || node.stopped) return;
-    const src = c.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
-    src.loopStart = 0.06;
-    src.loopEnd = buf.duration - 0.06;
-    src.connect(g);
-    src.start(c.currentTime, Math.random() * buf.duration * 0.8);
-    g.gain.setTargetAtTime(gain, c.currentTime, 1.2);
-    node.src = src;
-  });
-  return node;
-}
 function playSample(name, gain, rate = 1) {
   sample(name).then((buf) => {
     if (!buf) return;
@@ -127,21 +103,27 @@ function playSample(name, gain, rate = 1) {
 }
 
 // ---------- city sounds ----------
-function noiseLoop(type, freq, q, gain) {
+
+// A short bird call (synthesized – clean, without background noise).
+function chirp(base, n, gain) {
   const c = getCtx();
-  const src = c.createBufferSource();
-  src.buffer = noiseBuf;
-  src.loop = true;
-  const f = c.createBiquadFilter();
-  f.type = type;
-  f.frequency.value = freq;
-  f.Q.value = q;
-  const g = c.createGain();
-  g.gain.value = 0;
-  g.gain.setTargetAtTime(gain, c.currentTime, 1.2);
-  src.connect(f).connect(g).connect(out);
-  src.start();
-  return { src, g, f };
+  let t = c.currentTime + 0.02;
+  const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+  if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(out); }
+  for (let i = 0; i < n; i++) {
+    const o = c.createOscillator(), g = c.createGain();
+    const f0 = base * (0.9 + Math.random() * 0.25);
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f0 * (1.3 + Math.random() * 0.5), t + 0.05);
+    o.frequency.exponentialRampToValueAtTime(f0 * 0.9, t + 0.09);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    o.connect(g).connect(pan || out);
+    o.start(t);
+    o.stop(t + 0.12);
+    t += 0.09 + Math.random() * 0.06;
+  }
 }
 
 function owl() {
@@ -181,12 +163,13 @@ function stopAmb() {
 function startAmb(w) {
   stopAmb();
   const day = w.hour >= 6 && w.hour < 20;
-  const loops = [noiseLoop('bandpass', 380, 0.6, 0.03)]; // wind
-  if (w.weather === 'snow') loops.push(noiseLoop('bandpass', 260, 0.4, 0.05));
+  // no continuous sounds (they turn into a rain-like hiss): only short bird calls by day,
+  // the owl at night and the smith's anvil
+  const loops = [];
   amb = { loops };
   if (w.weather !== 'rain') {
-    if (day) loops.push(sampleLoop('birds', 0.35));
-    else { loops.push(sampleLoop('crickets', 0.22)); every(owl, 12000, 26000); }
+    if (day) every(() => chirp(2600 + Math.random() * 1600, 2 + Math.floor(Math.random() * 4), 0.02), 2500, 7000);
+    else every(owl, 14000, 30000);
   }
   // the smith strikes the anvil (a recording with three strikes)
   if (w.smithy && day) every(() => playSample('anvil', 0.18, 0.95 + Math.random() * 0.1), 6000, 11000);
