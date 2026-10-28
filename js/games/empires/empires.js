@@ -1,7 +1,7 @@
 // Evil Empires – интерфейс. Състоянието се пази локално за всеки потребител; общият
 // свят (други играчи, съюзи, оазиси) е в world.js, логиката – в engine.js.
 import { h, modal, toast } from '../../ui.js';
-import { sound, confirmDialog, loadPrefs, savePrefs } from '../common.js';
+import { sound, confirmDialog, loadPrefs, savePrefs, isMuted, setMuted } from '../common.js';
 import * as E from './engine.js';
 import {
   RES, RACES, EPOCHS, BUILDINGS, PLOTS, DECOR, OFF_PLOT, UNITS, UNIT_ORDER, FIGHTERS, TECHS, CLS_NAMES, resName, unitCls,
@@ -225,6 +225,9 @@ export function mount(root, ctx) {
       h('div', { class: 'ee-crest' },
         h('button', { class: 'ee-crest-b', title: 'Империята', onclick: settings, html: emblem(s.race, 40) }),
         h('span', { class: 'ee-crest-t' }, h('b', null, s.name), h('small', { class: 'ee-ep' }, EPOCHS[s.epoch - 1].name), citySel),
+        h('span', { class: 'ee-tools' },
+          h('button', { class: 'ee-tool', title: 'Настройки и звук', 'aria-label': 'Настройки и звук', onclick: settings }, '⚙'),
+          h('button', { class: 'ee-tool', title: isMuted() ? 'Включи звука' : 'Изключи звука', 'aria-label': 'Звук', onclick: () => { setMuted(!isMuted()); updateAudio(); renderTop(); } }, isMuted() ? '🔇' : '🔊')),
         E.isProtected(s, now()) && h('span', { class: 'ee-prot', title: 'Защита за новаци – никой не може да ви напада' }, '🛡 ', h('span', { class: 'ee-timer', dataset: { end: s.protectedUntil } }))),
       h('div', { class: 'ee-res' },
         show.map((k) => {
@@ -1303,8 +1306,9 @@ export function mount(root, ctx) {
           h('div', { class: 'seg' },
             h('button', { type: 'button', class: notifyOn() ? 'on' : '', onclick: async (e) => { await enableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0 && notifyOn())); } }, 'Включени'),
             h('button', { type: 'button', class: notifyOn() ? '' : 'on', onclick: async (e) => { await disableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 1)); } }, 'Изключени'))),
-        h('div', { class: 'opt-group' }, h('span', null, 'Музика и звуци на града'),
+        h('div', { class: 'opt-group' }, h('span', null, 'Звук (музика, град, битки)'),
           h('div', { class: 'seg' },
+            h('button', { type: 'button', class: isMuted() ? '' : 'on', onclick: (e) => { setMuted(!isMuted()); updateAudio(); renderTop(); e.currentTarget.classList.toggle('on', !isMuted()); e.currentTarget.textContent = isMuted() ? '🔇 Изключен' : '🔊 Включен'; } }, isMuted() ? '🔇 Изключен' : '🔊 Включен'),
             h('button', { type: 'button', class: audioPrefs().music ? 'on' : '', onclick: (e) => { const on = !audioPrefs().music; setAudioPref('music', on); e.currentTarget.classList.toggle('on', on); } }, '🎵 Музика'),
             h('button', { type: 'button', class: audioPrefs().ambient ? 'on' : '', onclick: (e) => { const on = !audioPrefs().ambient; setAudioPref('ambient', on); e.currentTarget.classList.toggle('on', on); } }, '🐦 Град'))),
         h('p', { class: 'muted' }, ONLINE ? 'Онлайн свят: всички играчи са в един свят, а сървърът проверява всяко действие.' : 'Локален свят: споделен само между акаунтите в този браузър.'),
