@@ -1,230 +1,137 @@
-// Регистър на игрите. За нова игра: добави запис тук и папка в js/games/<id>/.
+// Game registry. For a new game: add an entry here and a folder in js/games/<id>/.
+import { txt } from '../i18n.js';
 
 export const GAMES = [
   {
     id: 'tabla',
-    name: 'Табла',
-    tagline: 'Класическата „обикновена“ табла с 15 пула.',
-    players: 'Срещу компютъра или онлайн',
+    name: txt('Backgammon'),
+    tagline: txt('Classic "regular" backgammon with 15 checkers.'),
+    players: txt('Against the computer or online'),
     accent: '#e0954a',
     load: () => import('./tabla/tabla.js'),
     online: {
-      seats: 2, minHumans: 2, bots: false, seatNames: ['Белите', 'Черните'],
-      options: [{ key: 'target', label: 'Мач до', value: 3, options: [[1, '1 точка'], [3, '3 точки'], [5, '5 точки']] }],
+      seats: 2, minHumans: 2, bots: false, seatNames: [txt('White'), txt('Black')],
+      options: [{ key: 'target', label: txt('Match to'), value: 3, options: [[1, txt('1 point')], [3, txt('3 points')], [5, txt('5 points')]] }],
     },
-    rules: `
-      <p>Целта е да придвижите всичките си 15 пула до своя дом (долу вдясно) и да ги изнесете първи.</p>
-      <ul>
-        <li>Движите се обратно на часовниковата стрелка – от горе вдясно към долу вдясно.</li>
-        <li>Всеки зар е отделен ход. При чифт (дюшеш) играете числото четири пъти.</li>
-        <li>Не можете да спрете на позиция с 2 или повече противникови пула (затворена „врата“).</li>
-        <li>Единичен противников пул може да бъде ударен – той отива на бара и трябва да влезе отново.</li>
-        <li>Докато имате пул на бара, първо трябва да го вкарате.</li>
-        <li>Изнасяте пулове само когато всички са в дома. Ако заровете позволяват, сте длъжни да изиграете и двата зара, а ако е възможен само един – по-големия.</li>
-        <li><b>Марс</b>: ако противникът не е изнесъл нито един пул – печелите 2 точки.</li>
-      </ul>
-      <p><b>Управление:</b> натиснете пул, после позицията, където искате да отиде (подсветена). Повторно натискане на избрания пул го мести с по-големия зар. На вертикален телефон дъската се завърта, за да е по-едра.</p>`,
+    rules: txt('\n      <p>The goal is to move all 15 of your checkers to your home (bottom right) and bear them off first.</p>\n      <ul>\n        <li>You move counter-clockwise – from top right to bottom right.</li>\n        <li>Each die is a separate move. With doubles you play the number four times.</li>\n        <li>You cannot land on a point with 2 or more opposing checkers (a closed "door").</li>\n        <li>A single opposing checker can be hit – it goes to the bar and must enter again.</li>\n        <li>While you have a checker on the bar, you must enter it first.</li>\n        <li>You bear off only when all checkers are home. If the dice allow it, you must play both dice, and if only one is possible – the larger one.</li>\n        <li><b>Gammon</b>: if the opponent has not borne off a single checker – you win 2 points.</li>\n      </ul>\n      <p><b>Controls:</b> tap a checker, then the point where you want it to go (highlighted). Tapping the selected checker again moves it with the larger die. On a phone held upright the board rotates to be larger.</p>'),
   },
   {
     id: 'tapa',
-    name: 'Тапа',
-    tagline: 'Табла без биене – единичен пул се затапва.',
-    players: 'Срещу компютъра или онлайн',
+    name: txt('Tapa'),
+    tagline: txt('Backgammon without hitting – a single checker gets pinned.'),
+    players: txt('Against the computer or online'),
     accent: '#d9a441',
     load: () => import('./tabla/tabla.js'),
     online: {
-      seats: 2, minHumans: 2, bots: false, seatNames: ['Белите', 'Черните'],
-      options: [{ key: 'target', label: 'Мач до', value: 3, options: [[1, '1 точка'], [3, '3 точки'], [5, '5 точки']] }],
+      seats: 2, minHumans: 2, bots: false, seatNames: [txt('White'), txt('Black')],
+      options: [{ key: 'target', label: txt('Match to'), value: 3, options: [[1, txt('1 point')], [3, txt('3 points')], [5, txt('5 points')]] }],
     },
-    rules: `
-      <p>Всеки играч започва с всичките си 15 пула на една точка – най-далечната от дома му – и ги движи до дома, откъдето ги изнася.</p>
-      <ul>
-        <li>Движението е като в обикновената табла: белите към долния десен ъгъл, черните – огледално.</li>
-        <li><b>Няма биене.</b> Ако спрете върху единичен противников пул, вие го <b>затапвате</b> – той не може да мърда, докато не махнете пула си оттам.</li>
-        <li>Точка с 2 или повече противникови пула (или затапена от противника) е затворена.</li>
-        <li>Изнасяте, когато всичките ви пулове (включително затапените) са в дома.</li>
-        <li><b>Майка:</b> ако затапите последния пул на противника на началната му точка, печелите веднага (2 точки).</li>
-        <li><b>Марс:</b> ако противникът не е изнесъл нито един пул – 2 точки.</li>
-      </ul>`,
+    rules: txt('\n      <p>Each player starts with all 15 checkers on one point – the farthest from their home – and moves them home, where they bear them off.</p>\n      <ul>\n        <li>Movement is as in regular backgammon: white towards the bottom right corner, black – mirrored.</li>\n        <li><b>No hitting.</b> If you land on a single opposing checker, you <b>pin</b> it – it cannot move until you move your checker away.</li>\n        <li>A point with 2 or more opposing checkers (or pinned by the opponent) is closed.</li>\n        <li>You bear off when all your checkers (including pinned ones) are home.</li>\n        <li><b>Mother:</b> if you pin the opponent\'s last checker on their starting point, you win immediately (2 points).</li>\n        <li><b>Gammon:</b> if the opponent has not borne off a single checker – 2 points.</li>\n      </ul>'),
   },
   {
     id: 'gulbara',
-    name: 'Гюлбара',
-    tagline: 'Двамата в една посока, единичен пул блокира, чифтовете ескалират.',
-    players: 'Срещу компютъра или онлайн',
+    name: txt('Gulbara'),
+    tagline: txt('Both in the same direction, a single checker blocks, doubles escalate.'),
+    players: txt('Against the computer or online'),
     accent: '#7bd389',
     load: () => import('./tabla/tabla.js'),
     online: {
-      seats: 2, minHumans: 2, bots: false, seatNames: ['Белите', 'Черните'],
-      options: [{ key: 'target', label: 'Мач до', value: 3, options: [[1, '1 точка'], [3, '3 точки'], [5, '5 точки']] }],
+      seats: 2, minHumans: 2, bots: false, seatNames: [txt('White'), txt('Black')],
+      options: [{ key: 'target', label: txt('Match to'), value: 3, options: [[1, txt('1 point')], [3, txt('3 points')], [5, txt('5 points')]] }],
     },
-    rules: `
-      <p>Всеки играч започва с 15 пула в противоположни ъгли (белите – горе вдясно, черните – долу вляво) и двамата се движат <b>в една и съща посока</b> – обратно на часовниковата стрелка. Домът на белите е долу вдясно, на черните – горе вляво.</p>
-      <ul>
-        <li><b>Няма биене.</b> Дори единичен пул блокира точката – противникът не може да спре там.</li>
-        <li>Чифтът се играе 4 пъти.</li>
-        <li><b>Ескалация:</b> от 4-тото хвърляне на всеки играч нататък, ако хвърлите чифт, играете него и всички следващи чифтове до 6-6 (напр. 4-4, после 5-5 и 6-6).</li>
-        <li>Ако не можете да изиграете всичко от такъв чифт (но сте изиграли поне един ход), остатъкът се изиграва от противника.</li>
-        <li>Изнасяте, когато всички пулове са в дома. <b>Марс</b> (противникът не е изнесъл нито един пул) – 2 точки.</li>
-      </ul>`,
+    rules: txt('\n      <p>Each player starts with 15 checkers in opposite corners (white – top right, black – bottom left) and both move <b>in the same direction</b> – counter-clockwise. White\'s home is bottom right, black\'s – top left.</p>\n      <ul>\n        <li><b>No hitting.</b> Even a single checker blocks the point – the opponent cannot land there.</li>\n        <li>Doubles are played 4 times.</li>\n        <li><b>Escalation:</b> from each player\'s 4th roll on, if you roll doubles, you play them and all following doubles up to 6-6 (e.g. 4-4, then 5-5 and 6-6).</li>\n        <li>If you cannot play everything from such doubles (but have played at least one move), the rest is played by the opponent.</li>\n        <li>You bear off when all checkers are home. <b>Gammon</b> (the opponent has not borne off a single checker) – 2 points.</li>\n      </ul>'),
   },
   {
     id: 'chess',
-    name: 'Шах',
-    tagline: 'Пълни правила, три нива на трудност.',
-    players: 'Срещу компютъра или онлайн',
+    name: txt('Chess'),
+    tagline: txt('Full rules, three difficulty levels.'),
+    players: txt('Against the computer or online'),
     accent: '#c78bff',
     load: () => import('./chess/chess.js'),
-    online: { seats: 2, minHumans: 2, bots: false, seatNames: ['Белите', 'Черните'], options: [] },
-    rules: `
-      <p>Стандартни правила на ФИДЕ: рокада, ан пасан, произвеждане на пешка, мат, пат, реми при повторение на позицията три пъти, правило на 50-те хода и недостатъчен материал.</p>
-      <p><b>Управление:</b> плъзнете фигура или натиснете фигура и след това поле. Точките показват възможните ходове.</p>
-      <p>Можете да върнете ход, да обърнете дъската или да се предадете.</p>`,
+    online: { seats: 2, minHumans: 2, bots: false, seatNames: [txt('White'), txt('Black')], options: [] },
+    rules: txt('\n      <p>Standard FIDE rules: castling, en passant, promotion, checkmate, stalemate, draw by threefold repetition, the 50-move rule and insufficient material.</p>\n      <p><b>Controls:</b> drag a piece, or tap a piece and then a square. The dots show the possible moves.</p>\n      <p>You can take back a move, flip the board or resign.</p>'),
   },
   {
     id: 'belot',
-    name: 'Белот',
-    tagline: 'Български белот 2 на 2 – вие и партньор срещу двама.',
-    players: '2 на 2 · с ботове или онлайн',
+    name: txt('Belot'),
+    tagline: txt('Bulgarian belot 2 vs 2 – you and a partner against two.'),
+    players: txt('2 vs 2 · with bots or online'),
     accent: '#3ecf8e',
     load: () => import('./belot/belot.js'),
     online: {
       referee: true,
       teams: 2,
       seats: 4, minHumans: 2, bots: true,
-      seatNames: ['Отбор А · юг', 'Отбор Б · изток', 'Отбор А · север', 'Отбор Б · запад'],
-      botNames: ['Бот Иван', 'Бот Георги', 'Бот Мария', 'Бот Петър'],
-      options: [{ key: 'target', label: 'Игра до', value: 151, options: [[51, '51'], [101, '101'], [151, '151']] }],
+      seatNames: [txt('Team A · south'), txt('Team B · east'), txt('Team A · north'), txt('Team B · west')],
+      botNames: [txt('Bot Ivan'), txt('Bot Georgi'), txt('Bot Maria'), txt('Bot Petar')],
+      options: [{ key: 'target', label: txt('Play to'), value: 151, options: [[51, '51'], [101, '101'], [151, '151']] }],
     },
-    rules: `
-      <p>Играе се с 32 карти от 7 до асо, по двойки (вие и играчът срещу вас). Играта е обратно на часовниковата стрелка.</p>
-      <ul>
-        <li><b>Обявяване:</b> раздават се по 5 карти. Обявява се Спатия &lt; Каро &lt; Купа &lt; Пика &lt; Без коз &lt; Всичко коз. Може да се даде Контра (x2) и Реконтра (x4). След три паса обявяването спира. Ако всички пасуват – ново раздаване.</li>
-        <li>След обявяването всеки получава още 3 карти.</li>
-        <li><b>Игра:</b> длъжни сте да отговорите на боята. Ако нямате – длъжни сте да цакате (ако партньорът ви не държи ръката). При коз и всичко коз трябва да се качва.</li>
-        <li><b>Анонси</b> (в първата ръка): терца 20, кварта 50, квинта 100, каре 100 (каре вале 200, каре девятки 150), белот (дама и поп коз) 20. Анонсите са автоматични.</li>
-        <li><b>Точки:</b> коз – вале 20, девятка 14, асо 11, десетка 10, поп 4, дама 3. Некоз – асо 11, десетка 10, поп 4, дама 3, вале 2. Последната ръка носи 10. Валат (всички ръце) – 90.</li>
-        <li>Ако обявилият отбор има по-малко точки – „вътре“ е и всички точки отиват при противника. При равенство точките „висят“ за следващото раздаване.</li>
-        <li>Печели първият отбор, достигнал целта (по подразбиране 151).</li>
-      </ul>`,
+    rules: txt('\n      <p>Played with 32 cards from 7 to ace, in pairs (you and the player opposite you). Play goes counter-clockwise.</p>\n      <ul>\n        <li><b>Bidding:</b> 5 cards are dealt to each player. Bids are Clubs &lt; Diamonds &lt; Hearts &lt; Spades &lt; No trumps &lt; All trumps. You can Double (x2) and Redouble (x4). After three passes the bidding ends. If everyone passes – a new deal.</li>\n        <li>After the bidding everyone gets 3 more cards.</li>\n        <li><b>Play:</b> you must follow suit. If you can\'t – you must trump (unless your partner is winning the trick). In trumps and all trumps you must play higher.</li>\n        <li><b>Declarations</b> (in the first trick): tierce 20, quarte 50, quint 100, four of a kind 100 (four jacks 200, four nines 150), belot (queen and king of trumps) 20. Declarations are automatic.</li>\n        <li><b>Points:</b> trumps – jack 20, nine 14, ace 11, ten 10, king 4, queen 3. Non-trumps – ace 11, ten 10, king 4, queen 3, jack 2. The last trick is worth 10. Capot (all tricks) – 90.</li>\n        <li>If the bidding team has fewer points it is "inside" and all points go to the opponents. On a tie the points "hang" for the next deal.</li>\n        <li>The first team to reach the target wins (151 by default).</li>\n      </ul>'),
   },
   {
     id: 'blato',
-    name: 'Блато',
-    tagline: '3-5-8 за трима – всеки трябва да изкара своите ръце.',
-    players: 'Трима · с ботове или онлайн',
+    name: txt('Blato'),
+    tagline: txt('3-5-8 for three – everyone must make their tricks.'),
+    players: txt('Three players · with bots or online'),
     accent: '#a78bfa',
     load: () => import('./blato/blato.js'),
     online: {
       referee: true,
       seats: 3, minHumans: 2, bots: true,
-      seatNames: ['Място 1', 'Място 2', 'Място 3'],
-      botNames: ['Бот Иван', 'Бот Георги', 'Бот Петър'],
-      options: [{ key: 'target', label: 'Игра до', value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
+      seatNames: [txt('Seat 1'), txt('Seat 2'), txt('Seat 3')],
+      botNames: [txt('Bot Ivan'), txt('Bot Georgi'), txt('Bot Petar')],
+      options: [{ key: 'target', label: txt('Play to'), value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
     },
-    rules: `
-      <p>Играе се от трима с 52 карти. Всеки получава по 16 карти, а 4 остават в <b>блатото</b>. Играе се обратно на часовниковата стрелка.</p>
-      <ul>
-        <li><b>Цел:</b> раздаващият трябва да вземе <b>8</b> ръце, следващият – <b>5</b>, третият – <b>3</b>.</li>
-        <li>Раздаващият взема блатото, обявява коз (без „без коз“) и сваля 4 карти.</li>
-        <li>Първи играе следващият след раздаващия. Длъжни сте да отговорите на боята; ако нямате – играете каквото искате (не сте длъжни да цакате).</li>
-        <li>Ръката взема най-високият коз, а ако няма коз – най-високата карта от изиграната боя. Асото е най-силно.</li>
-        <li><b>Точки:</b> всяка ръка над целта е +1, всяка под целта е −1. Печели първият, стигнал избрания резултат (напр. +10).</li>
-        <li><b>Размяна:</b> в следващото раздаване всеки, взел повече от целта си, дава толкова карти, колкото е взел в повече, на изостаналите (на всеки – колкото му не достигат). Получателят връща за всяка карта най-силната си карта от същата боя.</li>
-      </ul>`,
+    rules: txt('\n      <p>Played by three with 52 cards. Each player gets 16 cards and 4 stay in the <b>swamp</b>. Play goes counter-clockwise.</p>\n      <ul>\n        <li><b>Goal:</b> the dealer must take <b>8</b> tricks, the next player – <b>5</b>, the third – <b>3</b>.</li>\n        <li>The dealer takes the swamp, names trumps (no "no trumps") and discards 4 cards.</li>\n        <li>The player after the dealer leads. You must follow suit; if you can\'t – play anything (you don\'t have to trump).</li>\n        <li>The trick is won by the highest trump, or if there are no trumps – by the highest card of the suit led. The ace is highest.</li>\n        <li><b>Points:</b> each trick above the goal is +1, each below is −1. The first to reach the chosen score (e.g. +10) wins.</li>\n        <li><b>Exchange:</b> in the next deal everyone who took more than their goal gives as many cards as they took in excess to those who fell short (to each – as many as they lacked). The receiver returns their strongest card of the same suit for each card.</li>\n      </ul>'),
   },
   {
     id: 'santase',
-    name: 'Сантасе',
-    tagline: 'Шейсет и шест – бърза игра за двама.',
-    players: 'Срещу компютъра или онлайн',
+    name: txt('Santase'),
+    tagline: txt('Sixty-six – a quick game for two.'),
+    players: txt('Against the computer or online'),
     accent: '#ef6f6c',
     load: () => import('./santase/santase.js'),
     online: {
-      referee: true, seats: 2, minHumans: 2, bots: false, seatNames: ['Играч 1', 'Играч 2'], options: [] },
-    rules: `
-      <p>Играе се с 24 карти (9, вале, дама, поп, 10, асо). Целта е първи да съберете 66 точки в раздаването.</p>
-      <ul>
-        <li><b>Стойности:</b> асо 11, десетка 10, поп 4, дама 3, вале 2, девятка 0.</li>
-        <li>Докато има тесте, не сте длъжни да отговаряте на боята. Победителят в ръката тегли първи.</li>
-        <li><b>Двайсет/четирийсет:</b> когато сте на ход и имате дама и поп от една боя, при изиграване на единия от тях се обявяват 20 точки (40 ако е коз). Точките се зачитат, след като имате поне една взета ръка.</li>
-        <li><b>Смяна на 9-ка:</b> девятката коз може да се смени с открития коз, докато в тестето има повече от 2 карти.</li>
-        <li><b>Затваряне:</b> когато сте на ход, можете да затворите тестето. Тогава (и когато тестето свърши) трябва да се отговаря на боята, да се качва и да се цака.</li>
-        <li><b>Точки за мача:</b> 3 ако противникът няма взета ръка, 2 ако има под 33 точки, 1 иначе. Ако затворилият не стигне 66 – противникът взема 3. Ако никой не стигне 66, печели взелият последната ръка.</li>
-        <li>Мачът е до 11 точки.</li>
-      </ul>`,
+      referee: true, seats: 2, minHumans: 2, bots: false, seatNames: [txt('Player 1'), txt('Player 2')], options: [] },
+    rules: txt('\n      <p>Played with 24 cards (9, jack, queen, king, 10, ace). The goal is to be the first to collect 66 points in the deal.</p>\n      <ul>\n        <li><b>Values:</b> ace 11, ten 10, king 4, queen 3, jack 2, nine 0.</li>\n        <li>While there is a stock you don\'t have to follow suit. The trick winner draws first.</li>\n        <li><b>Twenty/forty:</b> when it is your turn and you hold the queen and king of a suit, playing one of them declares 20 points (40 for trumps). The points count once you have won at least one trick.</li>\n        <li><b>Exchanging the 9:</b> the nine of trumps can be exchanged for the face-up trump while the stock has more than 2 cards.</li>\n        <li><b>Closing:</b> on your turn you can close the stock. Then (and when the stock runs out) you must follow suit, play higher and trump.</li>\n        <li><b>Match points:</b> 3 if the opponent has no tricks, 2 if they have under 33 points, 1 otherwise. If the closer doesn\'t reach 66 – the opponent gets 3. If nobody reaches 66, the winner of the last trick wins.</li>\n        <li>The match is to 11 points.</li>\n      </ul>'),
   },
   {
     id: 'ludo',
-    name: 'Не се сърди, човече',
-    tagline: 'Класиката за 2–4 играчи – с 3D зар.',
-    players: '2–4 · с ботове или онлайн',
+    name: txt('Ludo'),
+    tagline: txt('The classic for 2–4 players – with a 3D die.'),
+    players: txt('2–4 · with bots or online'),
     accent: '#2fbf71',
     load: () => import('./ludo/ludo.js'),
     online: {
       seats: 4, minHumans: 2, bots: true,
-      seatNames: ['Червени', 'Жълти', 'Зелени', 'Сини'],
-      botNames: ['Бот Иван', 'Бот Георги', 'Бот Мария', 'Бот Петър'],
+      seatNames: [txt('Red'), txt('Yellow'), txt('Green'), txt('Blue')],
+      botNames: [txt('Bot Ivan'), txt('Bot Georgi'), txt('Bot Maria'), txt('Bot Petar')],
       options: [],
     },
-    rules: `
-      <p>Всеки играч има 4 пула в кошарата си. Целта е пръв да ги прекарате по целия път и да ги вкарате в домашната си редица.</p>
-      <ul>
-        <li>Пул излиза от кошарата само с <b>шестица</b>. При шестица изкарването на пул е задължително, ако е възможно.</li>
-        <li>След шестица хвърляте отново.</li>
-        <li>Ако нямате пулове в игра, имате 3 опита да хвърлите шестица.</li>
-        <li>Ако спрете на поле с противников пул, го „изяждате“ – той се връща в кошарата.</li>
-        <li>Не можете да спрете на поле със свой пул. Стартовото поле трябва да се освободи, докато имате пулове в кошарата.</li>
-        <li>В домашната редица се влиза с точен брой и не се прескачат собствени пулове.</li>
-      </ul>
-      <p><b>Управление:</b> натиснете „Хвърли“ (или дъската), после изберете подсветения пул.</p>`,
+    rules: txt('\n      <p>Each player has 4 pieces in their yard. The goal is to be the first to take them around the whole track and into your home row.</p>\n      <ul>\n        <li>A piece leaves the yard only with a <b>six</b>. With a six, bringing out a piece is mandatory if possible.</li>\n        <li>After a six you roll again.</li>\n        <li>If you have no pieces in play, you get 3 tries to roll a six.</li>\n        <li>If you land on a square with an opposing piece, you "capture" it – it goes back to the yard.</li>\n        <li>You cannot land on a square with your own piece. The start square must be cleared while you have pieces in the yard.</li>\n        <li>You enter the home row with an exact roll and cannot jump over your own pieces.</li>\n      </ul>\n      <p><b>Controls:</b> press "Roll" (or the board), then choose the highlighted piece.</p>'),
   },
   {
     id: 'solitaire',
-    name: 'Пасианс',
-    tagline: 'Класическият „Клондайк“ – подредете всички карти.',
-    players: 'Сам или онлайн състезание',
+    name: txt('Solitaire'),
+    tagline: txt('Classic "Klondike" – sort all the cards.'),
+    players: txt('Alone or online race'),
     accent: '#38bdf8',
     load: () => import('./solitaire/solitaire.js'),
-    // онлайн: всички нареждат едно и също раздаване – печели който го реди пръв
+    // online: everyone sorts the same deal – whoever finishes first wins
     online: {
-      seats: 4, minHumans: 2, bots: false, race: true, seatNames: ['Играч 1', 'Играч 2', 'Играч 3', 'Играч 4'],
-      options: [{ key: 'draw', label: 'Теглене', value: 1, options: [[1, 'По 1 карта'], [3, 'По 3 карти']] }],
+      seats: 4, minHumans: 2, bots: false, race: true, seatNames: [txt('Player 1'), txt('Player 2'), txt('Player 3'), txt('Player 4')],
+      options: [{ key: 'draw', label: txt('Cards to draw'), value: 1, options: [[1, txt('1 card')], [3, txt('3 cards')]] }],
     },
-    rules: `
-      <p>Целта е да подредите всичките 52 карти в четирите основи (горе вдясно) – по бои, от асо до поп.</p>
-      <ul>
-        <li>В колоните картите се нареждат в низходящ ред с редуващи се цветове (червено върху черно и обратно).</li>
-        <li>Можете да местите и цели подредени групи. В празна колона може да се постави само поп (заедно с картите върху него).</li>
-        <li>Затворена карта се обръща, когато открие отгоре ѝ.</li>
-        <li>Натиснете тестето, за да теглите по 1 или 3 карти. Когато свърши, отпадъкът се обръща отново.</li>
-        <li>Когато всички карти в колоните са открити, бутонът <b>Довърши</b> нарежда останалото автоматично.</li>
-      </ul>
-      <p><b>Управление:</b> докоснете карта – тя сама отива на най-доброто място; или я плъзнете където искате. Има връщане на ход и подсказка.</p>
-      <p><b>Онлайн:</b> 2–4 играчи нареждат едно и също раздаване едновременно и виждат напредъка си. Печели който нареди пръв (или който остане последен, ако другите се откажат).</p>`,
+    rules: txt('\n      <p>The goal is to sort all 52 cards onto the four foundations (top right) – by suit, from ace to king.</p>\n      <ul>\n        <li>In the columns cards are stacked in descending order with alternating colours (red on black and vice versa).</li>\n        <li>You can also move whole sorted groups. Only a king (with the cards on it) can be placed in an empty column.</li>\n        <li>A face-down card turns over when it is uncovered.</li>\n        <li>Tap the stock to draw 1 or 3 cards. When it runs out, the waste is turned over again.</li>\n        <li>When all cards in the columns are face up, the <b>Finish</b> button sorts the rest automatically.</li>\n      </ul>\n      <p><b>Controls:</b> tap a card – it goes to the best place by itself; or drag it wherever you want. There is undo and a hint.</p>\n      <p><b>Online:</b> 2–4 players sort the same deal at the same time and see each other\'s progress. Whoever finishes first wins (or the last one remaining if the others give up).</p>'),
   },
   {
     id: 'empires',
     name: 'Evil Empires',
-    tagline: 'Стратегия: издигнете империя през епохите.',
-    players: 'Сам · прогрес с месеци',
+    tagline: txt('Strategy: raise an empire through the ages.'),
+    players: txt('Solo · progress over months'),
     accent: '#b48cff',
     load: () => import('./empires/empires.js'),
-    rules: `
-      <p>Изберете народ – <b>Хора, Немъртви, Орки или Вещери</b> – и превърнете едно пепелище в империя от много градове.</p>
-      <ul>
-        <li><b>Ресурси и сгради:</b> всеки град произвежда злато, дърво, камък и храна (при немъртвите – кости) и когато не сте в играта. Цитаделата ограничава нивата на останалите сгради.</li>
-        <li><b>Нови градове:</b> с Цитадела 5 обучете заселници и ги изпратете на свободна земя от Картата. На всеки 5 нива на Цитаделата – още един град.</li>
-        <li><b>Герой:</b> ходи на приключения за опит, ресурси и предмети; има умения и екипировка, води войската и защитава града. Ако падне – съживете го в Залата на героите.</li>
-        <li><b>Походи:</b> набези на варварски лагери, атаки срещу владетелите на компютъра и други играчи, разузнаване със съгледвачи, подкрепления. Копията бият конницата, конницата – стрелците, стрелците – копията.</li>
-        <li><b>Тактически битки:</b> при набег или атака срещу компютъра изберете „Тактическа битка“ – при пристигане водите войската на ходове по шестоъгълна карта (гора, хълмове, руини, реки). Имате 1 час, иначе битката се решава автоматично.</li>
-        <li><b>Защита:</b> палисада/стена, капани, скривалище (пази ресурси от грабеж), стражева кула (вижда нападенията по-рано и разкрива състава им), нощен бонус 0:00–7:00 българско време (+50% защита). Новите играчи са под защита 5 дни (изтича, ако нападнете владетел).</li>
-        <li><b>Морал:</b> ако нападате много по-слаб владетел, войската ви бие по-слабо.</li>
-        <li><b>Оазиси:</b> победете пазачите с героя във войската и завладейте оазиса (+25% към ресурса; до 3 полета от града; Зала на героите 3/6/10).</li>
-        <li><b>Съюзи:</b> с Посолство се присъединете или основете съюз – чат, подкрепления, дипломация (съюз, пакт, война), класации. Срещу клановете на компютъра можете да купите пакт.</li>
-        <li><b>Наука и епохи:</b> Пепелна → Бронзова (Цитадела 5, Бронзолеене, вождът на варварите) → Желязна (Цитадела 10, Желязо, лагер ниво 10) – с пикинери, арбалетчици, тежка конница, конюшня и храм.</li>
-      </ul>
-      <p>С онлайн акаунт светът е общ за всички играчи, а сървърът проверява всяко действие. Включете известията от герба горе вляво – идват и когато играта е затворена.</p>`,
+    rules: txt('\n      <p>Choose a people – <b>Humans, Undead, Orcs or Witchers</b> – and turn a heap of ashes into an empire of many cities.</p>\n      <ul>\n        <li><b>Resources and buildings:</b> every city produces gold, wood, stone and food (bones for the undead) even when you are not playing. The Citadel limits the levels of the other buildings.</li>\n        <li><b>New cities:</b> with Citadel 5 train settlers and send them to free land on the Map. One more city for every 5 Citadel levels.</li>\n        <li><b>Hero:</b> goes on adventures for experience, resources and items; has skills and equipment, leads the army and defends the city. If they fall – revive them in the Hall of Heroes.</li>\n        <li><b>Marches:</b> raids on barbarian camps, attacks on computer rulers and other players, scouting with scouts, reinforcements. Spears beat cavalry, cavalry beats archers, archers beat spears.</li>\n        <li><b>Tactical battles:</b> when raiding or attacking, choose "Tactical battle" – on arrival you lead the army turn by turn on a hex map (forest, hills, ruins, rivers). You have 1 hour, otherwise the battle is decided automatically.</li>\n        <li><b>Defense:</b> palisade/wall, traps, hideout (protects resources from plunder), watchtower (sees attacks earlier and reveals their makeup), night bonus 0:00–7:00 Bulgarian time (+50% defense). New players are protected for 5 days (it ends if you attack a ruler).</li>\n        <li><b>Morale:</b> if you attack a much weaker ruler, your army hits less hard.</li>\n        <li><b>Oases:</b> defeat the guards with the hero in the army and conquer the oasis (+25% to the resource; up to 3 tiles from the city; Hall of Heroes 3/6/10).</li>\n        <li><b>Alliances:</b> with an Embassy join or found an alliance – chat, reinforcements, diplomacy (alliance, pact, war), rankings. You can buy a pact with the computer clans.</li>\n        <li><b>Science and ages:</b> Ash → Bronze (Citadel 5, Bronze Casting, the barbarian warlord) → Iron (Citadel 10, Iron, camp level 10) – with pikemen, crossbowmen, heavy cavalry, stables and temple.</li>\n      </ul>\n      <p>With an online account the world is shared by all players and the server checks every action. Turn on notifications in the settings (⚙) – they arrive even when the game is closed.</p>'),
   },
 ];
 

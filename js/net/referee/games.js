@@ -1,4 +1,4 @@
-// Игрите със скрита информация, които се водят от сървъра-съдия.
+// Hidden-information games that are run by the referee server.
 export const REFEREED = ['belot', 'santase', 'blato'];
 
 const loaders = {

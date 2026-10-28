@@ -1,4 +1,4 @@
-// Общи функции за игри с карти: рендиране, тесте, разбъркване.
+// Shared functions for card games: rendering, deck, shuffling.
 import { suitSvg, isRed } from './suits.js';
 import { cryptoRng } from '../../net/rng.js';
 
@@ -10,7 +10,7 @@ export function makeDeck(ranks) {
   return deck;
 }
 
-// rnd: функция → [0, 1); в онлайн игрите е общият генератор на мача.
+// rnd: function → [0, 1); in online games it's the match's shared generator.
 export function shuffle(arr, rnd = cryptoRng) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -41,8 +41,8 @@ function centerHtml(c) {
   return `<div class="ace">${suitSvg(c.s)}</div>`;
 }
 
-// Фигури (вале, дама, поп): илюстрации English pattern от Dmitry Fomin (CC0),
-// префиоцветени в палитрата на портала. Зареждат се предварително, за да няма примигване.
+// Face cards (jack, queen, king): English pattern illustrations by Dmitry Fomin (CC0),
+// recoloured in the portal's palette. Preloaded so there is no flicker.
 const COURT = new Set(['J', 'Q', 'K']);
 const courtSrc = (c) => `assets/cards/${c.r}${c.s}.svg`;
 if (typeof Image !== 'undefined') for (const s of SUITS) for (const r of COURT) new Image().src = courtSrc({ r, s });
@@ -71,7 +71,7 @@ export function cardEl(card, { faceDown = false, cls = '' } = {}) {
   return el;
 }
 
-// Сортира ръка по боя (редуващи се цветове) и сила.
+// Sorts a hand by suit (alternating colours) and strength.
 export function sortHand(hand, rankOrder, suitOrder = ['S', 'H', 'C', 'D']) {
   return hand.slice().sort((a, b) => {
     const sa = suitOrder.indexOf(a.s), sb = suitOrder.indexOf(b.s);
@@ -80,7 +80,7 @@ export function sortHand(hand, rankOrder, suitOrder = ['S', 'H', 'C', 'D']) {
   });
 }
 
-// Подрежда картите в ръката като ветрило.
+// Lays out the cards in the hand as a fan.
 export function layoutFan(container, { spreadDeg = 5, lift = 0.6 } = {}) {
   const cards = [...container.children];
   const n = cards.length;

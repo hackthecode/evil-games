@@ -1,11 +1,12 @@
-// Онлайн хранилище чрез Supabase (Postgres + Auth). Схемата е в supabase/schema.sql.
-// Потребителското име се превръща във вътрешен имейл, за да може регистрацията
-// да е само с име и парола (в Supabase трябва да е изключено "Confirm email").
+// Online storage via Supabase (Postgres + Auth). The schema is in supabase/schema.sql.
+// The username becomes an internal email so that sign-up
+// needs only a name and password ("Confirm email" must be turned off in Supabase).
+import { txt } from '../i18n.js';
 
 const SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 const EMAIL_DOMAIN = 'players.kare.local';
 
-// Имейлът трябва да е ASCII – кирилските имена се кодират в hex.
+// The email must be ASCII – Cyrillic names are hex-encoded.
 const toEmail = (username) => {
   const u = username.toLowerCase();
   const local = /^[a-z0-9_]+$/.test(u)
@@ -45,7 +46,7 @@ export function createSupabaseStore({ url, anonKey }) {
       sb = createClient(url, anonKey, { auth: { persistSession: true } });
     },
 
-    // Клиентът се ползва и за онлайн игрите (Realtime канали).
+    // The client is also used for online games (Realtime channels).
     client: () => sb,
 
     async getUser() {
@@ -64,7 +65,7 @@ export function createSupabaseStore({ url, anonKey }) {
         }),
       );
       if (!res.session) {
-        throw new Error('В Supabase изключете "Confirm email" (Authentication → Providers → Email).');
+        throw new Error(txt('In Supabase turn off "Confirm email" (Authentication → Providers → Email).'));
       }
       return this.getProfile(res.user.id);
     },
@@ -130,7 +131,7 @@ export function createSupabaseStore({ url, anonKey }) {
       }));
     },
 
-    // ---------- рейтинг ----------
+    // ---------- rating ----------
     async reportRated({ game, key, team, outcome, players }) {
       check(await sb.rpc('report_rated', { p_key: key, p_game: game, p_team: team, p_outcome: outcome, p_players: players }));
     },
@@ -140,7 +141,7 @@ export function createSupabaseStore({ url, anonKey }) {
       return Object.fromEntries(rows.map((r) => [r.game_id, { rating: r.rating, games: r.games }]));
     },
 
-    // ---------- приятели ----------
+    // ---------- friends ----------
     async searchUsers(userId, q) {
       const s = q.trim().replace(/[%_]/g, '');
       if (!s) return [];
@@ -187,8 +188,8 @@ export function createSupabaseStore({ url, anonKey }) {
 }
 
 function translate(msg) {
-  if (/already registered/i.test(msg)) return 'Това потребителско име вече е заето.';
-  if (/invalid login/i.test(msg)) return 'Грешно потребителско име или парола.';
-  if (/password should be/i.test(msg)) return 'Паролата трябва да е поне 6 символа.';
+  if (/already registered/i.test(msg)) return txt('This username is already taken.');
+  if (/invalid login/i.test(msg)) return txt('Wrong username or password.');
+  if (/password should be/i.test(msg)) return txt('The password must be at least 6 characters.');
   return msg;
 }

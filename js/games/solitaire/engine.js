@@ -1,5 +1,5 @@
-// Пасианс „Клондайк“: правила, ходове, подсказки и автоматично довършване.
-// Карта: { s, r, id, up }. Места: { t: 'stock' | 'waste' | 'found' | 'tab', i, k }.
+// Klondike solitaire: rules, moves, hints and automatic finishing.
+// Card: { s, r, id, up }. Places: { t: 'stock' | 'waste' | 'found' | 'tab', i, k }.
 
 export const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 export const rankOf = (c) => RANKS.indexOf(c.r) + 1;
@@ -38,7 +38,7 @@ export function canTab(card, pile) {
   return t ? t.up && red(t) !== red(card) && rankOf(card) === rankOf(t) - 1 : card.r === 'K';
 }
 
-// Картите, които се местят от дадено място (в колона – от картата k до края).
+// The cards that move from a given place (in a column – from card k to the end).
 export function picked(st, from) {
   if (from.t === 'waste') return st.waste.length ? [top(st.waste)] : [];
   if (from.t === 'found') return st.found[from.i].length ? [top(st.found[from.i])] : [];
@@ -58,7 +58,7 @@ export function canMove(st, from, to) {
   return false;
 }
 
-// Прилага ход (без проверка) и обръща новата горна карта в колоната.
+// Applies a move (without checking) and turns up the new top card in the column.
 export function applyMove(st, from, to) {
   const n = clone(st);
   let cards;
@@ -74,7 +74,7 @@ export function applyMove(st, from, to) {
   return n;
 }
 
-// Тегли от тестето (1 или 3 карти); празно тесте → обръща отпадъка обратно.
+// Draws from the stock (1 or 3 cards); empty stock → turns the waste back over.
 export function drawCards(st) {
   const n = clone(st);
   if (!n.stock.length) {
@@ -89,7 +89,7 @@ export function drawCards(st) {
   return n;
 }
 
-// Най-добрата цел за картата при докосване: основа, после колона с карти, после празна колона.
+// The best target for the card on tap: foundation, then a column with cards, then an empty column.
 export function smartTarget(st, from) {
   const cards = picked(st, from);
   if (!cards.length) return null;
@@ -98,14 +98,14 @@ export function smartTarget(st, from) {
   }
   const order = [...Array(7).keys()].sort((a, b) => (st.tab[a].length ? 0 : 1) - (st.tab[b].length ? 0 : 1));
   for (const i of order) {
-    // крал от празна колона в друга празна колона е безсмислен ход
+    // a king from an empty column to another empty column is a pointless move
     if (!st.tab[i].length && from.t === 'tab' && from.k === 0) continue;
     if (canMove(st, from, { t: 'tab', i })) return { t: 'tab', i };
   }
   return null;
 }
 
-// Полезни ходове за подсказка (без безсмислено местене напред-назад).
+// Useful moves for a hint (without pointless back-and-forth moves).
 export function hints(st) {
   const res = [];
   const add = (from, to) => res.push({ from, to });
@@ -123,7 +123,7 @@ export function hints(st) {
     const p = st.tab[i];
     const k = p.findIndex((c) => c.up);
     if (k < 0) continue;
-    // местим цялата открита част само ако това открива карта или освобождава колона за крал
+    // we move the whole face-up part only if it uncovers a card or frees a column for a king
     if (k === 0 && p[0].r === 'K') continue;
     for (let j = 0; j < 7; j++) if (canMove(st, { t: 'tab', i, k }, { t: 'tab', i: j })) add({ t: 'tab', i, k }, { t: 'tab', i: j });
   }
@@ -133,10 +133,10 @@ export function hints(st) {
   return res;
 }
 
-// Автоматично довършване е възможно, когато всички карти в колоните са открити.
+// Automatic finishing is possible when all cards in the columns are face up.
 export const canAutoFinish = (st) => !isWon(st) && st.tab.every((p) => p.every((c) => c.up));
 
-// Следващ ход при автоматично довършване: карта към основата или теглене.
+// The next move in automatic finishing: a card to the foundation or a draw.
 export function autoStep(st) {
   for (let i = 0; i < 7; i++) {
     const p = st.tab[i];

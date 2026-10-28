@@ -1,4 +1,4 @@
--- Схема за онлайн акаунти и статистика (Supabase → SQL Editor → Run).
+-- Schema for online accounts and statistics (Supabase → SQL Editor → Run).
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users on delete cascade,
@@ -31,7 +31,7 @@ create table if not exists public.matches (
 );
 create index if not exists matches_user_idx on public.matches (user_id, created_at desc);
 
--- Профил се създава автоматично при регистрация.
+-- A profile is created automatically on sign-up.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -49,7 +49,7 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Запис на резултат от игра (само за текущия потребител).
+-- Recording a game result (only for the current user).
 create or replace function public.record_game(p_game text, p_result text, p_duration int, p_meta jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 begin
@@ -68,7 +68,7 @@ begin
   values (auth.uid(), p_game, p_result, greatest(0, least(p_duration, 86400000)), p_meta);
 end $$;
 
--- Добавяне на изиграно време (макс. 6 часа на заявка).
+-- Adding played time (max. 6 hours per request).
 create or replace function public.add_play_time(p_game text, p_ms int)
 returns void language plpgsql security definer set search_path = public as $$
 begin
@@ -80,9 +80,9 @@ begin
     time_ms = game_stats.time_ms + greatest(0, least(p_ms, 21600000));
 end $$;
 
--- Класацията (view leaderboard) е в края на файла – след таблицата с рейтингите.
+-- The ranking (view leaderboard) is at the end of the file – after the ratings table.
 
--- Права за достъп (Row Level Security).
+-- Access rights (Row Level Security).
 alter table public.profiles enable row level security;
 alter table public.game_stats enable row level security;
 alter table public.matches enable row level security;
@@ -99,15 +99,15 @@ drop policy if exists "own matches" on public.matches;
 create policy "own matches" on public.matches for select using (auth.uid() = user_id);
 
 
--- ===== Сървър-съдия (Edge Function „referee“) =====
--- Тайното състояние на игрите с карти (тесте, ръце) и дневникът с изгледите на играчите.
--- Без политики за достъп: четат и пишат само Edge Function (service role), никой клиент.
+-- ===== Referee server (Edge Function "referee") =====
+-- The secret state of the card games (deck, hands) and the log with the players' views.
+-- No access policies: only the Edge Function (service role) reads and writes, no client.
 create table if not exists public.referee_matches (
   key text primary key,
   game_id text not null,
   seats jsonb not null,              -- [{ uid, bot, name }]
-  state jsonb not null,              -- тайното състояние на съдията
-  n int not null default 0,          -- брой стъпки (оптимистично заключване)
+  state jsonb not null,              -- the referee's secret state
+  n int not null default 0,          -- number of steps (optimistic locking)
   joined int[] not null default '{}',
   started boolean not null default false,
   created_at timestamptz not null default now(),
@@ -118,21 +118,21 @@ create table if not exists public.referee_log (
   n int not null,
   seat int not null,
   type text not null,
-  pub jsonb,                         -- публичната част на стъпката
-  views jsonb not null,              -- изгледът на всеки човек след стъпката
+  pub jsonb,                         -- the public part of the step
+  views jsonb not null,              -- each human's view after the step
   created_at timestamptz not null default now(),
   primary key (key, n)
 );
 alter table public.referee_matches enable row level security;
 alter table public.referee_log enable row level security;
 
--- Стари мачове (по-стари от 3 дни) могат да се чистят периодично:
+-- Old matches (older than 3 days) can be cleaned up periodically:
 -- delete from public.referee_matches where updated_at < now() - interval '3 days';
 
--- ===== Приятели =====
+-- ===== Friends =====
 create table if not exists public.friendships (
-  user_id uuid not null references public.profiles(id) on delete cascade,   -- изпратил заявката
-  friend_id uuid not null references public.profiles(id) on delete cascade, -- получател
+  user_id uuid not null references public.profiles(id) on delete cascade,   -- who sent the request
+  friend_id uuid not null references public.profiles(id) on delete cascade, -- recipient
   status text not null default 'pending' check (status in ('pending', 'accepted')),
   created_at timestamptz not null default now(),
   primary key (user_id, friend_id),
@@ -148,9 +148,9 @@ create policy "friends accept" on public.friendships for update using (auth.uid(
 drop policy if exists "friends remove" on public.friendships;
 create policy "friends remove" on public.friendships for delete using (auth.uid() in (user_id, friend_id));
 
--- ===== Рейтинг (Elo) за онлайн мачове =====
--- Всеки играч съобщава своя резултат; рейтингът се изчислява веднъж, когато всички
--- играчи от мача са съобщили еднакъв състав и съгласувани резултати.
+-- ===== Rating (Elo) for online matches =====
+-- Each player reports their result; the rating is computed once, when all
+-- players of the match have reported the same line-up and consistent results.
 create table if not exists public.ratings (
   user_id uuid not null references public.profiles(id) on delete cascade,
   game_id text not null,
@@ -179,7 +179,7 @@ alter table public.rated_matches enable row level security;
 drop policy if exists "ratings readable" on public.ratings;
 create policy "ratings readable" on public.ratings for select using (true);
 
--- Изчисляване (същият алгоритъм като js/store/elo.js).
+-- Computation (the same algorithm as js/store/elo.js).
 create or replace function public.apply_elo(p_key text, p_game text) returns void
 language plpgsql security definer set search_path = public as $$
 declare
@@ -190,7 +190,7 @@ begin
   insert into ratings (user_id, game_id)
     select user_id, p_game from rated_reports where match_key = p_key
     on conflict do nothing;
-  -- всички от един отбор трябва да са съобщили един и същ резултат
+  -- everyone on a team must have reported the same result
   if exists (select 1 from rated_reports where match_key = p_key group by team having count(distinct outcome) > 1) then
     return;
   end if;
@@ -225,7 +225,7 @@ begin
       end if;
     end loop;
   else
-    return; -- несъгласувани резултати – без промяна
+    return; -- inconsistent results – no change
   end if;
   for i in 1..n loop
     update ratings set rating = greatest(100, rating + round(delta[i])::int), games = games + 1
@@ -254,13 +254,13 @@ begin
     where match_key = p_key and game_id = p_game and players = p_players;
   if n_reports < n_players then return; end if;
   insert into rated_matches (match_key, game_id) values (p_key, p_game) on conflict do nothing;
-  if not found then return; end if; -- вече е изчислен
+  if not found then return; end if; -- already computed
   perform apply_elo(p_key, p_game);
 end $$;
 grant execute on function public.report_rated(text, text, int, text, jsonb) to authenticated;
 revoke execute on function public.apply_elo(text, text) from public, anon, authenticated;
 
--- Класацията с рейтинга по игри (новите колони са в края, за да може view-то да се обнови).
+-- The ranking with the rating per game (the new columns are at the end so the view can be replaced).
 create or replace view public.leaderboard as
   select p.id as user_id, p.username, p.display_name, p.color, p.created_at,
          s.game_id, s.played, s.wins, s.losses, s.draws, s.time_ms, s.last_played,

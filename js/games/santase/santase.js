@@ -1,6 +1,6 @@
-// Сантасе: интерфейсът се управлява от сървъра-съдия (js/games/santase/referee.js).
-// Играта получава стъпки { seat, type, pub, view } и само ги анимира; собствените
-// карти идват от изгледа, а чуждите не се знаят.
+// Santase: the UI is driven by the referee server (js/games/santase/referee.js).
+// The game receives steps { seat, type, pub, view } and only animates them; its own
+// cards come from the view, and the others' are unknown.
 import { h, sleep, modal, toast, motion } from '../../ui.js';
 import { createTable } from '../../net/table.js';
 import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
@@ -8,6 +8,7 @@ import { cardEl, sortHand, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, SUIT_NAMES } from '../cards/suits.js';
 import { order } from './engine.js';
+import { txt } from '../../i18n.js';
 
 const TARGET = 11;
 
@@ -27,12 +28,12 @@ export async function mount(root, ctx) {
     }
     const opts = await setupScreen(root, {
       gameId: 'santase',
-      title: 'Нова игра на сантасе',
-      subtitle: 'Мач до 11 точки срещу компютъра.',
-      groups: [{ key: 'level', label: 'Трудност', value: 'normal', options: [['easy', 'Лесно'], ['normal', 'Нормално']] }],
+      title: txt('New game of santase'),
+      subtitle: txt('Match to 11 points against the computer.'),
+      groups: [{ key: 'level', label: txt('Difficulty'), value: 'normal', options: [['easy', txt('Easy')], ['normal', txt('Normal')]] }],
     });
     if (destroyed) return;
-    const seats = [{ bot: false, name: ctx.user.displayName }, { bot: true, name: 'Компютър' }];
+    const seats = [{ bot: false, name: ctx.user.displayName }, { bot: true, name: txt('Computer') }];
     runMatch(createTable({ mode: 'local', gameId: 'santase', seat: 0, seats, opts }), seats.map((s) => s.name), matchId, opts.level);
   };
 
@@ -40,7 +41,7 @@ export async function mount(root, ctx) {
     if (!online) ctx.newMatch();
     const gone = () => destroyed || myId !== matchId;
     const ME = table.seat, OP = 1 - ME;
-    let v = null; // последният изглед от съдията
+    let v = null; // the latest view from the referee
     let over = false;
     const pendingMine = new Set();
     let pendingOpp = 0;
@@ -62,8 +63,8 @@ export async function mount(root, ctx) {
     const actions = h('div', { class: 'santase-actions' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
     const tools = h('div', { class: 'ct-tools' },
-      h('button', { class: 'btn', onclick: resign }, 'Предай се'),
-      !online && h('button', { class: 'btn', onclick: newGame }, 'Нова'),
+      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
+      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
     );
     table$.append(north, south, stockEl, center, hud, actions, tools);
@@ -73,15 +74,15 @@ export async function mount(root, ctx) {
     const nameOf = (p) => (p === ME ? myName : oppName);
     const red = (s) => s === 'H' || s === 'D';
 
-    // ---------- рендиране от изгледа ----------
+    // ---------- rendering from the view ----------
     function renderHud() {
       const pts = v?.points;
       hud.replaceChildren(...[
-        h('div', { class: 'row' }, h('span', null, 'Вие'), h('b', null, v?.score[ME] ?? 0)),
+        h('div', { class: 'row' }, h('span', null, txt('You')), h('b', null, v?.score[ME] ?? 0)),
         h('div', { class: 'row' }, h('span', null, names[OP]), h('b', null, v?.score[OP] ?? 0)),
-        h('div', { class: 'goal' }, `мач до ${TARGET}`),
-        v?.trump && !hideTrump && h('div', { class: 'contract-badge', html: `Коз: ${suitSvg(v.trump, 'suit' + (red(v.trump) ? ' red' : ''))} ${SUIT_NAMES[v.trump]}` }),
-        pts && h('div', { class: 'goal' }, `точки: вие ${pts[ME]}${v.pending[ME] && !v.tricks[ME] ? ` (+${v.pending[ME]})` : ''} · ${names[OP]} ${pts[OP]}`),
+        h('div', { class: 'goal' }, txt('match to {0}', TARGET)),
+        v?.trump && !hideTrump && h('div', { class: 'contract-badge', html: txt('Trumps: {0} {1}', suitSvg(v.trump, 'suit' + (red(v.trump) ? ' red' : '')), SUIT_NAMES[v.trump]) }),
+        pts && h('div', { class: 'goal' }, txt('points: you {0}{1} · {2} {3}', pts[ME], v.pending[ME] && !v.tricks[ME] ? ` (+${v.pending[ME]})` : '', names[OP], pts[OP])),
       ].filter(Boolean));
       north.classList.toggle('turn', v?.turn === OP);
       south.classList.toggle('turn', v?.turn === ME);
@@ -101,7 +102,7 @@ export async function mount(root, ctx) {
         pile.append(c);
       }
       if (n > 0) stockEl.append(pile);
-      stockEl.append(h('div', { class: 'count' }, v.closedBy >= 0 ? 'затворено' : `${v.stock} карти`));
+      stockEl.append(h('div', { class: 'count' }, v.closedBy >= 0 ? txt('closed') : txt('{0} cards', v.stock)));
     }
 
     const sortMine = (hand) => sortHand(hand, order, v.trump === 'S' ? ['S', 'H', 'C', 'D'] : [v.trump, ...['S', 'H', 'C', 'D'].filter((x) => x !== v.trump)]);
@@ -149,7 +150,7 @@ export async function mount(root, ctx) {
       setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 300); }, ms);
     }
 
-    // ---------- решения на играча ----------
+    // ---------- player decisions ----------
     let lastFrom = null;
     let picking = false;
     myHand.addEventListener('click', (e) => {
@@ -175,8 +176,8 @@ export async function mount(root, ctx) {
         actions.replaceChildren();
         send({ kind });
       };
-      if (dcs.canExchange) actions.append(h('button', { class: 'btn', onclick: pick('exchange') }, 'Смени 9-ката'));
-      if (dcs.canClose) actions.append(h('button', { class: 'btn', onclick: pick('close') }, '🔒 Затвори'));
+      if (dcs.canExchange) actions.append(h('button', { class: 'btn', onclick: pick('exchange') }, txt('Exchange the 9')));
+      if (dcs.canClose) actions.append(h('button', { class: 'btn', onclick: pick('close') }, txt('🔒 Close')));
     }
 
     async function send(data) {
@@ -189,7 +190,7 @@ export async function mount(root, ctx) {
       }
     }
 
-    // ---------- анимации по стъпки ----------
+    // ---------- step animations ----------
     const stockTop = () => {
       const pile = stockEl.querySelector('.pile');
       return pile ? { ...snap(pile.lastElementChild), a: 0 } : null;
@@ -210,7 +211,7 @@ export async function mount(root, ctx) {
       sound('dice');
       if (pile) await shuffleDeck(pile, 900);
       if (gone()) return;
-      // по 3 карти на всеки два пъти, първо на играча след раздаващия
+      // 3 cards to each player twice, first to the player after the dealer
       const mine = v.hand.slice();
       const flights = [];
       let oppIdx = 0, myIdx = 0;
@@ -239,7 +240,7 @@ export async function mount(root, ctx) {
     }
 
     async function animExchange(p, pub, nv) {
-      bubble(nameOf(p), 'Смяна на 9-ката');
+      bubble(nameOf(p), txt('Exchanging the 9'));
       const tSnap = trumpEl() ? snap(trumpEl()) : null;
       const nineFrom = p === ME ? snap(myHand.querySelector(`[data-id="${pub.nine.id}"]`) || myHand) : oppMid();
       v = nv;
@@ -263,7 +264,7 @@ export async function mount(root, ctx) {
       lastFrom = null;
       const prevHand = v.hand.map((c) => c.id);
       const prevStock = { pile: stockTop(), trump: trumpEl() && snap(trumpEl()), trumpCard: v.trumpCard };
-      // изтеглените карти остават скрити, докато не долетят от тестето
+      // the drawn cards stay hidden until they fly in from the stock
       const drawn = pub.drew ? nv.hand.filter((c) => !prevHand.includes(c.id)) : [];
       drawn.forEach((c) => pendingMine.add(c.id));
       if (pub.drew) pendingOpp = 1;
@@ -275,7 +276,7 @@ export async function mount(root, ctx) {
       renderHud();
       await fly({ card, from, to: () => el, faceFrom: p === ME, duration: 400, spin: p === ME ? 0 : (Math.random() - 0.5) * 40 }).then(() => land(el));
       if (pub.marriage) {
-        bubble(nameOf(p), pub.marriage === 40 ? 'Четирийсет!' : 'Двайсет!');
+        bubble(nameOf(p), pub.marriage === 40 ? txt('Forty!') : txt('Twenty!'));
         sound('notify');
       }
       if (!pub.trick) return;
@@ -288,7 +289,7 @@ export async function mount(root, ctx) {
       await collectTrick(slots.map((s) => s.firstElementChild).filter(Boolean), slotOf(w).firstElementChild, nameOf(w));
       slots.forEach((s) => { s.replaceChildren(); s.classList.remove('win'); });
       if (pub.drew) {
-        // теглят по една карта: първо спечелилият; последната може да е откритият коз
+        // they draw one card each: the winner first; the last one may be the face-up trump
         v = nv;
         renderStock();
         renderHands();
@@ -308,21 +309,21 @@ export async function mount(root, ctx) {
     }
 
     async function animScore(pub) {
-      const reason = pub.reason === 'closedFail' ? 'затвореното тесте не донесе 66' : pub.reason === 'last' ? 'последна взета ръка' : '66 точки';
+      const reason = pub.reason === 'closedFail' ? txt('the closed stock didn\'t bring 66') : pub.reason === 'last' ? txt('last trick taken') : txt('66 points');
       renderHud();
       if (motion.fast || v.phase === 'over') return;
       await modal({
-        title: pub.winner === ME ? 'Печелите раздаването!' : `${names[pub.winner]} печели раздаването`,
+        title: pub.winner === ME ? txt('You win the deal!') : txt('{0} wins the deal', names[pub.winner]),
         body: h('div', null,
-          h('p', { class: 'summary-note' }, `+${pub.gp} ${pub.gp === 1 ? 'точка' : 'точки'} (${reason})`),
+          h('p', { class: 'summary-note' }, `+${pub.gp} ${pub.gp === 1 ? txt('point') : txt('points')} (${reason})`),
           h('table', { class: 'summary-table' },
-            h('tr', null, h('th', null, ''), h('th', null, 'Вие'), h('th', null, names[OP])),
-            h('tr', null, h('td', null, 'Точки в раздаването'), h('td', null, pub.points[ME]), h('td', null, pub.points[OP])),
-            h('tr', null, h('td', null, 'Взети ръце'), h('td', null, pub.tricks[ME]), h('td', null, pub.tricks[OP])),
-            h('tr', { class: 'total' }, h('td', null, 'Мач'), h('td', null, pub.score[ME]), h('td', null, pub.score[OP])),
+            h('tr', null, h('th', null, ''), h('th', null, txt('You')), h('th', null, names[OP])),
+            h('tr', null, h('td', null, txt('Points in the deal')), h('td', null, pub.points[ME]), h('td', null, pub.points[OP])),
+            h('tr', null, h('td', null, txt('Tricks taken')), h('td', null, pub.tricks[ME]), h('td', null, pub.tricks[OP])),
+            h('tr', { class: 'total' }, h('td', null, txt('Match')), h('td', null, pub.score[ME]), h('td', null, pub.score[OP])),
           ),
         ),
-        actions: [{ label: 'Продължи', value: true, primary: true }],
+        actions: [{ label: txt('Continue'), value: true, primary: true }],
       });
     }
 
@@ -332,17 +333,17 @@ export async function mount(root, ctx) {
       if (e.type === 'score') {
         v = nv;
         await animScore(e.pub);
-        if (nv.phase === 'over') endMatch(nv.score[ME] > nv.score[OP] ? 'win' : 'loss', `Краен резултат ${nv.score[ME]} : ${nv.score[OP]}`);
+        if (nv.phase === 'over') endMatch(nv.score[ME] > nv.score[OP] ? 'win' : 'loss', txt('Final score {0} : {1}', nv.score[ME], nv.score[OP]));
         return;
       }
-      // ход на противника – кратко „мислене“
+      // the opponent's turn – a short "think"
       if (e.seat !== ME && !motion.fast) await sleep(650);
       if (gone()) return;
       if (e.pub.kind === 'exchange') return animExchange(e.seat, e.pub, nv);
       if (e.pub.kind === 'close') {
         v = nv;
         sound('notify');
-        bubble(nameOf(e.seat), 'Затварям!');
+        bubble(nameOf(e.seat), txt('I\'m closing!'));
         renderStock();
         stockEl.querySelector('.pile')?.animate([{ transform: 'none' }, { transform: 'rotate(-12deg)' }], { duration: 450, easing: 'cubic-bezier(.3,1.4,.5,1)' });
         return;
@@ -350,7 +351,7 @@ export async function mount(root, ctx) {
       return animCard(e.seat, e.pub, nv);
     }
 
-    // Стъпките се анимират една по една; след последната – решението на играча.
+    // Steps are animated one by one; after the last one – the player's decision.
     const queue = [];
     let busy = false;
     let skipBelow = 0;
@@ -371,7 +372,7 @@ export async function mount(root, ctx) {
       pump();
     });
 
-    // ---------- край ----------
+    // ---------- end ----------
     async function endMatch(outcome, text) {
       if (over) return;
       over = true;
@@ -380,30 +381,30 @@ export async function mount(root, ctx) {
       actions.replaceChildren();
       picking = false;
       await ctx.report(outcome, online
-        ? { summary: `Онлайн срещу ${names[OP]} · ${v?.score[ME] ?? 0}:${v?.score[OP] ?? 0}`, online: true, opponent: names[OP] }
-        : { summary: `${v?.score[ME] ?? 0}:${v?.score[OP] ?? 0} · ${level === 'easy' ? 'Лесно' : 'Нормално'}` });
+        ? { summary: txt('Online against {0} · {1}:{2}', names[OP], v?.score[ME] ?? 0, v?.score[OP] ?? 0), online: true, opponent: names[OP] }
+        : { summary: `${v?.score[ME] ?? 0}:${v?.score[OP] ?? 0} · ${level === 'easy' ? txt('Easy') : txt('Normal')}` });
       if (destroyed) return;
-      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text, again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? online.rematch() : start();
       else if (c === 'exit') location.hash = online ? '#/online/santase' : '#/';
     }
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', 'Да се отчете ли мачът като загуба?', 'Предай се', true))) return;
+      if (!(await confirmDialog(txt('Resign'), txt('Count the match as a loss?'), txt('Resign'), true))) return;
       if (online) online.resign();
-      else endMatch('loss', 'Предадохте мача.');
+      else endMatch('loss', txt('You resigned the match.'));
     }
 
     async function newGame() {
-      if (!(await confirmDialog('Нова игра', 'Текущият мач ще бъде прекратен без да се отчита. Продължаване?'))) return;
+      if (!(await confirmDialog(txt('New game'), txt('The current match will be stopped without being counted. Continue?')))) return;
       start();
     }
 
     const offEvents = online ? online.onEvent((e) => {
       if (over || destroyed) return;
-      if (e.kind === 'resign') endMatch(e.seat === ME ? 'loss' : 'win', e.seat === ME ? 'Предадохте мача.' : `${names[e.seat]} се предаде.`);
-      else if (e.kind === 'forfeit') endMatch(e.winner === ME ? 'win' : 'loss', e.reason === 'stall' ? 'Служебна победа заради бездействие.' : 'Противникът напусна – служебна победа.');
+      if (e.kind === 'resign') endMatch(e.seat === ME ? 'loss' : 'win', e.seat === ME ? txt('You resigned the match.') : txt('{0} resigned.', names[e.seat]));
+      else if (e.kind === 'forfeit') endMatch(e.winner === ME ? 'win' : 'loss', e.reason === 'stall' ? txt('Forfeit win due to inactivity.') : txt('The opponent left – forfeit win.'));
     }) : () => {};
 
     cleanup = () => {
@@ -412,7 +413,7 @@ export async function mount(root, ctx) {
       table.close();
     };
 
-    // ---------- свързване ----------
+    // ---------- connecting ----------
     try {
       const res = await table.connect();
       if (gone()) return;
@@ -421,7 +422,7 @@ export async function mount(root, ctx) {
       renderAll();
       pump();
     } catch (e) {
-      table$.append(h('div', { class: 'ct-msg' }, 'Няма връзка със съдията: ' + e.message));
+      table$.append(h('div', { class: 'ct-msg' }, txt('No connection to the referee: ') + e.message));
     }
   }
 

@@ -1,5 +1,5 @@
-// Сантасе за сървъра-съдия: пълното състояние (с картите на двамата) е само тук,
-// всеки играч получава изглед със своите карти.
+// Santase for the referee server: the full state (with both players' cards) is only here,
+// each player gets a view with their own cards.
 import { makeDeck, shuffle } from '../cards/cards.js';
 import { seededRng } from '../../net/rng.js';
 import {
@@ -68,7 +68,7 @@ export default {
     return {
       kind: 'card', card, marriage: ev.marriage || 0,
       trick: ev.type === 'trick' ? { winner: ev.winner } : null,
-      // изтеглените карти са тайни; публично е само дали последната е била откритият коз
+      // the drawn cards are secret; it's public only whether the last one was the face-up trump
       drew: ev.drew ? { lastTrump: stockBefore === 2 } : null,
     };
   },

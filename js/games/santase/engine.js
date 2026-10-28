@@ -1,4 +1,4 @@
-// Сантасе (66): правила и AI. Играчи: 0 = вие, 1 = компютър.
+// Santase (66): rules and AI. Players: 0 = you, 1 = computer.
 
 export const RANKS = ['9', 'J', 'Q', 'K', '10', 'A'];
 const ORDER = { 9: 0, J: 1, Q: 2, K: 3, 10: 4, A: 5 };
@@ -12,17 +12,17 @@ export function newDeal(deck, dealer) {
   for (const cnt of [3, 3]) {
     for (const p of [leader, dealer]) for (let i = 0; i < cnt; i++) hands[p].push(deck[k++]);
   }
-  const rest = deck.slice(k); // 12 карти; първата е открития коз (най-отдолу)
+  const rest = deck.slice(k); // 12 cards; the first is the face-up trump (at the bottom)
   const trumpCard = rest[0];
   return {
     hands,
-    stock: rest, // stock[0] = открития коз, теглене от края
+    stock: rest, // stock[0] = the face-up trump, drawing from the end
     trump: trumpCard.s,
     closedBy: -1,
     leader,
-    lead: null, // изиграна първа карта в текущата ръка
+    lead: null, // the first card played in the current trick
     points: [0, 0],
-    pending: [0, 0], // обявени 20/40 преди първа взета ръка
+    pending: [0, 0], // 20/40 declared before the first trick taken
     tricks: [0, 0],
     marriages: [[], []],
     lastWinner: -1,
@@ -73,7 +73,7 @@ export function exchange(d, p) {
 const total = (d, p) => d.points[p] + (d.tricks[p] > 0 ? d.pending[p] : 0);
 export const scoreOf = total;
 
-// Изиграва карта. Връща събитие {type: 'lead'|'trick', marriage, trickWinner, ...}.
+// Plays a card. Returns an event {type: 'lead'|'trick', marriage, trickWinner, ...}.
 export function play(d, p, card) {
   d.hands[p] = d.hands[p].filter((c) => c.id !== card.id);
   if (!d.lead) {
@@ -111,7 +111,7 @@ export function play(d, p, card) {
   return { type: 'trick', winner: w, cards: [lead.card, card], drew };
 }
 
-// Точки за мача при край на раздаването.
+// Match points at the end of the deal.
 export function dealResult(d) {
   const w = d.winner;
   const l = 1 - w;
@@ -124,7 +124,7 @@ export function dealResult(d) {
 
 // ---------- AI ----------
 function unseenHigher(card, d, p, seen) {
-  // има ли невидяна по-силна карта от същата боя
+  // is there an unseen higher card of the same suit
   for (const r of RANKS) {
     if (ORDER[r] <= ORDER[card.r]) continue;
     const id = r + card.s;
@@ -134,7 +134,7 @@ function unseenHigher(card, d, p, seen) {
 }
 
 export function aiDecideAction(d, p, seen) {
-  // действия преди извеждане: смяна на 9 и затваряне
+  // actions before leading: exchanging the 9 and closing
   const acts = [];
   if (canExchange(d, p)) acts.push('exchange');
   if (canClose(d, p)) {
@@ -166,7 +166,7 @@ export function aiPlay(d, p, seenIds) {
   const lowest = (cards) => cards.slice().sort((a, b) => val(a) - val(b))[0];
 
   if (!d.lead) {
-    // обяви 20/40, ако е възможно
+    // declare 20/40 if possible
     const marriages = legal.filter((c) => marriageFor(d, p, c));
     if (marriages.length) {
       marriages.sort((a, b) => (b.s === trump) - (a.s === trump) || (a.r === 'Q' ? -1 : 1));
@@ -192,7 +192,7 @@ export function aiPlay(d, p, seenIds) {
   }
   const sameSuitWins = winning.filter((c) => c.s === L.s);
   if (sameSuitWins.length) {
-    const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // вземи с най-силната (10 или асо носят точки)
+    const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // take with the strongest (10 or ace bring points)
     const cheap = sameSuitWins.sort((a, b) => val(a) - val(b))[0];
     return lpts >= 10 || PTS[best.r] >= 10 ? (PTS[best.r] >= 10 ? best : cheap) : cheap;
   }

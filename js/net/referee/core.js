@@ -1,19 +1,20 @@
-// Сървър-съдия: изпълнява играта авторитетно. Държи тестето и всички ръце,
-// проверява всяко решение, играе вместо ботовете и стъпките на „системата“
-// (раздаване, точкуване), а на всеки играч дава изглед само с неговите карти.
+// Referee server: runs the game authoritatively. Holds the deck and all hands,
+// checks every decision, plays for the bots and the "system" steps
+// (dealing, scoring), and gives each player a view with only their own cards.
 //
-// Един и същ код работи: в браузъра (игра срещу компютъра), в SharedWorker
-// (локален онлайн тест, емулира сървър) и в Supabase Edge Function (истински сървър).
-// Състоянието е чист JSON, за да може сървърът да го пази в базата данни.
+// The same code runs: in the browser (game against the computer), in a SharedWorker
+// (local online test, emulates a server) and in a Supabase Edge Function (real server).
+// The state is plain JSON so the server can keep it in the database.
 //
-// Редуктор на игра (js/games/<игра>/referee.js):
+// Game reducer (js/games/<game>/referee.js):
 //   init({ seats, opts, seed }) → S          seats: [{ bot: bool, name }]
-//   next(S) → { seat, type } | null          seat -1 = системна стъпка; null = край
+//   next(S) → { seat, type } | null          seat -1 = system step; null = end
 //   validate(S, seat, type, data) → bool
-//   apply(S, seat, type, data) → pub         публични данни за дневника
-//   view(S, seat) → изглед за играча (карти, кой е на ход, възможни решения…)
-//   ai(S, seat, type) → data                 решение на бот
-//   result(S) → { winners: [seat], ... }     при край
+//   apply(S, seat, type, data) → pub         public data for the log
+//   view(S, seat) → the player's view (cards, whose turn, possible decisions…)
+//   ai(S, seat, type) → data                 a bot's decision
+//   result(S) → { winners: [seat], ... }     at the end
+import { tk } from '../../i18n/tk.js';
 
 export function createMatch(reducer, { seats, opts = {}, seed }) {
   return wrap(reducer, { S: reducer.init({ seats, opts, seed }), seats, log: [] });
@@ -30,13 +31,13 @@ function wrap(reducer, M) {
     const pub = reducer.apply(M.S, seat, type, data);
     const e = { n: M.log.length, seat, type, pub: pub ?? null };
     M.log.push(e);
-    // изгледите се правят веднага – всеки играч вижда състоянието след тази стъпка
+    // the views are made right away – every player sees the state after this step
     const views = {};
     for (const h of humans()) views[h] = reducer.view(M.S, h);
     return { ...e, views };
   }
 
-  // Изпълнява системните стъпки и ходовете на ботовете до решение на човек или край.
+  // Runs the system steps and bot moves until a human decision or the end.
   function advance() {
     const out = [];
     for (let guard = 0; guard < 2000; guard++) {
@@ -58,11 +59,11 @@ function wrap(reducer, M) {
     start: () => (M.log.length ? [] : advance()),
     submit(seat, type, data) {
       const nx = reducer.next(M.S);
-      if (!nx || nx.seat !== seat || nx.type !== type) throw new Error('Не е ваш ред.');
-      if (!reducer.validate(M.S, seat, type, data)) throw new Error('Невалиден ход.');
+      if (!nx || nx.seat !== seat || nx.type !== type) throw new Error(tk('It\'s not your turn.'));
+      if (!reducer.validate(M.S, seat, type, data)) throw new Error(tk('Invalid move.'));
       return [step(seat, type, data), ...advance()];
     },
-    // прекъснал играч → бот (решенията му се вземат автоматично)
+    // disconnected player → bot (their decisions are made automatically)
     takeover(seat) {
       if (!M.seats[seat] || M.seats[seat].bot) return [];
       M.seats[seat] = { ...M.seats[seat], bot: true };
@@ -74,5 +75,5 @@ function wrap(reducer, M) {
   };
 }
 
-// Стъпките за конкретен играч: публичната част + неговият изглед.
+// The steps for a specific player: the public part + their view.
 export const forSeat = (entries, seat) => entries.map(({ views, ...e }) => ({ ...e, view: views[seat] }));

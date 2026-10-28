@@ -1,6 +1,7 @@
-// Общи елементи за игрите: екран с настройки, резултат, звуци, запомняне на настройки.
+// Shared game elements: settings screen, result, sounds, remembering settings.
 import { h, modal, motion } from '../ui.js';
 import { icon } from '../icons.js';
+import { txt } from '../i18n.js';
 
 export function loadPrefs(gameId, defaults) {
   try {
@@ -38,8 +39,8 @@ export function seg(options, value, onChange) {
   return el;
 }
 
-// Показва екран с настройки в root. Връща Promise с избраните стойности.
-export function setupScreen(root, { gameId, title, subtitle, groups, startLabel = 'Започни играта' }) {
+// Shows a settings screen in root. Returns a Promise with the chosen values.
+export function setupScreen(root, { gameId, title, subtitle, groups, startLabel = txt('Start the game') }) {
   return new Promise((resolve) => {
     const prefs = loadPrefs(gameId, Object.fromEntries(groups.map((g) => [g.key, g.value])));
     const wrap = h('div', { class: 'g-setup' },
@@ -65,8 +66,8 @@ export function setupScreen(root, { gameId, title, subtitle, groups, startLabel 
   });
 }
 
-export function showResult({ outcome, title, text, again = 'Нова игра' }) {
-  const t = title || { win: 'Победа!', loss: 'Загуба', draw: 'Реми' }[outcome];
+export function showResult({ outcome, title, text, again = txt('New game') }) {
+  const t = title || { win: txt('Victory!'), loss: txt('Defeat'), draw: txt('Draw') }[outcome];
   if (outcome === 'win') sound('win');
   return modal({
     body: h('div', { class: `result-banner ${outcome}` },
@@ -75,21 +76,21 @@ export function showResult({ outcome, title, text, again = 'Нова игра' }
       text && h('p', { class: 'muted' }, text),
     ),
     actions: [
-      { label: 'Към игрите', value: 'exit' },
+      { label: txt('To the games'), value: 'exit' },
       { label: again, value: 'again', primary: true },
     ],
   });
 }
 
-export function confirmDialog(title, text, okLabel = 'Да', danger = false) {
+export function confirmDialog(title, text, okLabel = txt('Yes'), danger = false) {
   return modal({
     title,
     body: h('p', null, text),
-    actions: [{ label: 'Отказ', value: false }, { label: okLabel, value: true, primary: !danger, danger }],
+    actions: [{ label: txt('Cancel'), value: false }, { label: okLabel, value: true, primary: !danger, danger }],
   });
 }
 
-// --- Синтезирани звуци (Web Audio), без файлове ---
+// --- Synthesized sounds (Web Audio), no files ---
 let actx;
 const MUTE_KEY = 'kare.muted';
 export const isMuted = () => localStorage.getItem(MUTE_KEY) === '1';
@@ -147,8 +148,8 @@ export function sound(kind) {
 }
 
 export function muteButton() {
-  const btn = h('button', { class: 'btn btn-ghost', title: 'Звук' });
-  const draw = () => (btn.textContent = isMuted() ? '🔇 Звук' : '🔊 Звук');
+  const btn = h('button', { class: 'btn btn-ghost', title: txt('Sound') });
+  const draw = () => (btn.textContent = isMuted() ? txt('🔇 Sound') : txt('🔊 Sound'));
   btn.onclick = () => {
     setMuted(!isMuted());
     draw();

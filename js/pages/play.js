@@ -5,9 +5,10 @@ import { h, modal, toast, fmtClock } from '../ui.js';
 import { icon } from '../icons.js';
 import { runOnline } from './room-ui.js';
 import { social } from '../net/social.js';
+import { txt } from '../i18n.js';
 
 const FLUSH_EVERY_MS = 30000;
-const IDLE_AFTER_MS = 5 * 60000; // без действие 5 мин -> не броим време
+const IDLE_AFTER_MS = 5 * 60000; // no action for 5 min -> we don't count time
 
 export async function renderPlay(view, gameId, query) {
   const game = gameById(gameId);
@@ -15,7 +16,7 @@ export async function renderPlay(view, gameId, query) {
   const roomId = game.online && query?.get('room');
   const user = session.user;
 
-  // --- Проследяване на активното време в игра ---
+  // --- Tracking active time in a game ---
   let pendingMs = 0;
   let sessionMs = 0;
   let matchMs = 0;
@@ -62,19 +63,19 @@ export async function renderPlay(view, gameId, query) {
     gameId,
     toast,
     modal,
-    // Играта извиква това в началото на всеки нов мач.
+    // The game calls this at the start of every new match.
     newMatch() {
       tick();
       matchMs = 0;
     },
-    // Записва резултата от завършен мач: 'win' | 'loss' | 'draw'.
+    // Saves the result of a finished match: 'win' | 'loss' | 'draw'.
     async report(result, meta = {}) {
       tick();
       try {
         await store.recordGame(user.id, gameId, { result, durationMs: matchMs, meta });
         await flush();
       } catch (e) {
-        toast('Резултатът не беше записан: ' + e.message, 'error');
+        toast(txt('The result was not saved: ') + e.message, 'error');
       }
       matchMs = 0;
     },
@@ -82,12 +83,12 @@ export async function renderPlay(view, gameId, query) {
 
   const root = h('div', { class: `game-root game-${gameId}` });
   const bar = h('div', { class: 'play-bar' },
-        h('a', { href: roomId ? `#/online/${gameId}` : '#/', class: 'icon-btn', 'aria-label': 'Назад' }, icon('back')),
-        h('h1', { class: 'play-title' }, game.name, roomId && h('span', { class: 'online-badge' }, 'онлайн')),
-        h('span', { class: 'clock', title: 'Време в игра (тази сесия)' }, icon('clock', 16), clockEl),
+        h('a', { href: roomId ? `#/online/${gameId}` : '#/', class: 'icon-btn', 'aria-label': txt('Back') }, icon('back')),
+        h('h1', { class: 'play-title' }, game.name, roomId && h('span', { class: 'online-badge' }, txt('online'))),
+        h('span', { class: 'clock', title: txt('Time played (this session)') }, icon('clock', 16), clockEl),
         h('button', {
-          class: 'icon-btn', 'aria-label': 'Правила', title: 'Правила',
-          onclick: () => modal({ title: `Правила – ${game.name}`, body: h('div', { class: 'rules', html: game.rules }), className: 'modal-wide' }),
+          class: 'icon-btn', 'aria-label': txt('Rules'), title: txt('Rules'),
+          onclick: () => modal({ title: txt('Rules – {0}', game.name), body: h('div', { class: 'rules', html: game.rules }), className: 'modal-wide' }),
         }, icon('help')),
   );
   view.append(h('section', { class: 'play', style: { '--accent-g': game.accent } }, bar, root));
@@ -104,7 +105,7 @@ export async function renderPlay(view, gameId, query) {
     }
   } catch (e) {
     console.error(e);
-    root.append(h('p', { class: 'empty' }, 'Играта не можа да се зареди: ' + e.message));
+    root.append(h('p', { class: 'empty' }, txt('The game could not load: ') + e.message));
   }
 
   return async () => {

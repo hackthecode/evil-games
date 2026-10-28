@@ -1,14 +1,15 @@
-// Социални функции в реално време: кой е на линия (и какво играе) и лична
-// „пощенска кутия“ за покани и заявки за приятелство.
-//   Канал „online“  – присъствие на всички влезли играчи: { name, color, where }.
-//   Канал „inbox-<id>“ – съобщения към конкретен играч (покана, заявка).
+// Real-time social features: who is online (and what they play) and a personal
+// "mailbox" for invitations and friend requests.
+//   Channel "online"  – presence of all logged-in players: { name, color, where }.
+//   Channel "inbox-<id>" – messages to a specific player (invitation, request).
 import { openChannel } from './channel.js';
+import { txt } from '../i18n.js';
 
 let me = null;
 let online = null, inbox = null;
 let present = new Map();
 let where = null;
-let seek = null; // игра, за която търся противник (в лобито)
+let seek = null; // the game I'm looking for an opponent for (in the lobby)
 const listeners = new Set();
 const emit = (e) => listeners.forEach((fn) => { try { fn(e); } catch (err) { console.error(err); } });
 
@@ -50,8 +51,8 @@ export const social = {
     try { await i?.leave(); } catch {}
   },
 
-  // Къде съм в момента (игра/стая) – вижда се от приятелите.
-  // Търся противник за игра (null – спирам да търся).
+  // Where I am right now (game/room) – visible to friends.
+  // Looking for an opponent for a game (null – stop looking).
   setSeek(gameId) {
     seek = gameId || null;
     online?.track(state());
@@ -72,9 +73,9 @@ export const social = {
     return () => listeners.delete(fn);
   },
 
-  // Съобщение до друг играч: отваряме за миг неговата кутия и пращаме.
+  // A message to another player: we briefly open their mailbox and send.
   async send(toUid, payload) {
-    if (!me) throw new Error('Не сте влезли.');
+    if (!me) throw new Error(txt('You are not logged in.'));
     const ch = await openChannel(`inbox-${toUid}`, { uid: me.id, state: { name: me.displayName }, onMessage() {}, onPresence() {} });
     try {
       await ch.send({ ...payload, to: toUid, from: me.id, fromName: me.displayName, at: Date.now() });

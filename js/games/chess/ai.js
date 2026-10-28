@@ -1,9 +1,9 @@
-// Шахматен AI: негамакс с алфа-бета, итеративно задълбочаване и quiescence търсене.
+// Chess AI: negamax with alpha-beta, iterative deepening and quiescence search.
 import { legalMoves, makeMove, inCheck, colorOf } from './engine.js';
 
 const VAL = { P: 100, N: 320, B: 330, R: 500, Q: 900, K: 0 };
 
-// Таблици позиция-фигура (от гледна точка на белите, индекс 0 = a8).
+// Piece-square tables (from white's point of view, index 0 = a8).
 const PST = {
   P: [0, 0, 0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 50, 50, 10, 10, 20, 30, 30, 20, 10, 10, 5, 5, 10, 25, 25, 10, 5, 5,
     0, 0, 0, 20, 20, 0, 0, 0, 5, -5, -10, 0, 0, -10, -5, 5, 5, 10, 10, -20, -20, 10, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0],

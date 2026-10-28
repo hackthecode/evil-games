@@ -9,7 +9,7 @@
 .ee-ri svg { width: 100%; height: 100%; }
 .ee-center { display: flex; justify-content: center; text-align: center; }
 
-/* --- горна лента: герб и ресурси --- */
+/* --- top bar: crest and resources --- */
 .ee-top { position: sticky; top: 0; z-index: 3; display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 16px;
   background: linear-gradient(180deg, rgba(20, 18, 24, .96), rgba(10, 9, 12, .96)); border: 1px solid var(--border);
   box-shadow: 0 10px 26px -14px #000, inset 0 1px 0 rgba(255, 255, 255, .05); }
@@ -28,7 +28,7 @@
 .ee-cap { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255, 255, 255, .06); }
 .ee-cap i { display: block; height: 100%; background: var(--race); opacity: .7; }
 
-/* --- текущи задачи --- */
+/* --- current tasks --- */
 .ee-jobs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 1px; }
 .ee-jobs::-webkit-scrollbar { display: none; }
 .ee-job { position: relative; flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 12px 10px; border-radius: 12px; border: 1px solid var(--border-strong);
@@ -46,7 +46,7 @@
 .ee-dot { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .ee-body { min-height: 0; }
 
-/* --- град --- */
+/* --- city --- */
 .ee-cityview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
 .ee-city { position: relative; aspect-ratio: 4 / 3; max-height: calc(100dvh - 240px); width: 100%; border-radius: 18px; overflow: hidden; border: 1px solid var(--border); background: #040306;
   box-shadow: 0 20px 50px -24px color-mix(in srgb, var(--race) 50%, transparent); }
@@ -56,7 +56,7 @@
 .ee-plus { animation: ee-plus 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes ee-plus { 50% { transform: scale(1.15); opacity: .75; } }
 
-/* --- оживяване на сцената --- */
+/* --- bringing the scene to life --- */
 .ee-smoke circle, .ee-flag, .ee-flame, .ee-spin, .ee-spin-slow, .ee-float, .ee-pulse, .ee-twinkle, .ee-spark, .ee-ember, .ee-win { transform-box: fill-box; }
 .ee-smoke circle { transform-origin: center; animation: ee-smoke 5.5s ease-out infinite; opacity: 0; }
 @keyframes ee-smoke { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 20% { opacity: .22; } 100% { transform: translate(14px, -46px) scale(2.8); opacity: 0; } }
@@ -96,7 +96,7 @@
 .ee-brow-a { font-weight: 800; color: var(--race); font-size: 16px; }
 .ee-brow.ok .ee-brow-a { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--race) 20%, transparent); }
 
-/* --- прозорци --- */
+/* --- dialogs --- */
 .ee-modal { max-width: min(560px, calc(100vw - 24px)); }
 .ee-modal .modal-actions { flex-wrap: wrap; }
 .ee-bhead { display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: center; }
@@ -122,7 +122,7 @@
 .ee-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 6px; border-radius: 999px; background: var(--surface-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ee-chip.lack { color: var(--bad); background: rgba(255, 93, 108, .12); }
 
-/* --- карти (войска, лагери, наука, мисии) --- */
+/* --- cards (troops, camps, science, missions) --- */
 .ee-pane { display: flex; flex-direction: column; gap: 12px; }
 .ee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .ee-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px solid var(--border);
@@ -194,7 +194,7 @@
 .ee-mission.ready { border-color: rgba(62, 224, 143, .45); box-shadow: 0 0 24px -12px rgba(62, 224, 143, .7); }
 .ee-sec { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
 
-/* --- избор на раса --- */
+/* --- race selection --- */
 .ee-start { display: flex; flex-direction: column; gap: 18px; padding: 8px 4px 24px; }
 .ee-start-h { text-align: center; }
 .ee-start-h h2 { font-family: var(--font-display); font-size: clamp(26px, 5vw, 38px); background: linear-gradient(180deg, #fff, #b48cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -229,7 +229,7 @@
   .ee-start-f label, .ee-start-f .btn { width: 100%; }
 }
 
-/* ===== Етап 2: градове, карта, походи, герой, съюз ===== */
+/* ===== Stage 2: cities, map, marches, hero, alliance ===== */
 .ee-crest { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; }
 .ee-crest-b { border: 0; background: none; padding: 0; cursor: pointer; display: flex; }
 .ee-crest-t .ee-ep { color: var(--race); font-size: 11px; font-weight: 600; }
@@ -248,7 +248,7 @@
 .ee-qrow.me { color: var(--race); }
 .ee-qrow > span { min-width: 0; }
 
-/* карта */
+/* map */
 .ee-mapview { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
 .ee-mapcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ee-map { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: #060606; touch-action: none; user-select: none; }
@@ -271,7 +271,7 @@
 .ee-herochk input { accent-color: #e2b553; width: 18px; height: 18px; }
 .ee-inc { border-color: rgba(255, 93, 108, .45); background: linear-gradient(180deg, rgba(255, 93, 108, .08), rgba(255, 93, 108, .02)); }
 
-/* герой */
+/* hero */
 .ee-herocard { flex-direction: row; align-items: center; gap: 16px; }
 .ee-hero-l svg { display: block; filter: drop-shadow(0 8px 20px rgba(0, 0, 0, .6)); }
 .ee-hero-pt.dead { filter: grayscale(1) brightness(.55); }
@@ -293,7 +293,7 @@
 .ee-item-b { display: flex; gap: 6px; flex: none; }
 .ee-qrow.ee-item { align-items: center; }
 
-/* съюз */
+/* alliance */
 .ee-members { display: flex; flex-direction: column; gap: 4px; }
 .ee-online { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 6px; vertical-align: middle; }
 .ee-online.on { background: var(--good); box-shadow: 0 0 6px var(--good); }
@@ -316,7 +316,7 @@
   .ee-qrow.ee-item { grid-template-columns: 1fr; }
 }
 
-/* ===== Тактическа битка ===== */
+/* ===== Tactical battle ===== */
 body.ee-tac-open { overflow: hidden; }
 .ee-tac { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px; padding: max(10px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   background: radial-gradient(120% 80% at 50% 0%, #1a1418, #050405 70%); color: var(--text); }
@@ -345,7 +345,7 @@ body.ee-tac-open { overflow: hidden; }
   .ee-tac-log { min-height: 0; max-height: 90px; overflow-y: auto; }
 }
 
-/* ===== Живот в града ===== */
+/* ===== Life in the city ===== */
 .ee-wheel image { animation: ee-frame 1.2s steps(1, end) infinite; opacity: 0; }
 @keyframes ee-frame { 0%, 19.99% { opacity: 1; } 20%, 100% { opacity: 0; } }
 .ee-sway { transform-box: view-box; animation: ee-sway 5.5s ease-in-out infinite; }
@@ -360,7 +360,7 @@ body.ee-tac-open { overflow: hidden; }
   .ee-wheel image:first-child { opacity: 1; animation: none; }
 }
 
-/* бойна формация */
+/* battle formation */
 .ee-form summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .ee-form summary::-webkit-details-marker { display: none; }
 .ee-form-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
@@ -368,7 +368,7 @@ body.ee-tac-open { overflow: hidden; }
 .ee-summary { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 600px) { .ee-summary { grid-template-columns: 1fr 1fr; } .ee-summary > div:last-child { grid-column: auto; } }
 
-/* обучение */
+/* tutorial */
 .ee-coach-wrap { position: sticky; bottom: 0; z-index: 4; }
 .ee-coach { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--race) 55%, transparent);
   background: linear-gradient(180deg, rgba(24, 20, 30, .97), rgba(12, 10, 16, .97)); box-shadow: 0 -10px 30px -10px #000, 0 0 30px -14px var(--race); }
@@ -383,7 +383,7 @@ g.ee-hl { outline: none; filter: drop-shadow(0 0 10px var(--race)) brightness(1.
 .ee-tool { width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--line, #2a2a33); background: rgba(255,255,255,.04); color: inherit; font-size: 16px; cursor: pointer; display: grid; place-items: center; padding: 0; }
 .ee-tool:hover { background: rgba(255,255,255,.1); }
 
-/* чат в играта */
+/* in-game chat */
 .ee-chat-b { position: relative; }
 .ee-chat-b.on { background: color-mix(in srgb, var(--race, #e2b553) 25%, transparent); }
 .ee-badge { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #ff4d5e; color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; }

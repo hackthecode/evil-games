@@ -1,10 +1,10 @@
-// Evil Empires – графика: изометричен град в реалистичен, приглушен стил. Обемите
-// (кутии, покриви, кули) получават зърнеста текстура (камък, дърво, слама),
-// плавни сенки и нощно осветление. Анимациите са само дим, огън и знамена.
+// Evil Empires – graphics: an isometric city in a realistic, muted style. The volumes
+// (boxes, roofs, towers) get a grainy texture (stone, wood, straw),
+// smooth shadows and night lighting. The only animations are smoke, fire and flags.
 
 import { GRID } from './data.js';
 
-// Изометрия: (u, v) в единици на парцел, z – височина в пиксели.
+// Isometry: (u, v) in plot units, z – height in pixels.
 const TW = 60, TH = 30;
 const P = (u, v, z = 0) => [(u - v) * TW, (u + v) * TH - z];
 const f1 = (x) => Math.round(x * 10) / 10;
@@ -22,8 +22,8 @@ function rand(seed) {
   };
 }
 
-// ---------- палитри ----------
-// Приглушени естествени цветове; цветът на расата е само по знамената и светлините.
+// ---------- palettes ----------
+// Muted natural colours; the race colour is only on the banners and lights.
 const BASE = {
   humans: {
     wall: '#bcae95', wallL: '#a0937b', wallR: '#7d725f', stone: '#8b857a', wood: '#6e5238',
@@ -52,10 +52,10 @@ export function pal(race, epoch = 1) {
   const [roof, roofD] = epoch >= 3 ? b.roof3 || b.roof2 : epoch >= 2 ? b.roof2 : b.roof1;
   return { ...b, roof, roofD, epoch, thatch: epoch < 2 };
 }
-// Съвместимост: PALETTE[race] за прости употреби (акцент, светлина).
+// Compatibility: PALETTE[race] for simple uses (accent, light).
 export const PALETTE = Object.fromEntries(Object.keys(BASE).map((r) => [r, pal(r, 1)]));
 
-// ---------- текстури (генерират се веднъж с canvas) ----------
+// ---------- textures (generated once with canvas) ----------
 let TX = null;
 function noiseURL(size, seed, gx, gy, darkA, lightA) {
   const cv = document.createElement('canvas');
@@ -95,7 +95,7 @@ function textures() {
   return TX;
 }
 
-// Общи дефиниции (текстури, сенки, светлини). Идентични във всеки SVG на страницата.
+// Shared definitions (textures, shadows, lights). Identical in every SVG on the page.
 export function defs(c) {
   const t = typeof document !== 'undefined' ? textures() : {};
   const pat = (id, url, s) => (url ? `<pattern id="${id}" width="${s}" height="${s}" patternUnits="userSpaceOnUse"><image href="${url}" width="${s}" height="${s}"/></pattern>` : '');
@@ -115,14 +115,14 @@ export function defs(c) {
 const halo = (x, y, r, kind = 'race') => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${r}" fill="url(#ee-g-${kind})" pointer-events="none"/>`;
 const glowAt = (u, v, z, r, kind) => { const [x, y] = P(u, v, z); return halo(x, y, r, kind); };
 const TXR = { stone: 'grain', plaster: 'grain', wood: 'wood', thatch: 'wood', earth: 'ground' };
-// Повърхност: основен цвят + текстура + (по желание) плавна сянка.
+// Surface: base colour + texture + (optionally) a smooth shadow.
 const face = (fill, mat, shade, ...ps) => poly(fill, ...ps) +
   (mat && TXR[mat] ? `<polygon points="${pts(...ps)}" fill="url(#ee-tx-${TXR[mat]})"/>` : '') +
   (shade ? `<polygon points="${pts(...ps)}" fill="url(#ee-shade)"/>` : '');
 
-// ---------- примитиви ----------
-// Кутия с център (cu, cv), половин размери a×b, височина h, на височина z0.
-// o.mat: 'stone' | 'plaster' | 'wood' (текстура), o.tex: 'brick' | 'plank' (линии).
+// ---------- primitives ----------
+// A box centred at (cu, cv), half sizes a×b, height h, at elevation z0.
+// o.mat: 'stone' | 'plaster' | 'wood' (texture), o.tex: 'brick' | 'plank' (lines).
 function box(c, cu, cv, a, b, h, z0 = 0, o = {}) {
   const top = o.top || c.wall, l = o.l || c.wallL, r = o.r || c.wallR;
   const mat = o.mat === undefined ? 'stone' : o.mat;
@@ -150,7 +150,7 @@ function box(c, cu, cv, a, b, h, z0 = 0, o = {}) {
   return out;
 }
 
-// Двускатен покрив с било по оста u: слама (епоха 1) или керемиди (епоха 2+).
+// A gable roof with the ridge along the u axis: straw (epoch 1) or tiles (epoch 2+).
 function gable(c, cu, cv, a, b, z, rh, o = {}) {
   const roof = o.roof || c.roof, dark = o.dark || c.roofD;
   const mat = o.mat || (c.thatch ? 'thatch' : 'stone');
@@ -175,7 +175,7 @@ function pyramid(c, cu, cv, a, z, rh, o = {}) {
     face(o.r || c.roofD, mat, false, P(cu + a, cv + a, z), P(cu + a, cv - a, z), apex);
 }
 
-// Кула (цилиндър) с конусен покрив; o.merlons – назъбен връх.
+// A tower (cylinder) with a conical roof; o.merlons – a crenellated top.
 function tower(c, cu, cv, r, h, z0 = 0, o = {}) {
   const [x, y] = P(cu, cv, z0);
   const rx = r * TW, ry = r * TH;
@@ -194,7 +194,7 @@ function tower(c, cu, cv, r, h, z0 = 0, o = {}) {
     ${rings}<ellipse cx="${f1(x)}" cy="${f1(y - h)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${o.top || c.wall}"/>${merlons}${cone}`;
 }
 
-// Прозорец/врата по лявата (v = const) или дясната (u = const) стена.
+// A window/door on the left (v = const) or right (u = const) wall.
 function winL(c, u, v, z, w = 0.032, hh = 7, lit = true) {
   const q = [P(u - w, v, z), P(u + w, v, z), P(u + w, v, z + hh), P(u - w, v, z + hh)];
   const [x, y] = P(u, v, z + hh / 2);
@@ -228,7 +228,7 @@ const barrel = (u, v) => tower({}, u, v, 0.045, 11, 0, { wall: '#5c4430', top: '
   (() => { const [x, y] = P(u, v, 3); const [x2, y2] = P(u, v, 8); return `<line x1="${f1(x - 2.7)}" y1="${f1(y)}" x2="${f1(x + 2.7)}" y2="${f1(y)}" stroke="#2a2420" stroke-width="1"/><line x1="${f1(x2 - 2.7)}" y1="${f1(y2)}" x2="${f1(x2 + 2.7)}" y2="${f1(y2)}" stroke="#2a2420" stroke-width="1"/>`; })();
 const crate = (u, v, z = 0) => box({}, u, v, 0.06, 0.06, 10, z, { top: '#8a6a48', l: '#735638', r: '#5a432c', mat: 'wood', tex: 'plank' });
 
-// ---------- сградите ----------
+// ---------- the buildings ----------
 const DRAW = {
   hall(c, race, L) {
     const tall = 36 + Math.min(L, 10) * 2.5;
@@ -267,7 +267,7 @@ const DRAW = {
     let s = box(c, -0.16, -0.16, 0.2, 0.17, 24, 0, { ...WOOD, tex: 'plank' }) + gable(c, -0.16, -0.16, 0.23, 0.2, 24, 14);
     s += doorL(-0.16, 0.01, 0.05, 12) + winR(c, 0.04, -0.2, 12, 0.03, 6, false);
     s += logPile(0.12, 0.26) + (L >= 3 ? logPile(-0.32, 0.3) : '');
-    // магаре за рязане с труп
+    // sawhorse with a log
     const [x, y] = P(0.3, -0.08);
     s += `<g stroke="#4a3626" stroke-width="2"><line x1="${x - 8}" y1="${y}" x2="${x - 2}" y2="${y - 10}"/><line x1="${x + 4}" y1="${y + 3}" x2="${x - 2}" y2="${y - 10}"/><line x1="${x + 10}" y1="${y - 6}" x2="${x + 16}" y2="${y - 16}"/></g><rect x="${x - 6}" y="${y - 15}" width="26" height="5" rx="2.5" fill="#6a4e36" transform="rotate(-26 ${x} ${y - 12})"/>`;
     const [sx, sy] = P(0.32, 0.08);
@@ -389,7 +389,7 @@ const DRAW = {
   stable(c, race, L) {
     let s = box(c, -0.06, -0.12, 0.34, 0.2, 22, 0, { ...WOOD, tex: 'plank' }) + gable(c, -0.06, -0.12, 0.37, 0.23, 22, 14);
     for (const u of [-0.28, -0.12, 0.04, 0.2]) s += `<polygon points="${pts(P(u - 0.05, 0.08, 0), P(u + 0.05, 0.08, 0), P(u + 0.05, 0.08, 12), P(u - 0.05, 0.08, 12))}" fill="#21170f" stroke="#3e2c1c"/>`;
-    // ограда и кон
+    // fence and horse
     const [fx, fy] = P(-0.3, 0.38);
     s += `<g stroke="#4a3626" stroke-width="1.6">${[0, 1, 2, 3, 4].map((i) => `<line x1="${f1(fx + i * 11)}" y1="${f1(fy + i * 5.5)}" x2="${f1(fx + i * 11)}" y2="${f1(fy + i * 5.5 - 8)}"/>`).join('')}<line x1="${f1(fx)}" y1="${f1(fy - 6)}" x2="${f1(fx + 44)}" y2="${f1(fy + 16)}"/></g>`;
     const [hx, hy] = P(0.18, 0.3);
@@ -401,7 +401,7 @@ const DRAW = {
     let s = box(c, -0.05, -0.12, 0.32, 0.22, 30, 0, { tex: 'brick' }) + gable(c, -0.05, -0.12, 0.35, 0.25, 30, 18);
     s += [-0.27, -0.12, 0.03, 0.18].map((u) => box(c, u, 0.12, 0.02, 0.02, 26, 0, { top: '#cfc9bc', l: '#bbb4a6', r: '#958f83' })).join('');
     s += doorL(-0.05, 0.1, 0.05, 15) + winR(c, 0.27, -0.12, 14);
-    // статуя на пиедестал
+    // statue on a pedestal
     s += box(c, 0.22, 0.32, 0.06, 0.06, 8, 0, { top: '#8f8a80', l: '#7a756c', r: '#605c55' });
     const [x, y] = P(0.22, 0.32, 8);
     s += `<path d="M${x - 3} ${y} L${x - 2.5} ${y - 9} Q${x} ${y - 12} ${x + 2.5} ${y - 9} L${x + 3} ${y}Z" fill="#6f6a62"/><circle cx="${x}" cy="${y - 13}" r="2.6" fill="#7d786f"/><line x1="${x + 3}" y1="${y - 4}" x2="${x + 5}" y2="${y - 18}" stroke="#8a857c" stroke-width="1.2"/>`;
@@ -444,7 +444,7 @@ const DRAW = {
   },
 };
 
-// ---------- декор ----------
+// ---------- decor ----------
 function conifer(x, y, k, r) {
   const g = ['#1d2a22', '#22302a', '#1a261f'][Math.floor(r() * 3)];
   let s = `<ellipse cx="${f1(x + 4 * k)}" cy="${f1(y)}" rx="${f1(12 * k)}" ry="${f1(5 * k)}" fill="url(#ee-shd)"/><rect x="${f1(x - 1.6)}" y="${f1(y - 9 * k)}" width="3.2" height="${f1(9 * k)}" fill="#2e2219"/>`;
@@ -483,7 +483,7 @@ const DECOR_DRAW = {
   },
 };
 
-// ---------- плочки и сцена ----------
+// ---------- tiles and scene ----------
 export function tile(c, state) {
   const k = 0.44;
   const top = [P(-k, -k), P(k, -k), P(k, k), P(-k, k)];
@@ -506,12 +506,12 @@ export function scaffold() {
     box({}, 0.2, 0.32, 0.08, 0.04, 6, 0, { top: '#8a6a48', l: '#735638', r: '#5a432c', mat: 'wood' }) + crate(-0.28, 0.34) + sparks;
 }
 
-// Мащабът расте леко с нивото – сградите „растат“.
+// The scale grows slightly with the level – the buildings "grow".
 const levelScale = (L) => 0.86 + 0.035 * Math.min(Math.max(L, 1), 8);
 
-// ---------- реалистични сгради (рендирани спрайтове, OpenGameArt) ----------
-// w,h – размер; x0..x1 – ширината на самата сграда; by – най-ниската точка на основата (в пиксели);
-// size – ширина на сградата в сцената; lights / smoke – прозорци и комини (в пиксели).
+// ---------- realistic buildings (rendered sprites, OpenGameArt) ----------
+// w,h – size; x0..x1 – the width of the building itself; by – the lowest point of the base (in pixels);
+// size – the building's width in the scene; lights / smoke – windows and chimneys (in pixels).
 const SPR = {
   castle: { w: 500, h: 422, x0: 50, x1: 498, by: 420, size: 124, lights: [[300, 130], [195, 300], [330, 250], [440, 200]], smoke: [[262, 40]] },
   house1: { w: 178, h: 141, x0: 20, x1: 176, by: 139, size: 78, lights: [[60, 85], [130, 95]] },
@@ -533,18 +533,18 @@ const SPR = {
   guild: { w: 400, h: 397, x0: 2, x1: 367, by: 395, size: 90, lights: [[140, 300], [300, 280], [330, 210]], smoke: [[150, 10]] },
   lumber: { w: 240, h: 189, x0: 1, x1: 226, by: 187, size: 74 },
   cranny: { w: 230, h: 223, x0: 2, x1: 209, by: 221, size: 62 },
-  // сглобени от части на rubberduck (OpenGameArt, CC0): fires – огньове, glow – магическо сияние
+  // assembled from rubberduck parts (OpenGameArt, CC0): fires – fires, glow – magical glow
   'orc-camp': { w: 300, h: 289, x0: 0, x1: 300, by: 289, size: 104, fires: [[136, 267]] },
   crypt: { w: 300, h: 369, x0: 0, x1: 300, by: 369, size: 92, glow: [[149, 251]] },
   altar: { w: 300, h: 451, x0: 0, x1: 300, by: 451, size: 70, fires: [[38, 271], [263, 273]] },
 };
 
-// Дребни предмети (палатки, сандъци, бъчви, камъни) – w×h на файла в assets/empires/props.
+// Small props (tents, crates, barrels, stones) – w×h of the file in assets/empires/props.
 const PROPS = {
   leanto: [120, 109], leanto2: [120, 124], crates: [60, 39], barrels: [60, 44], firewood: [60, 44],
   stones: [60, 53], stones2: [60, 31], spikes: [60, 57], cauldron: [50, 34],
 };
-// Предметът стои с долния си ръб в точката (u, v); w – ширина в сцената.
+// The prop stands with its bottom edge at the point (u, v); w – width in the scene.
 function prop(name, u, v, w) {
   const [pw, ph] = PROPS[name];
   const [x, y] = P(u, v);
@@ -583,7 +583,7 @@ function spriteImg(key, race, mul = 1, ox, oy) {
   const filt = race && race !== 'humans' ? ` filter="url(#ee-t-${race})"` : '';
   let out = `<image href="assets/empires/${key}.png" x="${f1(x)}" y="${f1(y)}" width="${f1(s.w * k)}" height="${f1(s.h * k)}"${filt}/>`;
   if (key === 'mill') {
-    // колелото на воденицата се върти (5 кадъра)
+    // the mill wheel turns (5 frames)
     const wx = x + 330 * k, wy = y + 170 * k;
     out += `<g class="ee-wheel"${filt}>${[0, 1, 2, 3, 4].map((i) => `<image href="assets/empires/mill-wheel${i}.png" x="${f1(wx)}" y="${f1(wy)}" width="${f1(166 * k)}" height="${f1(141 * k)}" style="animation-delay:${(-i * 0.24).toFixed(2)}s"/>`).join('')}</g>`;
   }
@@ -593,7 +593,7 @@ function spriteImg(key, race, mul = 1, ox, oy) {
   return out;
 }
 
-// Светлините на сградата (за нощта) – в координатите на парцела.
+// The building's lights (for the night) – in plot coordinates.
 export function buildingLights(id, L, epoch, race) {
   const key = id === 'unique' ? (race === 'humans' ? 'guild' : race === 'vesheri' ? 'tower-stone' : null) : spriteKey(id, L, epoch);
   if (!key) return [];
@@ -610,14 +610,14 @@ export function buildingSvg(id, race, L, epoch = 1) {
   if (id === 'unique' && race === 'orcs') return spriteImg('orc-camp', null, 1) + flag(0.36, -0.1, 30, pal(race, epoch).banner);
   if (id === 'unique' && race === 'undead') return spriteImg('crypt', null, 1);
   if (id === 'altar') {
-    // олтарът: руини с мангали и кристал от мана над каменната площадка
+    // the altar: ruins with braziers and a mana crystal above the stone platform
     const { k, x, y } = spriteFit('altar', 1);
     const cx = x + 151 * k, cy = y + 378 * k;
     return spriteImg('altar', null, 1) + `<g class="ee-pulse">${halo(cx, cy - 22, 24, 'mana')}</g><polygon points="${pts([cx, cy - 40], [cx + 7, cy - 21], [cx, cy - 4], [cx - 7, cy - 21])}" fill="#7d63b8"/><polygon points="${pts([cx, cy - 40], [cx + 7, cy - 21], [cx, cy - 4])}" fill="#4f3c80"/><polyline points="${pts([cx - 7, cy - 21], [cx, cy - 40])}" stroke="#c9b8f0" stroke-opacity=".6" stroke-width="1" fill="none"/>`;
   }
   const key = spriteKey(id, L, epoch);
   if (key) {
-    // дъскорезницата: навес с трупи около него
+    // the sawmill: a shed with logs around it
     const extra = id === 'lumber' ? logPile(0.18, 0.28) + logPile(-0.34, 0.2) : '';
     return spriteImg(key, race, spriteMul(id, L)) + extra;
   }
@@ -625,7 +625,7 @@ export function buildingSvg(id, race, L, epoch = 1) {
   return shadow(48 * sc, 22 * sc) + `<g transform="scale(${sc.toFixed(3)})">${DRAW[id](pal(race, epoch), race, L)}${PROPS_AT[id]?.(L) || ''}</g>`;
 }
 
-// Истински предмети върху рисуваните сгради.
+// Real props on top of the drawn buildings.
 const PROPS_AT = {
   quarry: (L) => prop('stones', 0.06, 0.38, 24) + (L >= 3 ? prop('stones2', -0.22, 0.4, 24) : '') + prop('crates', -0.38, 0.12, 20) + prop('leanto', 0.38, 0.3, 34),
   mine: (L) => prop('leanto2', -0.34, 0.2, 38) + prop('barrels', 0.34, 0.12, 20) + prop('firewood', -0.12, 0.42, 20) + (L >= 3 ? prop('crates', 0.36, 0.38, 20) : ''),
@@ -633,13 +633,13 @@ const PROPS_AT = {
 
 export const decorSvg = (kind, race, seed, epoch = 1) => (kind === 'well' ? spriteImg('well', null, 1, 4, 18) : DECOR_DRAW[kind](pal(race, epoch), seed));
 
-// Самостоятелна картинка на сграда (прозорец, списък).
+// A standalone picture of a building (dialog, list).
 export function buildingPicture(id, race, L, epoch = 1) {
   const c = pal(race, epoch);
   return `<svg viewBox="-82 -138 164 178" class="ee-pic">${defs(c)}${tile(c, 'built')}${buildingSvg(id, race, Math.max(1, L), epoch)}</svg>`;
 }
 
-// Палисада (епоха 1) или каменна стена (епоха 2+) по ръб на града.
+// A palisade (epoch 1) or a stone wall (epoch 2+) along the edge of the city.
 function wallSegment(c, epoch, u1, v1, u2, v2) {
   const len = Math.hypot(u2 - u1, v2 - v1);
   const alongU = Math.abs(u2 - u1) > Math.abs(v2 - v1);
@@ -666,13 +666,13 @@ function wallSegment(c, epoch, u1, v1, u2, v2) {
     s += tower({}, u, v, 0.038, h, 0, { wall: r() < 0.5 ? '#54402e' : '#4a3828', top: '#6e5238', cone: false, mat: 'wood' }) +
       poly('#5c4630', P(u - 0.038, v, h), P(u + 0.038, v, h), P(u, v, h + 5));
   }
-  // напречна греда
+  // crossbeam
   const [ax, ay] = P(u1, v1, 8), [bx, by] = P(u2, v2, 8);
   s += `<line x1="${f1(ax)}" y1="${f1(ay)}" x2="${f1(bx)}" y2="${f1(by)}" stroke="#3a2a1c" stroke-width="2.4" stroke-opacity=".8"/>`;
   return s;
 }
 
-// Наблюдателна кула: дървена в епоха 1, каменна след това.
+// Watchtower: wooden in epoch 1, stone afterwards.
 function watchtower(c, epoch, u, v, withFlag) {
   if (epoch >= 2) {
     if (epoch >= 3) return tower(c, u, v, 0.15, 44, 0, { wall: '#6e6a63', top: '#86817a', merlons: false, slate: true, roof: '#3d4147', dark: '#2b2e33' }) + (withFlag ? flag(u, v, 44 + 0.15 * TW * 1.9, c.banner) : '');
@@ -685,8 +685,8 @@ function watchtower(c, epoch, u, v, withFlag) {
   return s + (withFlag ? flag(u, v, 53, c.banner, 0.9) : '');
 }
 
-// ---------- ден и нощ ----------
-// [час, небе отгоре, хоризонт, цвят на сумрака, сила на сумрака, звезди, светлини]
+// ---------- day and night ----------
+// [hour, sky top, horizon, dusk colour, dusk strength, stars, lights]
 const LIGHT = [
   [0, '#05070b', '#121828', '#16224a', 0.55, 1, 1],
   [5, '#070a12', '#1c2232', '#16224a', 0.5, 0.8, 1],
@@ -709,7 +709,7 @@ export function lightAt(h) {
   return { top: mix(t0, t1, t), hor: mix(z0, z1, t), ambC: mix(a0, a1, t), amb, stars: L(st0, st1), glow: L(g0, g1), day: Math.max(0, 1 - amb / 0.5) };
 }
 
-// Живот по улиците: хора, каруци, птици, облаци, време.
+// Life in the streets: people, carts, birds, clouds, weather.
 function streetLife(r, N, people, lt, P0) {
   let s = '';
   const lines = [];
@@ -734,7 +734,7 @@ function streetLife(r, N, people, lt, P0) {
       <animateMotion dur="${dur}s" begin="-${(r() * 60).toFixed(1)}s" repeatCount="indefinite" path="M${f1(pa[0])} ${f1(pa[1])} L${f1(pb[0])} ${f1(pb[1])} L${f1(pa[0])} ${f1(pa[1])}"/></g>`;
     if (onFront) s += fig; else back += fig;
   }
-  // каруци по околовръстната улица
+  // carts on the ring road
   for (let i = 0; i < Math.min(2, Math.ceil(people / 6)); i++) {
     const [a, b] = front[i];
     const pa = P0(...a), pb = P0(...b);
@@ -753,9 +753,9 @@ function sky(r, lt, weather) {
 }
 
 /**
- * Цялата сцена на града. cells: [{ i, j, html, label, bid, L }] – съдържанието на всеки парцел
- * (вече нарисувано от интерфейса); label (нивото, таймерът) се рисува най-отгоре.
- * hour – часът (0–24), weather – 'clear' | 'rain' | 'snow', people – колко хора по улиците.
+ * The whole city scene. cells: [{ i, j, html, label, bid, L }] – the contents of each plot
+ * (already drawn by the UI); label (level, timer) is drawn on top.
+ * hour – the hour (0–24), weather – 'clear' | 'rain' | 'snow', people – how many people in the streets.
  */
 export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, weather = 'clear', people = 6 }) {
   const c = pal(race, epoch);
@@ -766,7 +766,7 @@ export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, w
   const N = GRID, M = (N - 1) / 2;
   const E0 = -0.75, E1 = N - 0.25;
   const D = lt.day;
-  // небе: слънце/луна, облаци, планини
+  // sky: sun/moon, clouds, mountains
   const ridge = (base, amp, step, fill) => {
     let d = `M-340 ${base}`;
     for (let x = -340; x <= 340; x += step) d += ` L${x} ${f1(base - amp * (0.3 + 0.7 * r()))}`;
@@ -791,13 +791,13 @@ export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, w
   }).join('');
   const skyLayer = `<rect x="-420" y="-420" width="840" height="940" fill="url(#ee-sky)"/>${sky(lr, lt, weather)}${celestial}${clouds}
     ${ridge(-34, 70, 24, 'url(#ee-mtn1)')}<rect x="-420" y="-70" width="840" height="70" fill="url(#ee-haze)"/>${ridge(-6, 42, 16, 'url(#ee-mtn2)')}`;
-  // птици (денем)
+  // birds (by day)
   const birds = D > 0.3 && weather === 'clear' ? Array.from({ length: 4 }, () => {
     const y = -150 + r() * 80, dur = 28 + r() * 20, sc = 0.8 + r() * 0.5;
     return `<g><path d="M-4 0 Q-2 -2.5 0 0 Q2 -2.5 4 0" stroke="#1d1d22" stroke-width="1.1" fill="none" transform="scale(${sc.toFixed(2)})"><animate attributeName="d" values="M-4 0 Q-2 -2.5 0 0 Q2 -2.5 4 0;M-4 -1.5 Q-2 1 0 0 Q2 1 4 -1.5;M-4 0 Q-2 -2.5 0 0 Q2 -2.5 4 0" dur="${(0.5 + r() * 0.3).toFixed(2)}s" repeatCount="indefinite"/></path>
       <animateMotion dur="${f1(dur)}s" begin="-${f1(r() * dur)}s" repeatCount="indefinite" path="M-380 ${f1(y)} C -150 ${f1(y - 30)} 150 ${f1(y + 30)} 380 ${f1(y - 10)}"/></g>`;
   }).join('') : '';
-  // платформа, трева, улици (дневни цветове – нощта е сумрак отгоре)
+  // platform, grass, streets (day colours – night is dusk on top)
   const corner = (u, v, z = 0) => P(u, v, z);
   const g = [corner(E0, E0), corner(E1, E0), corner(E1, E1), corner(E0, E1)];
   let ground = face('#3a4a2a', 'earth', false, ...g) +
@@ -822,12 +822,12 @@ export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, w
     ground += `<path d="M${f1(x - 3)} ${f1(y)} l1.5 -5 l1.5 5 l1.5 -6 l1.5 6Z" fill="${r() < 0.5 ? '#4f6236' : '#43552e'}"/>`;
   }
   if (weather === 'snow') ground += `<polygon points="${pts(...g)}" fill="#e8eef4" opacity=".35"/>`;
-  // сенки от облаците (денем)
+  // cloud shadows (by day)
   const cloudShadows = D > 0.2 ? Array.from({ length: 3 }, () => {
     const dur = 140 + r() * 80;
     return `<ellipse cx="0" cy="${f1(40 + r() * 150)}" rx="${f1(70 + r() * 50)}" ry="${f1(26 + r() * 14)}" fill="#000" opacity="${(0.1 * D).toFixed(2)}" filter="url(#ee-soft)"><animateTransform attributeName="transform" type="translate" from="-460 0" to="460 0" dur="${f1(dur)}s" begin="-${f1(r() * dur)}s" repeatCount="indefinite"/></ellipse>`;
   }).join('') : '';
-  // стени
+  // walls
   const W = -0.68, Wf = N - 0.32;
   const wEp = wall ? Math.min(3, epoch) : 1;
   const marker = (u, v) => box(c, u, v, 0.03, 0.03, 9, 0, WOOD);
@@ -853,11 +853,11 @@ export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, w
   const frontWalls = (wall
     ? wallSegment(c, wEp, W, Wf, M - 0.33, Wf) + wallSegment(c, wEp, M + 0.33, Wf, Wf, Wf) + gate + wallSegment(c, wEp, Wf, W, Wf, Wf) + watchtower(c, wEp, Wf, Wf, true)
     : marker(Wf, Wf)) + spikes;
-  // време
+  // weather
   let precip = '';
   if (weather === 'rain') precip = `<g class="ee-rain" stroke="#a9b8c8" stroke-opacity=".5" stroke-width="1">${Array.from({ length: 90 }, () => { const x = -340 + r() * 680, y = -200 + r() * 520; return `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x - 3)}" y2="${f1(y + 12)}" style="animation-delay:-${(r() * 0.8).toFixed(2)}s"/>`; }).join('')}</g>`;
   if (weather === 'snow') precip = `<g class="ee-snow" fill="#fff">${Array.from({ length: 80 }, () => { const x = -340 + r() * 680, y = -200 + r() * 520; return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${(0.8 + r() * 1.2).toFixed(1)}" opacity=".8" style="animation-delay:-${(r() * 8).toFixed(1)}s"/>`; }).join('')}</g>`;
-  // сумрак и светлини
+  // dusk and lights
   const dusk = lt.amb > 0.01 ? `<rect x="-420" y="-420" width="840" height="940" fill="${lt.ambC}" opacity="${lt.amb.toFixed(2)}" style="mix-blend-mode:multiply" pointer-events="none"/>` : '';
   let lights = '';
   if (lt.glow > 0.05) {
@@ -891,7 +891,7 @@ export function sceneSvg({ race, epoch, cells, wall = 1, traps = 0, hour = 12, w
 
 export const ISO = { TW, TH, P };
 
-// ---------- варварски лагер ----------
+// ---------- barbarian camp ----------
 export function campSvg(lvl, { boss = false, down = false } = {}) {
   const r = rand(lvl * 31 + (boss ? 7 : 0));
   const tents = Math.min(4, 1 + Math.ceil(lvl / 2));
@@ -908,7 +908,7 @@ export function campSvg(lvl, { boss = false, down = false } = {}) {
   return `<svg viewBox="0 0 100 70" class="ee-campart${down ? ' down' : ''}">${defs(PALETTE.orcs)}${s}</svg>`;
 }
 
-// ---------- емблеми на расите ----------
+// ---------- race emblems ----------
 export function emblem(race, size = 56) {
   const c = BASE[race];
   const accent = { humans: '#e2b553', undead: '#7fd7a0', orcs: '#e0623f', vesheri: '#b39ae6' }[race];
@@ -928,7 +928,7 @@ export function emblem(race, size = 56) {
   return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" class="ee-emblem">${shield}${sym}</svg>`;
 }
 
-// ---------- иконки на ресурси ----------
+// ---------- resource icons ----------
 export const RES_ICON = {
   gold: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="15" rx="8" ry="3.5" fill="#a87d1f"/><rect x="4" y="9" width="16" height="6" fill="#a87d1f"/><ellipse cx="12" cy="9" rx="8" ry="3.5" fill="#f2c14e"/><ellipse cx="12" cy="9" rx="4.5" ry="1.8" fill="none" stroke="#a87d1f" stroke-width="1.2"/></svg>',
   wood: '<svg viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="8" rx="4" fill="#8b5e34"/><ellipse cx="19" cy="12" rx="3" ry="4" fill="#d9a86a"/><ellipse cx="19" cy="12" rx="1.4" ry="2" fill="none" stroke="#8b5e34"/></svg>',
@@ -941,7 +941,7 @@ export const RES_ICON = {
 };
 export const resIcon = (race, r) => RES_ICON[r === 'food' && race === 'undead' ? 'bones' : r];
 
-// ---------- иконки на единиците (по клас) ----------
+// ---------- unit icons (by class) ----------
 const UNIT_GLYPH = {
   inf: '<path d="M20 8 L24 8 L24 26 L28 26 L28 30 L24 30 L24 36 L20 36 L20 30 L16 30 L16 26 L20 26Z" fill="#e4e6ea"/><path d="M22 4 L24 8 L20 8Z" fill="#e4e6ea"/>',
   spear: '<line x1="12" y1="36" x2="31" y2="9" stroke="#a5835a" stroke-width="3" stroke-linecap="round"/><path d="M34 4 L35 14 L27 9Z" fill="#e4e6ea"/>',
@@ -958,7 +958,7 @@ export function unitIcon(cls, color, size = 40) {
   return `<svg viewBox="0 0 44 44" width="${size}" height="${size}" class="ee-unit-ic"><circle cx="22" cy="22" r="21" fill="#0c0b0f"/><circle cx="22" cy="22" r="21" fill="${color}" opacity=".16"/><circle cx="22" cy="22" r="20" fill="none" stroke="${color}" stroke-width="1.3" stroke-opacity=".6"/>${UNIT_GLYPH[cls]}</svg>`;
 }
 
-// ---------- карта на света (отгоре) ----------
+// ---------- world map (top-down) ----------
 export const REL_COLORS = { self: '#f2c14e', alliance: '#4fd18b', ally: '#4fd18b', pact: '#6aa8ff', war: '#ff5d6c', neutral: '#b9b4a8', npc: '#c8463a' };
 const S = 40;
 
@@ -978,7 +978,7 @@ function mapGround(kind, x, y) {
 
 const RES_DOT = { wood: '#7b5a36', stone: '#8e8b93', food: '#c9a23a', gold: '#e2b553' };
 
-// Обсада на картата: пушек и огън над горящ град, катапулти пред стените, знаме на завладелия.
+// Siege on the map: smoke and fire over a burning city, catapults before the walls, the conqueror's flag.
 function siegeMarks(o, col) {
   let s = '';
   if (o.conquered) s += `<line x1="31" y1="18" x2="31" y2="1" stroke="#2b2620" stroke-width="1.2"/><path class="ee-flag" d="M31 1 Q35 0 39 2 L38 7 Q35 5 31 6Z" fill="${col}" stroke="#000" stroke-width=".4"/>`;
@@ -987,7 +987,7 @@ function siegeMarks(o, col) {
     s += [[13, 18, 0.55], [25, 16, 0.65]].map(([x, y, k]) => `<g class="ee-flame" style="transform-origin:${x}px ${y}px"><path d="M${x - 3 * k} ${y} Q${x - 4 * k} ${y - 6 * k} ${x} ${y - 11 * k} Q${x + 1 * k} ${y - 6 * k} ${x + 3 * k} ${y - 8 * k} Q${x + 4 * k} ${y - 3 * k} ${x + 3 * k} ${y}Z" fill="#e0662a"/><path d="M${x - 1.5 * k} ${y} Q${x - 2 * k} ${y - 4 * k} ${x} ${y - 6 * k} Q${x + 2 * k} ${y - 4 * k} ${x + 1.5 * k} ${y}Z" fill="#f6c26a"/></g>`).join('');
   }
   if (o.siege) {
-    // два катапулта пред стената (в долния ляв ъгъл)
+    // two catapults before the wall (bottom left corner)
     const cat = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-4" y="-1.5" width="8" height="2.4" fill="#6a4a2c"/><circle cx="-3" cy="1.4" r="1.4" fill="#3a2a1c"/><circle cx="3" cy="1.4" r="1.4" fill="#3a2a1c"/><line x1="-2" y1="-1" x2="4" y2="-7" stroke="#7a5a3a" stroke-width="1.3"/><circle cx="4.3" cy="-7.4" r="1.3" fill="#8a857c"/></g>`;
     s += `<g opacity="${o.siege === 'here' ? 1 : 0.55}">${cat(6, 36)}${cat(15, 38)}</g>`;
   }
@@ -1024,8 +1024,8 @@ function mapObject(o) {
 }
 
 /**
- * Карта: tiles – [{ x, y, kind, obj }] за видимата област, center – { x, y }, R – радиус.
- * lines – походи [{ x1, y1, x2, y2, color }]; sel – избрано поле { x, y }.
+ * Map: tiles – [{ x, y, kind, obj }] for the visible area, center – { x, y }, R – radius.
+ * lines – marches [{ x1, y1, x2, y2, color }]; sel – selected tile { x, y }.
  */
 export function mapSvg({ tiles, center, R, sel, lines = [] }) {
   const N = 2 * R + 1;
@@ -1039,7 +1039,7 @@ export function mapSvg({ tiles, center, R, sel, lines = [] }) {
   return `<svg viewBox="-24 -4 ${N * S + 30} ${N * S + 22}" class="ee-mapsvg">${defs(PALETTE.humans)}${body}<g stroke="#000" stroke-opacity=".35" stroke-width=".6">${grid}</g>${paths}${selBox}<g font-size="9" fill="#8d8d99">${labels}</g></svg>`;
 }
 
-// ---------- портрет на героя ----------
+// ---------- hero portrait ----------
 export function heroPortrait(race, size = 96, dead = false) {
   const c = BASE[race];
   const acc = { humans: '#e2b553', undead: '#7fd7a0', orcs: '#e0623f', vesheri: '#b39ae6' }[race];

@@ -4,17 +4,18 @@ import { offlineNet } from '../../net/room.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
 import { rollDice3d, preloadDice } from '../tabla/dice3d.js';
 import { START, TRACK, LANES, YARDS, ZONES, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
+import { txt } from '../../i18n.js';
 
 const COLORS = [
-  { name: 'червени', main: '#e23b4e', light: '#ff8a98', dark: '#7a0f1e' },
-  { name: 'жълти', main: '#f2b33d', light: '#ffe09a', dark: '#8a5a06' },
-  { name: 'зелени', main: '#2fbf71', light: '#8ff0bb', dark: '#0f5c33' },
-  { name: 'сини', main: '#3b82f6', light: '#9cc3ff', dark: '#173d8a' },
+  { name: txt('red'), main: '#e23b4e', light: '#ff8a98', dark: '#7a0f1e' },
+  { name: txt('yellow'), main: '#f2b33d', light: '#ffe09a', dark: '#8a5a06' },
+  { name: txt('green'), main: '#2fbf71', light: '#8ff0bb', dark: '#0f5c33' },
+  { name: txt('blue'), main: '#3b82f6', light: '#9cc3ff', dark: '#173d8a' },
 ];
-const CS = 60; // размер на клетка
+const CS = 60; // cell size
 const C = (x) => x * CS + CS / 2;
-const BOT_NAMES = ['Вие', 'Георги', 'Мария', 'Петър'];
-const LEVELS = { easy: 'Лесно', normal: 'Нормално' };
+const BOT_NAMES = [txt('You'), txt('Georgi'), txt('Maria'), txt('Petar')];
+const LEVELS = { easy: txt('Easy'), normal: txt('Normal') };
 const PIP = { 1: [[29, 29]], 2: [[16, 16], [42, 42]], 3: [[15, 15], [29, 29], [43, 43]], 4: [[16, 16], [42, 16], [16, 42], [42, 42]], 5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]], 6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]] };
 
 export async function mount(root, ctx) {
@@ -31,11 +32,11 @@ export async function mount(root, ctx) {
     if (online) return play(online, [0, 1, 2, 3], 'normal', matchId);
     const opts = await setupScreen(root, {
       gameId: 'ludo',
-      title: 'Не се сърди, човече',
-      subtitle: 'Вие сте с червените. Изкарайте четирите си пула до дома преди другите.',
+      title: txt('Ludo'),
+      subtitle: txt('You play red. Bring your four pieces home before the others.'),
       groups: [
-        { key: 'players', label: 'Играчи', value: 4, options: [[2, '2'], [3, '3'], [4, '4']] },
-        { key: 'level', label: 'Компютър', value: 'normal', options: Object.entries(LEVELS) },
+        { key: 'players', label: txt('Players'), value: 4, options: [[2, '2'], [3, '3'], [4, '4']] },
+        { key: 'level', label: txt('Computer'), value: 'normal', options: Object.entries(LEVELS) },
       ],
     });
     const n = Number(opts.players);
@@ -53,11 +54,11 @@ export async function mount(root, ctx) {
     let rollNo = 0;
     let rollResolver = null, pickResolver = null;
     let dieVal = 0;
-    // дъската се завърта така, че моята кошара да е долу вляво
+    // the board rotates so that my yard is at the bottom left
     const angle = ((3 - ME + 4) % 4) * 90;
 
     // ---------- DOM ----------
-    const svg = s('svg', { viewBox: '-26 -26 712 712', class: 'ludo-svg', role: 'img', 'aria-label': 'Дъска' });
+    const svg = s('svg', { viewBox: '-26 -26 712 712', class: 'ludo-svg', role: 'img', 'aria-label': txt('Board') });
     const board = s('g', { transform: `rotate(${angle} 330 330)` });
     const hiLayer = s('g');
     const tokenLayer = s('g');
@@ -67,9 +68,9 @@ export async function mount(root, ctx) {
 
     const chips = h('div', { class: 'ludo-chips' });
     const statusEl = h('div', { class: 'g-status' });
-    const rollBtn = h('button', { class: 'btn btn-primary tb-roll', onclick: () => humanRoll() }, icon('dice', 18), 'Хвърли');
-    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), 'Предай се');
-    const newBtn = h('button', { class: 'btn', onclick: newGameBtn }, icon('refresh', 16), 'Нова');
+    const rollBtn = h('button', { class: 'btn btn-primary tb-roll', onclick: () => humanRoll() }, icon('dice', 18), txt('Roll'));
+    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), txt('Resign'));
+    const newBtn = h('button', { class: 'btn', onclick: newGameBtn }, icon('refresh', 16), txt('New'));
     root.replaceChildren(h('div', { class: 'ludo-layout' },
       chips,
       h('div', { class: 'ludo-wrap' }, svg),
@@ -78,7 +79,7 @@ export async function mount(root, ctx) {
     ));
     svg.addEventListener('click', onClick);
 
-    // ---------- пулове ----------
+    // ---------- pieces ----------
     const tokens = active.map((p) => [0, 1, 2, 3].map((t) => {
       const g = s('g', { class: 'ludo-tok', 'data-p': p, 'data-t': t },
         s('g', { transform: `rotate(${-angle})` }, pawn(p)));
@@ -99,7 +100,7 @@ export async function mount(root, ctx) {
       chips.replaceChildren(...active.map((p) => {
         const home = st.pos[p].filter((x) => x >= 40).length;
         return h('div', { class: `ludo-chip ${p === turn && !over ? 'on' : ''}`, style: { '--c': COLORS[p].main } },
-          h('i'), h('b', null, p === ME ? 'Вие' : names[p]), h('span', null, `${home}/4`));
+          h('i'), h('b', null, p === ME ? txt('You') : names[p]), h('span', null, `${home}/4`));
       }));
     }
 
@@ -119,7 +120,7 @@ export async function mount(root, ctx) {
       resignBtn.disabled = over;
     }
 
-    // ---------- вход ----------
+    // ---------- input ----------
     let pickList = [];
     function onClick(e) {
       if (over) return;
@@ -141,7 +142,7 @@ export async function mount(root, ctx) {
       render();
     }
 
-    // ---------- зар ----------
+    // ---------- die ----------
     async function throwDie(val, p) {
       renderDie(0);
       const m = board.getScreenCTM();
@@ -153,7 +154,7 @@ export async function mount(root, ctx) {
         const r = q.matrixTransform(m);
         return { x: r.x, y: r.y };
       };
-      // зарът идва откъм кошарата на хвърлящия
+      // the die comes from the thrower's yard
       const [yx, yy] = YARDS[p][0];
       await rollDice3d({
         size: 58 * Math.hypot(m.a, m.b),
@@ -165,7 +166,7 @@ export async function mount(root, ctx) {
     }
 
     async function rollPhase(p) {
-      statusEl.textContent = p === ME ? 'Ваш ред – хвърлете зара.' : `${names[p]} хвърля…`;
+      statusEl.textContent = p === ME ? txt('Your turn – roll the die.') : txt('{0} is rolling…', names[p]);
       await net.decide(p, 'roll', () => {
         if (p !== ME) return sleep(500).then(() => 0);
         const pr = new Promise((r) => (rollResolver = r));
@@ -179,7 +180,7 @@ export async function mount(root, ctx) {
       return val;
     }
 
-    // ---------- ход ----------
+    // ---------- move ----------
     async function animateMove(p, m) {
       const path = [];
       if (m.from === -1) path.push(cellAt(p, 0));
@@ -205,14 +206,14 @@ export async function mount(root, ctx) {
     async function movePhase(p, d) {
       const list = moves(st, p, d);
       if (!list.length) {
-        statusEl.textContent = `${p === ME ? 'Нямате' : `${names[p]} няма`} ход с ${d}.`;
+        statusEl.textContent = txt('{0} moves with {1}.', p === ME ? txt('You have no') : txt('{0} has no', names[p]), d);
         await sleep(900);
         return false;
       }
       const t = await net.decide(p, 'move', () => {
         if (p !== ME) return sleep(450).then(() => aiChoose(st, p, d, list, level).t);
         if (list.length === 1) return sleep(450).then(() => list[0].t);
-        statusEl.textContent = `Хвърлихте ${d}. Изберете пул.`;
+        statusEl.textContent = txt('You rolled {0}. Choose a checker.', d);
         pickList = list;
         for (const m of list) {
           tokEl(p, m.t).classList.add('can');
@@ -229,7 +230,7 @@ export async function mount(root, ctx) {
       return true;
     }
 
-    // ---------- главен цикъл ----------
+    // ---------- main loop ----------
     async function loop() {
       while (!gone() && !over) {
         const p = turn;
@@ -242,9 +243,9 @@ export async function mount(root, ctx) {
           if (gone()) return;
           if (won(st, p)) return endMatch(p);
           if (d === 6) {
-            // шестица – ново хвърляне
+            // a six – roll again
             tries = a + 2;
-            statusEl.textContent = `${p === ME ? 'Шестица! Хвърлете' : `${names[p]} хвърли шестица и хвърля`} отново.`;
+            statusEl.textContent = txt('{0} again.', p === ME ? txt('A six! Roll') : txt('{0} rolled a six and rolls', names[p]));
             continue;
           }
           if (moved || onTrack(st, p)) break;
@@ -260,32 +261,32 @@ export async function mount(root, ctx) {
       net.finish();
       render();
       const outcome = w === ME ? 'win' : 'loss';
-      statusEl.textContent = w === ME ? 'Победа!' : `${names[w]} печели.`;
+      statusEl.textContent = w === ME ? txt('Victory!') : txt('{0} wins.', names[w]);
       await ctx.report(outcome, online
-        ? { summary: `Онлайн · ${active.length} играчи · победител ${names[w]}`, online: true }
-        : { summary: `${active.length} играчи · ${LEVELS[level]} · победител ${w === ME ? 'вие' : names[w]}` });
+        ? { summary: txt('Online · {0} players · winner {1}', active.length, names[w]), online: true }
+        : { summary: txt('{0} players · {1} · winner {2}', active.length, LEVELS[level], w === ME ? txt('you') : names[w]) });
       if (destroyed) return;
-      const c = await showResult({ outcome, text: w === ME ? 'Изкарахте всичките си пулове първи!' : `${names[w]} изкара пуловете си първи.`, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text: w === ME ? txt('You got all your pieces home first!') : txt('{0} got their pieces home first.', names[w]), again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? net.rematch() : start();
       else if (c === 'exit') location.hash = online ? '#/online/ludo' : '#/';
     }
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', 'Играта ще се отчете като загуба. Продължаване?', 'Предай се', true))) return;
+      if (!(await confirmDialog(txt('Resign'), txt('The game will count as a loss. Continue?'), txt('Resign'), true))) return;
       if (online) net.resign();
       else {
         over = true;
-        await ctx.report('loss', { summary: `Предаване · ${active.length} играчи` });
+        await ctx.report('loss', { summary: txt('Resigned · {0} players', active.length) });
         if (destroyed) return;
-        const c = await showResult({ outcome: 'loss', text: 'Предадохте играта.' });
+        const c = await showResult({ outcome: 'loss', text: txt('You resigned the game.') });
         if (c === 'again') start();
         else if (c === 'exit') location.hash = '#/';
       }
     }
 
     async function newGameBtn() {
-      if (!over && !(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+      if (!over && !(await confirmDialog(txt('New game'), txt('The current game will be stopped without being counted. Continue?')))) return;
       over = true;
       matchId++;
       start();
@@ -297,13 +298,13 @@ export async function mount(root, ctx) {
       if (e.kind === 'resign') {
         if (e.seat === ME) {
           over = true;
-          await ctx.report('loss', { summary: `Онлайн · предаване`, online: true });
-          if (!destroyed) showResult({ outcome: 'loss', text: 'Предадохте играта.' });
+          await ctx.report('loss', { summary: txt('Online · resigned'), online: true });
+          if (!destroyed) showResult({ outcome: 'loss', text: txt('You resigned the game.') });
         } else endMatch(ME);
       } else if (e.kind === 'forfeit') endMatch(e.winner);
       else if (e.kind === 'desync') {
         over = true;
-        toast('Грешка в синхронизацията – играта е прекратена.', 'error', 5000);
+        toast(txt('Synchronization error – the game was stopped.'), 'error', 5000);
       }
     });
 
@@ -323,7 +324,7 @@ export async function mount(root, ctx) {
   };
 }
 
-// ---------- рисуване ----------
+// ---------- drawing ----------
 function defs() {
   const d = s('defs');
   d.innerHTML = COLORS.map((c, i) => `
@@ -341,7 +342,7 @@ function defs() {
   return d;
 }
 
-// Заоблена плочка на полето (с обем: сянка, горен отблясък, долен ръб).
+// A rounded tile on the square (with volume: shadow, top highlight, bottom edge).
 function tile(g, x, y, fill, stroke = 'rgba(0,0,0,.25)') {
   const t = s('g', { filter: 'url(#ltile)' },
     s('rect', { x: C(x) - 26, y: C(y) - 26, width: 52, height: 52, rx: 13, fill, stroke, 'stroke-width': 1.5 }),
@@ -353,11 +354,11 @@ function tile(g, x, y, fill, stroke = 'rgba(0,0,0,.25)') {
 
 function staticBoard() {
   const g = s('g');
-  // основа с месингова рамка, текстура и отблясък
+  // base with a brass frame, texture and highlight
   g.append(s('rect', { x: -22, y: -22, width: 704, height: 704, rx: 40, fill: 'url(#lbrass)' }));
   g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, fill: 'url(#lboard)' }));
   g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, filter: 'url(#lnoise)', 'pointer-events': 'none' }));
-  // ъгловите зони с кошарите
+  // the corner zones with the yards
   ZONES.forEach(([zx, zy], p) => {
     const x = zx * CS + 6, y = zy * CS + 6, w = 4 * CS - 12;
     g.append(s('rect', { x, y, width: w, height: w, rx: 30, fill: `url(#lz${p})`, stroke: COLORS[p].light, 'stroke-width': 2 }));
@@ -368,7 +369,7 @@ function staticBoard() {
       g.append(s('circle', { cx: C(cx), cy: C(cy), r: 20, fill: 'url(#lhole)', stroke: COLORS[p].main, 'stroke-width': 2.5 }));
     }
   });
-  // пътят: светли плочки; стартовите са в цвета на играча със стрелка по посоката
+  // the track: light tiles; the start ones are in the player's colour with an arrow in the direction
   TRACK.forEach(([x, y], i) => {
     const owner = START.indexOf(i);
     tile(g, x, y, owner >= 0 ? `url(#lc${owner})` : 'url(#lcell)', owner >= 0 ? COLORS[owner].dark : 'rgba(0,0,0,.25)');
@@ -378,9 +379,9 @@ function staticBoard() {
       g.append(s('path', { d: 'M -9 -10 L 11 0 L -9 10 Z', fill: '#fff', opacity: 0.9, transform: `translate(${C(x)} ${C(y)}) rotate(${a})` }));
     }
   });
-  // домашните редици
+  // the home rows
   LANES.forEach((cells, p) => cells.forEach(([x, y]) => tile(g, x, y, `url(#lc${p})`, COLORS[p].dark)));
-  // център: четирицветна звезда към домашните редици
+  // centre: a four-colour star towards the home rows
   const c = 330, r = 30, k = 10;
   const tri = (pts, p) => g.append(s('polygon', { points: pts, fill: `url(#lz${p})`, stroke: 'rgba(0,0,0,.35)', 'stroke-width': 1.5 }));
   tri(`${c - r - k},${c - r} ${c},${c} ${c - r - k},${c + r}`, 0);
@@ -392,7 +393,7 @@ function staticBoard() {
   return g;
 }
 
-// Пешка с обем: сянка, основа с ръб, тяло с отблясък и глава.
+// A pawn with volume: shadow, base with a rim, body with a highlight and a head.
 function pawn(p) {
   const f = `url(#lp${p})`, d = COLORS[p].dark;
   return s('g', { filter: 'url(#lsh)', transform: 'scale(1.12)' },

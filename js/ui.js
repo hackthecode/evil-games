@@ -1,4 +1,5 @@
-// Малки помощни функции за DOM и общи UI компоненти.
+// Small DOM helpers and shared UI components.
+import { txt, decode, tr, LOCALE } from './i18n.js';
 
 export function h(tag, props, ...children) {
   const el = document.createElement(tag);
@@ -12,10 +13,10 @@ export function h(tag, props, ...children) {
           else el.style[sk] = sv;
         }
       }
-      else if (k === 'html') el.innerHTML = v;
+      else if (k === 'html') el.innerHTML = decode(v);
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
       else if (k === 'dataset') Object.assign(el.dataset, v);
-      else el.setAttribute(k, v === true ? '' : v);
+      else el.setAttribute(k, v === true ? '' : decode(v));
     }
   }
   append(el, children);
@@ -26,7 +27,8 @@ function append(el, children) {
   for (const c of children) {
     if (c == null || c === false) continue;
     if (Array.isArray(c)) append(el, c);
-    else el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    // texts from the game servers may contain translation tokens (see js/i18n.js)
+    else el.append(c instanceof Node ? c : document.createTextNode(decode(String(c))));
   }
 }
 
@@ -38,7 +40,7 @@ export function s(tag, attrs, ...children) {
   return el;
 }
 
-// При превъртане на онлайн мач (повторно влизане) паузите и анимациите се пропускат.
+// When fast-forwarding an online match (rejoining) pauses and animations are skipped.
 export const motion = { fast: false };
 export const sleep = (ms) => (motion.fast ? Promise.resolve() : new Promise((r) => setTimeout(r, ms)));
 
@@ -46,9 +48,9 @@ export function fmtDuration(ms) {
   const totalMin = Math.floor(ms / 60000);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h > 0) return `${h} ч ${m} мин`;
-  if (totalMin > 0) return `${m} мин`;
-  return `${Math.floor(ms / 1000)} сек`;
+  if (h > 0) return txt('{0} h {1} min', h, m);
+  if (totalMin > 0) return txt('{0} min', m);
+  return txt('{0} s', Math.floor(ms / 1000));
 }
 
 export function fmtClock(ms) {
@@ -61,29 +63,29 @@ export function fmtClock(ms) {
 
 export function fmtDate(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString('bg-BG', { day: 'numeric', month: 'short' }) +
-    ' ' + d.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) +
+    ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 }
 
 export function pct(a, b) {
   return b ? Math.round((a / b) * 100) : 0;
 }
 
-// --- Известия ---
+// --- Toasts ---
 let toastHost;
 export function toast(message, type = 'info', ms = 2600) {
   toastHost ||= document.body.appendChild(h('div', { class: 'toast-host', 'aria-live': 'polite' }));
-  const t = h('div', { class: `toast toast-${type}` }, message);
-  toastHost.append(t);
+  const el = h('div', { class: `toast toast-${type}` }, tr(message));
+  toastHost.append(el);
   setTimeout(() => {
-    t.classList.add('out');
-    setTimeout(() => t.remove(), 300);
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 300);
   }, ms);
 }
 
-// --- Модален прозорец ---
+// --- Modal dialog ---
 // actions: [{label, value, primary, danger}] -> Promise<value>
-// Отворените прозорци се затварят при смяна на страницата (closeAllModals).
+// Open dialogs are closed when the page changes (closeAllModals).
 const openModals = new Set();
 export function closeAllModals() {
   for (const close of [...openModals]) close(undefined);
@@ -137,7 +139,7 @@ export function avatar(user, size = 36) {
 
 export const AVATAR_COLORS = ['#f2c14e', '#ef6f6c', '#3ecf8e', '#6aa8ff', '#b388ff', '#ff9f43', '#2dd4bf', '#f472b6'];
 
-// Анимира елемент от предишна позиция (FLIP).
+// Animates an element from its previous position (FLIP).
 export function flyFrom(el, fromRect, { duration = 380, easing = 'cubic-bezier(.2,.8,.2,1)', rotate = 0 } = {}) {
   if (!fromRect || motion.fast || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
   const to = el.getBoundingClientRect();

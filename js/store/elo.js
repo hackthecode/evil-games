@@ -1,16 +1,16 @@
-// Рейтинг Elo за онлайн мачове. Рейтингът се променя само когато всички играчи от
-// мача са съобщили съгласувани резултати – така никой не може сам да си „напише“ победа.
-// Същият алгоритъм е и в supabase/schema.sql (apply_elo) за онлайн режима.
+// Elo rating for online matches. The rating changes only when all players of
+// the match have reported consistent results – so nobody can "write" themselves a win.
+// The same algorithm is in supabase/schema.sql (apply_elo) for online mode.
 
 export const START_RATING = 1200;
 const K = 32;
 const expected = (ra, rb) => 1 / (1 + 10 ** ((rb - ra) / 400));
 
 /**
- * reports: [{ uid, team, outcome: 'win' | 'loss' | 'draw' }], rating(uid) → текущ рейтинг.
- * Връща { uid: промяна } или null при несъгласувани резултати.
- *  - 2 отбора: победа/загуба или реми; рейтинг на отбора = средният на членовете;
- *  - повече участници: точно един победител, останалите губят (по двойки, с K / (n − 1)).
+ * reports: [{ uid, team, outcome: 'win' | 'loss' | 'draw' }], rating(uid) → current rating.
+ * Returns { uid: change } or null for inconsistent results.
+ *  - 2 teams: win/loss or draw; team rating = the average of its members;
+ *  - more participants: exactly one winner, the others lose (in pairs, with K / (n − 1)).
  */
 export function eloDeltas(reports, rating) {
   const teams = new Map();
@@ -43,5 +43,5 @@ export function eloDeltas(reports, rating) {
   return out;
 }
 
-// Отбор на място в мача: в белота 0/2 срещу 1/3, другаде всеки е сам.
+// Team of a seat in the match: in belot 0/2 vs 1/3, elsewhere everyone plays alone.
 export const teamOfSeat = (game, seat) => (game.online?.teams === 2 ? seat % 2 : seat);

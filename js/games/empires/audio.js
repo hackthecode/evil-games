@@ -1,5 +1,5 @@
-// Evil Empires – атмосфера: музика за всяка раса и за битките, звуци на града (записи на птици,
-// щурци, дъжд и наковалня; вятърът и бухалът са синтезирани) и звуци на битките. Всички записи са CC0.
+// Evil Empires – atmosphere: music for each race and for battles, city sounds (recordings of birds,
+// crickets, rain and an anvil; the wind and the owl are synthesized) and battle sounds. All recordings are CC0.
 import { isMuted } from '../common.js';
 
 const PREF = 'ee.audio';
@@ -15,7 +15,7 @@ export function setAudioPref(key, on) {
 
 let ctx = null, out = null, noiseBuf = null;
 let musicEl = null;
-let amb = null; // активните звуци на града
+let amb = null; // the active city sounds
 let want = null; // { hour, weather, smithy, race }
 let battleOn = false;
 let timers = [];
@@ -34,7 +34,7 @@ function getCtx() {
   return ctx;
 }
 
-// Браузърите пускат звук едва след действие на потребителя.
+// Browsers only play sound after a user action.
 let unlocked = false;
 function unlock() {
   if (unlocked) return;
@@ -45,7 +45,7 @@ function unlock() {
 window.addEventListener('pointerdown', unlock, { once: true, capture: true });
 window.addEventListener('keydown', unlock, { once: true, capture: true });
 
-// ---------- музика ----------
+// ---------- music ----------
 const MUSIC = { humans: 'bards-tale', undead: 'undead', orcs: 'orcs', vesheri: 'vesheri', battle: 'battle' };
 const MUSIC_VOL = { orcs: 0.16, battle: 0.2 };
 let musicKey = null;
@@ -59,7 +59,7 @@ function fadeTo(el, target, done) {
   };
   step();
 }
-// Пуска мелодията key (или спира музиката при null) с плавен преход.
+// Plays the tune key (or stops the music on null) with a smooth crossfade.
 function setMusic(key) {
   if (key === musicKey) return;
   const old = musicEl;
@@ -74,13 +74,13 @@ function setMusic(key) {
   fadeTo(musicEl, MUSIC_VOL[key] ?? 0.22);
 }
 
-// ---------- записи ----------
+// ---------- recordings ----------
 const bufs = {};
 function sample(name) {
   if (!bufs[name]) bufs[name] = (async () => getCtx().decodeAudioData(await (await fetch(`assets/sounds/ambient/${name}.mp3`)).arrayBuffer()))().catch(() => null);
   return bufs[name];
 }
-// Безкраен запис (дъжд, птици, щурци) – тих старт, без пукане в края (пропуска тишината на mp3).
+// An endless recording (rain, birds, crickets) – quiet start, no click at the end (skips the mp3 silence).
 function sampleLoop(name, gain) {
   const c = getCtx();
   const g = c.createGain();
@@ -117,7 +117,7 @@ function playSample(name, gain, rate = 1) {
   });
 }
 
-// ---------- звуци на града ----------
+// ---------- city sounds ----------
 function noiseLoop(type, freq, q, gain) {
   const c = getCtx();
   const src = c.createBufferSource();
@@ -172,7 +172,7 @@ function stopAmb() {
 function startAmb(w) {
   stopAmb();
   const day = w.hour >= 6 && w.hour < 20;
-  const loops = [noiseLoop('bandpass', 380, 0.6, 0.03)]; // вятър
+  const loops = [noiseLoop('bandpass', 380, 0.6, 0.03)]; // wind
   if (w.weather === 'rain') loops.push(sampleLoop('rain', 0.5));
   if (w.weather === 'snow') loops.push(noiseLoop('bandpass', 260, 0.4, 0.05));
   amb = { loops };
@@ -180,7 +180,7 @@ function startAmb(w) {
     if (day) loops.push(sampleLoop('birds', 0.35));
     else { loops.push(sampleLoop('crickets', 0.22)); every(owl, 12000, 26000); }
   }
-  // ковачът удря наковалнята (запис с три удара)
+  // the smith strikes the anvil (a recording with three strikes)
   if (w.smithy && day) every(() => playSample('anvil', 0.18, 0.95 + Math.random() * 0.1), 6000, 11000);
 }
 
@@ -195,19 +195,19 @@ function apply() {
   } else stopAmb();
 }
 
-/** Музика за битка (тактическият екран) – вкл./изкл. */
+/** Battle music (the tactical screen) – on/off. */
 export function battleMusic(on) {
   battleOn = on;
   apply();
 }
 
-/** Пуска/обновява атмосферата на града; null – спира всичко (изход от играта). */
+/** Starts/updates the city atmosphere; null – stops everything (leaving the game). */
 export function cityAudio(w) {
   want = w;
   apply();
 }
 
-// ---------- битки ----------
+// ---------- battles ----------
 let swords = null;
 async function loadSwords() {
   if (!swords) {
@@ -222,7 +222,7 @@ async function loadSwords() {
 }
 export const preloadBattleSounds = () => loadSwords();
 
-/** Удар в битка: kind – 'sword' (замах) или 'clash' (сблъсък); strength 0..1. */
+/** A strike in battle: kind – 'sword' (swing) or 'clash'; strength 0..1. */
 export async function battleSound(kind = 'clash', strength = 0.6, delay = 0) {
   if (isMuted()) return;
   const bank = await loadSwords();

@@ -1,15 +1,15 @@
-/* ===== Шах ===== */
+/* ===== Chess ===== */
 .game-chess { container-type: size; }
 .chess-layout {
   --bar: 44px;
-  --fr: 18px; /* ширина на рамката около дъската */
+  --fr: 18px; /* width of the frame around the board */
   --board: min(calc(100cqh - 2 * var(--bar) - 52px - 2 * var(--fr)), calc(100cqw - 380px - 2 * var(--fr)), 740px);
   flex: 1; display: flex; gap: 22px; align-items: center; justify-content: center;
   padding: 12px 16px;
 }
 .cb-col { display: flex; flex-direction: column; gap: 6px; width: calc(var(--board) + 2 * var(--fr)); }
 
-/* Теми: цветове на полетата, текстура и рамка */
+/* Themes: square colours, texture and frame */
 .cb-frame {
   --light: #ecdfd2; --dark: #9a4f5b; --tex: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27160%27 height=%27160%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.8%27 numOctaves=%272%27 stitchTiles=%27stitch%27/%3E%3CfeColorMatrix values=%271 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 .09%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url%28%23n%29%27/%3E%3C/svg%3E"); --tex-size: 160px;
   --frame-a: #4a1520; --frame-b: #1c070b; --label: rgba(255, 220, 228, .7);
@@ -46,7 +46,7 @@
   box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 0 3px rgba(255,255,255,.08);
 }
 .cb-squares { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); }
-/* текстура и отблясък върху цялата дъска */
+/* texture and highlight over the whole board */
 .cb-squares::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background:
@@ -127,7 +127,7 @@
   .cb-side .g-status { font-size: 14px; min-height: 20px; }
 }
 
-/* Избор на вид */
+/* Style picker */
 .look-box { display: flex; flex-direction: column; gap: 14px; }
 .look-box .seg { flex-wrap: wrap; }
 .look-pieces { display: flex; justify-content: center; gap: 6px; padding: 10px; border-radius: 14px; background: linear-gradient(135deg, #ecdfd2 50%, #9a4f5b 50%); }

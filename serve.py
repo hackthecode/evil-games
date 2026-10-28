@@ -1,5 +1,5 @@
-# Локален сървър за портала без кеширане (винаги най-новите файлове при разработка).
-# Употреба: python3 serve.py [порт]
+# Local server for the portal without caching (always the latest files during development).
+# Usage: python3 serve.py [port]
 import http.server
 import sys
 

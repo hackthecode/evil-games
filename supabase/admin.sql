@@ -1,14 +1,14 @@
--- Табло на администратора: администратори, блокирани акаунти, жалби и рестарт на света.
--- Изпълнете веднъж в Supabase → SQL Editor (след schema.sql, empires.sql и lobby.sql).
--- Всичко минава през функции, които първо проверяват дали извикващият е администратор –
--- в браузъра не е нужен таен ключ.
+-- Administrator dashboard: administrators, banned accounts, reports and resetting the world.
+-- Run once in Supabase → SQL Editor (after schema.sql, empires.sql and lobby.sql).
+-- Everything goes through functions that first check whether the caller is an administrator –
+-- no secret key is needed in the browser.
 
--- ---------- администратори ----------
+-- ---------- administrators ----------
 create table if not exists public.admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
-alter table public.admins enable row level security;   -- без политики: само чрез функциите долу
+alter table public.admins enable row level security;   -- no policies: only through the functions below
 
 create or replace function public.is_admin()
 returns boolean
@@ -18,7 +18,7 @@ security definer
 set search_path = public
 as $$ select exists (select 1 from admins where user_id = auth.uid()) $$;
 
--- ---------- блокирани акаунти ----------
+-- ---------- banned accounts ----------
 create table if not exists public.bans (
   user_id uuid primary key references auth.users(id) on delete cascade,
   reason text not null default '',
@@ -38,7 +38,7 @@ security definer
 set search_path = public
 as $$ select exists (select 1 from bans where user_id = p_user and until > now()) $$;
 
--- блокираните не могат да пишат в лобито (заменя функцията от lobby.sql)
+-- banned players cannot write in the lobby (replaces the function from lobby.sql)
 create or replace function public.lobby_before_insert()
 returns trigger
 language plpgsql
@@ -49,23 +49,23 @@ begin
   new.user_id := auth.uid();
   new.created_at := now();
   if is_banned(auth.uid()) then
-    raise exception 'Акаунтът е блокиран.';
+    raise exception 'The account is banned.';
   end if;
   select display_name, color into new.name, new.color from profiles where id = auth.uid();
   if exists (select 1 from lobby_messages where user_id = auth.uid() and created_at > now() - interval '2 seconds') then
-    raise exception 'Твърде бързо – изчакайте малко.';
+    raise exception 'Too fast – wait a moment.';
   end if;
   return new;
 end;
 $$;
 
--- ---------- жалби ----------
+-- ---------- reports ----------
 create table if not exists public.reports (
   id bigserial primary key,
   reporter uuid not null default auth.uid() references auth.users(id) on delete cascade,
   target uuid references auth.users(id) on delete cascade,
   message_id bigint,
-  body text not null default '',          -- копие на съобщението (ако бъде изтрито)
+  body text not null default '',          -- a copy of the message (in case it is deleted)
   reason text not null check (char_length(reason) between 1 and 300),
   resolved boolean not null default false,
   created_at timestamptz not null default now()
@@ -85,7 +85,7 @@ begin
   new.resolved := false;
   new.created_at := now();
   if (select count(*) from reports where reporter = auth.uid() and created_at > now() - interval '1 hour') >= 10 then
-    raise exception 'Твърде много жалби – опитайте по-късно.';
+    raise exception 'Too many reports – try again later.';
   end if;
   if new.message_id is not null then
     select user_id, body into new.target, new.body from lobby_messages where id = new.message_id;
@@ -97,16 +97,16 @@ drop trigger if exists reports_before_insert on public.reports;
 create trigger reports_before_insert before insert on public.reports
   for each row execute function public.reports_before_insert();
 
--- ---------- функциите на таблото ----------
+-- ---------- the dashboard functions ----------
 create or replace function public.admin_check()
 returns void
 language plpgsql
 stable
 security definer
 set search_path = public
-as $$ begin if not is_admin() then raise exception 'Нямате права на администратор.'; end if; end $$;
+as $$ begin if not is_admin() then raise exception 'You don''t have administrator rights.'; end if; end $$;
 
--- Общ преглед: акаунти, империи, активни, жалби, блокирани, съобщения.
+-- Overview: accounts, empires, active, reports, banned, messages.
 create or replace function public.admin_overview()
 returns jsonb
 language plpgsql
@@ -134,7 +134,7 @@ begin
 end;
 $$;
 
--- Играчите (търсене по име): профил, империя, последна активност, блокиране.
+-- Players (search by name): profile, empire, last activity, ban.
 create or replace function public.admin_players(p_query text default '')
 returns table (id uuid, username text, display_name text, created_at timestamptz, empire text, score int, last_active bigint, banned_until timestamptz, ban_reason text, is_admin boolean)
 language plpgsql
@@ -169,8 +169,8 @@ set search_path = public
 as $$
 begin
   perform admin_check();
-  if p_user = auth.uid() then raise exception 'Не можете да блокирате себе си.'; end if;
-  if exists (select 1 from admins where user_id = p_user) then raise exception 'Администратор не може да бъде блокиран.'; end if;
+  if p_user = auth.uid() then raise exception 'You cannot ban yourself.'; end if;
+  if exists (select 1 from admins where user_id = p_user) then raise exception 'An administrator cannot be banned.'; end if;
   insert into bans(user_id, reason, until, by)
     values (p_user, left(coalesce(p_reason, ''), 300), now() + make_interval(hours => greatest(1, least(p_hours, 24 * 365 * 10))), auth.uid())
     on conflict (user_id) do update set reason = excluded.reason, until = excluded.until, by = excluded.by, created_at = now();
@@ -218,7 +218,7 @@ security definer
 set search_path = public
 as $$ begin perform admin_check(); delete from lobby_messages where id = p_id; end $$;
 
--- Рестарт на света на Evil Empires: изтрива всички империи и картата (сървърът създава нов свят).
+-- Resetting the Evil Empires world: deletes all empires and the map (the server creates a new world).
 create or replace function public.admin_reset_world(p_confirm text)
 returns void
 language plpgsql
@@ -227,7 +227,7 @@ set search_path = public
 as $$
 begin
   perform admin_check();
-  if p_confirm is distinct from 'РЕСТАРТ' then raise exception 'Напишете РЕСТАРТ за потвърждение.'; end if;
+  if p_confirm is distinct from 'RESET' then raise exception 'Type RESET to confirm.'; end if;
   delete from ee_saves where true;
   delete from ee_world where true;
 end;
@@ -246,6 +246,6 @@ grant execute on function public.is_admin(), public.admin_overview(), public.adm
   public.admin_unban(uuid), public.admin_reports(), public.admin_resolve(bigint), public.admin_delete_message(bigint),
   public.admin_reset_world(text) to authenticated;
 
--- ---------- направете себе си администратор ----------
--- Заменете имейла със своя и изпълнете този ред (след като сте се регистрирали в портала):
--- insert into public.admins(user_id) select id from auth.users where email = 'ВАШИЯТ@ИМЕЙЛ' on conflict do nothing;
+-- ---------- make yourself an administrator ----------
+-- Replace YOUR_USERNAME with your portal username and run this line (after signing up on the portal):
+-- insert into public.admins(user_id) select id from public.profiles where lower(username) = lower('YOUR_USERNAME') on conflict do nothing;

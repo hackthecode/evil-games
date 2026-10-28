@@ -1,6 +1,6 @@
-// Блато: интерфейсът се управлява от сървъра-съдия (js/games/blato/referee.js).
-// Играта получава стъпки { seat, type, pub, view } и само ги анимира; собствените
-// карти идват от изгледа, а чуждите не се знаят.
+// Blato: the UI is driven by the referee server (js/games/blato/referee.js).
+// The game receives steps { seat, type, pub, view } and only animates them; its own
+// cards come from the view, and the others' are unknown.
 import { h, sleep, modal, toast, motion } from '../../ui.js';
 import { createTable } from '../../net/table.js';
 import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
@@ -8,9 +8,10 @@ import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
 import { SUITS, next } from './engine.js';
+import { txt } from '../../i18n.js';
 
-const BOT_NAMES = [null, 'Георги', 'Петър'];
-const POS = ['south', 'east', 'west']; // аз, следващият (вдясно), последният (вляво)
+const BOT_NAMES = [null, txt('Georgi'), txt('Petar')];
+const POS = ['south', 'east', 'west']; // me, the next one (on the right), the last one (on the left)
 const SLOT = ['s0', 's1', 's3'];
 const DECK_SEAT = [0, 1, 3];
 
@@ -30,9 +31,9 @@ export async function mount(root, ctx) {
     }
     const opts = await setupScreen(root, {
       gameId: 'blato',
-      title: 'Нова игра на блато',
-      subtitle: 'Вие срещу Георги и Петър. Раздаващият взема 8 ръце, следващият 5, третият 3.',
-      groups: [{ key: 'target', label: 'Игра до', value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
+      title: txt('New game of blato'),
+      subtitle: txt('You against Georgi and Petar. The dealer takes 8 tricks, the next player 5, the third 3.'),
+      groups: [{ key: 'target', label: txt('Play to'), value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
     });
     if (destroyed) return;
     const seats = [ctx.user.displayName, ...BOT_NAMES.slice(1)].map((name, i) => ({ bot: i !== 0, name }));
@@ -68,8 +69,8 @@ export async function mount(root, ctx) {
     const hud = h('div', { class: 'ct-hud' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
     const tools = h('div', { class: 'ct-tools' },
-      h('button', { class: 'btn', onclick: resign }, 'Предай се'),
-      !online && h('button', { class: 'btn', onclick: newGame }, 'Нова'),
+      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
+      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
     );
     table$.append(center, kittyEl, hud, tools);
@@ -78,12 +79,12 @@ export async function mount(root, ctx) {
     const order3 = [ME, next(ME), next(next(ME))];
     const sign = (x) => (x > 0 ? '+' : '') + x;
 
-    // ---------- рендиране от изгледа ----------
+    // ---------- rendering from the view ----------
     function renderHud() {
       hud.replaceChildren(...[
-        ...order3.map((p) => h('div', { class: 'row' }, h('span', null, p === ME ? 'Вие' : names[p]), h('b', null, sign(v?.score[p] ?? 0)))),
-        h('div', { class: 'goal' }, `игра до +${v?.target ?? ''}`),
-        v?.trump && h('div', { class: 'contract-badge', html: `Коз: ${suitSvg(v.trump, 'suit' + (isRed(v.trump) ? ' red' : ''))} ${SUIT_NAMES[v.trump]}` }),
+        ...order3.map((p) => h('div', { class: 'row' }, h('span', null, p === ME ? txt('You') : names[p]), h('b', null, sign(v?.score[p] ?? 0)))),
+        h('div', { class: 'goal' }, txt('play to +{0}', v?.target ?? '')),
+        v?.trump && h('div', { class: 'contract-badge', html: txt('Trumps: {0} {1}', suitSvg(v.trump, 'suit' + (isRed(v.trump) ? ' red' : '')), SUIT_NAMES[v.trump]) }),
       ].filter(Boolean));
       seats.forEach((s, p) => {
         s.nameEl.textContent = names[p] + (v?.targets ? ` · ${v.tricks[p]}/${v.targets[p]}` : '');
@@ -95,7 +96,7 @@ export async function mount(root, ctx) {
       kittyEl.replaceChildren(...Array.from({ length: v?.kitty || 0 }, () => cardEl(null, { faceDown: true })));
     }
 
-    // Ръката: при много карти припокриването се сгъстява, за да се събере на екрана.
+    // The hand: with many cards the overlap gets tighter so it fits on the screen.
     function renderHands({ playable = null, select = null } = {}) {
       if (!v?.hand) {
         seats.forEach((s) => s.handEl.replaceChildren());
@@ -164,7 +165,7 @@ export async function mount(root, ctx) {
       setTimeout(() => m.remove(), ms);
     }
 
-    // ---------- решения на играча ----------
+    // ---------- player decisions ----------
     let picking = false;
     let selection = null;
     let lastFrom = null;
@@ -178,10 +179,10 @@ export async function mount(root, ctx) {
       send('card', el.dataset.id);
     });
 
-    // Избор на N карти (подаряване или сваляне) с потвърждение.
+    // Choosing N cards (giving or discarding) with confirmation.
     function selectCards(count, title, type) {
       const picked = new Set();
-      const btn = h('button', { class: 'btn btn-primary', disabled: true }, 'Потвърди');
+      const btn = h('button', { class: 'btn btn-primary', disabled: true }, txt('Confirm'));
       const info = h('span', null, `${title} (0/${count})`);
       const panel = h('div', { class: 'bid-panel select-panel' }, h('h3', null, info), btn);
       const refresh = () => {
@@ -207,7 +208,7 @@ export async function mount(root, ctx) {
 
     function chooseTrump() {
       const panel = h('div', { class: 'bid-panel' },
-        h('h3', null, 'Изберете коз'),
+        h('h3', null, txt('Choose trumps')),
         h('div', { class: 'bid-grid' }, SUITS.map((s) => h('button', {
           class: `btn ${isRed(s) ? 'red' : ''}`,
           html: `${suitSvg(s)} ${SUIT_NAMES[s]}`,
@@ -228,8 +229,8 @@ export async function mount(root, ctx) {
         return renderHands({ playable: d.legal });
       }
       renderHands();
-      if (d.type === 'give') selectCards(d.count, `Дайте ${d.count} ${d.count === 1 ? 'карта' : 'карти'} на ${names[d.to]}`, 'give');
-      else if (d.type === 'discard') selectCards(4, 'Свалете 4 карти', 'discard');
+      if (d.type === 'give') selectCards(d.count, txt('Give {0} {1} to {2}', d.count, d.count === 1 ? txt('card') : txt('cards'), names[d.to]), 'give');
+      else if (d.type === 'discard') selectCards(4, txt('Discard 4 cards'), 'discard');
       else if (d.type === 'trump') chooseTrump();
     }
 
@@ -243,7 +244,7 @@ export async function mount(root, ctx) {
       }
     }
 
-    // ---------- анимации по стъпки ----------
+    // ---------- step animations ----------
     const handSnap = (p) => {
       const kids = seats[p].handEl.children;
       return snap(kids[kids.length >> 1] || seats[p].handEl);
@@ -264,11 +265,11 @@ export async function mount(root, ctx) {
       deckBox.dataset.seat = DECK_SEAT[V(e.pub.dealer)];
       table$.querySelector('.deal-deck')?.remove();
       table$.append(deckBox);
-      message(`Раздава ${e.pub.dealer === ME ? 'вие' : names[e.pub.dealer]}`, 1100);
+      message(txt('{0} deals', e.pub.dealer === ME ? txt('you') : names[e.pub.dealer]), 1100);
       sound('dice');
       await shuffleDeck(deckBox, 900);
       if (gone()) return;
-      // по 4 карти на всеки, 4 пъти; блатото – 4 карти в средата
+      // 4 cards to each player, 4 times; the swamp – 4 cards in the middle
       let left = 52;
       const mine = nv.hand.slice();
       let mi = 0;
@@ -307,11 +308,11 @@ export async function mount(root, ctx) {
 
     async function animGive(e, nv) {
       const { from, to, count } = e.pub;
-      message(`${from === ME ? 'Вие давате' : `${names[from]} дава`} ${count} ${count === 1 ? 'карта' : 'карти'} на ${to === ME ? 'вас' : names[to]}`, 1800);
+      message(txt('{0} {1} {2} to {3}', from === ME ? txt('You give') : txt('{0} gives', names[from]), count, count === 1 ? txt('card') : txt('cards'), to === ME ? txt('you') : names[to]), 1800);
       if (e.seat !== ME && !motion.fast) await sleep(900);
       const involved = from === ME || to === ME;
       const ex = involved ? nv.exchanged[nv.exchanged.length - 1] : null;
-      // какво отиде от „from“ към „to“ и какво се върна (виждат само участниците)
+      // what went from "from" to "to" and what came back (only the participants see it)
       const forward = involved ? (from === ME ? ex.gave : ex.got) : Array(count).fill(null);
       const backward = involved ? (from === ME ? ex.got : ex.gave) : Array(count).fill(null);
       const mySnaps = new Map();
@@ -329,12 +330,12 @@ export async function mount(root, ctx) {
           faceFrom: to === ME, faceTo: from === ME, duration: 520, delay: j * 90, arc: 0.12, onStart: () => sound('deal'),
         })));
       }
-      if (involved) bubble(to, `Върна: ${backward.map((c) => c.r + suitSvg(c.s, 'suit' + (isRed(c.s) ? ' red' : ''))).join(' ')}`, true, 2600);
+      if (involved) bubble(to, txt('Returned: {0}', backward.map((c) => c.r + suitSvg(c.s, 'suit' + (isRed(c.s) ? ' red' : ''))).join(' ')), true, 2600);
     }
 
     async function animTake(e, nv) {
       const dealer = e.pub.dealer;
-      message(`${dealer === ME ? 'Вие вземате' : `${names[dealer]} взема`} блатото`, 1300);
+      message(txt('{0} the swamp', dealer === ME ? txt('You take') : txt('{0} takes', names[dealer])), 1300);
       const from = snap(kittyEl);
       const prev = new Set((v?.hand || []).map((c) => c.id));
       const got = dealer === ME ? nv.hand.filter((c) => !prev.has(c.id)) : Array(4).fill(null);
@@ -393,21 +394,21 @@ export async function mount(root, ctx) {
 
     async function showSummary(pub) {
       const row = (p) => h('tr', null,
-        h('td', null, p === ME ? 'Вие' : names[p]),
+        h('td', null, p === ME ? txt('You') : names[p]),
         h('td', null, pub.tricks[p] - pub.diff[p]),
         h('td', null, pub.tricks[p]),
         h('td', { class: pub.diff[p] > 0 ? 'pos' : pub.diff[p] < 0 ? 'neg' : '' }, sign(pub.diff[p])),
         h('td', null, sign(pub.score[p])));
       await modal({
-        title: `Раздаване ${pub.dealNo}`,
+        title: txt('Deal {0}', pub.dealNo),
         body: h('div', null,
           h('table', { class: 'summary-table' },
-            h('tr', null, h('th', null, ''), h('th', null, 'Цел'), h('th', null, 'Взети'), h('th', null, '±'), h('th', null, 'Общо')),
+            h('tr', null, h('th', null, ''), h('th', null, txt('Goal')), h('th', null, txt('Taken')), h('th', null, '±'), h('th', null, txt('Overall'))),
             order3.map(row)),
           pub.diff.some((x) => x !== 0) && h('p', { class: 'muted small', style: { marginTop: '10px' } },
-            'В следващото раздаване играчите, взели повече, разменят карти с изостаналите.'),
+            txt('In the next deal the players who took more exchange cards with those who fell short.')),
         ),
-        actions: [{ label: 'Продължи', value: true, primary: true }],
+        actions: [{ label: txt('Continue'), value: true, primary: true }],
       });
     }
 
@@ -420,7 +421,7 @@ export async function mount(root, ctx) {
         case 'trump':
           if (e.seat !== ME && !motion.fast) await sleep(900);
           v = nv;
-          bubble(e.seat, `Коз ${suitSvg(e.pub.trump, 'suit' + (isRed(e.pub.trump) ? ' red' : ''))} ${SUIT_NAMES[e.pub.trump]}`, true);
+          bubble(e.seat, txt('Trumps {0} {1}', suitSvg(e.pub.trump, 'suit' + (isRed(e.pub.trump) ? ' red' : '')), SUIT_NAMES[e.pub.trump]), true);
           sound('notify');
           renderHud();
           renderHands();
@@ -438,14 +439,14 @@ export async function mount(root, ctx) {
           if (nv.phase === 'over') {
             const best = Math.max(...nv.score);
             const w = nv.score.indexOf(best);
-            endMatch(w === ME ? 'win' : 'loss', w === ME ? `Стигнахте ${sign(best)} първи!` : `${names[w]} стигна ${sign(best)} първи.`);
+            endMatch(w === ME ? 'win' : 'loss', w === ME ? txt('You reached {0} first!', sign(best)) : txt('{0} reached {1} first.', names[w], sign(best)));
           }
           return;
         }
       }
     }
 
-    // Стъпките се анимират една по една; след последната – решението на играча.
+    // Steps are animated one by one; after the last one – the player's decision.
     const queue = [];
     let busy = false;
     let skipBelow = 0;
@@ -468,7 +469,7 @@ export async function mount(root, ctx) {
       pump();
     });
 
-    // ---------- край ----------
+    // ---------- end ----------
     async function endMatch(outcome, text) {
       if (over) return;
       over = true;
@@ -478,29 +479,29 @@ export async function mount(root, ctx) {
       table$.querySelectorAll('.bid-panel').forEach((p) => p.remove());
       const sc = v?.score || [0, 0, 0];
       const sum = `${sign(sc[ME])} · ${[next(ME), next(next(ME))].map((p) => `${names[p]} ${sign(sc[p])}`).join(', ')}`;
-      await ctx.report(outcome, online ? { summary: `Онлайн · ${sum}`, online: true } : { summary: `${sum} · до +${v?.target}` });
+      await ctx.report(outcome, online ? { summary: txt('Online · {0}', sum), online: true } : { summary: txt('{0} · to +{1}', sum, v?.target) });
       if (destroyed) return;
-      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text, again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? online.rematch() : start();
       else if (c === 'exit') location.hash = online ? '#/online/blato' : '#/';
     }
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', 'Играта ще се отчете като загуба. Продължаване?', 'Предай се', true))) return;
+      if (!(await confirmDialog(txt('Resign'), txt('The game will count as a loss. Continue?'), txt('Resign'), true))) return;
       if (online) online.resign();
-      else endMatch('loss', 'Предадохте играта.');
+      else endMatch('loss', txt('You resigned the game.'));
     }
 
     async function newGame() {
-      if (!(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+      if (!(await confirmDialog(txt('New game'), txt('The current game will be stopped without being counted. Continue?')))) return;
       start();
     }
 
     const offEvents = online ? online.onEvent((e) => {
       if (over || destroyed) return;
-      if (e.kind === 'resign') endMatch(e.seat === ME ? 'loss' : 'win', e.seat === ME ? 'Предадохте играта.' : `${names[e.seat]} се предаде.`);
-      else if (e.kind === 'forfeit') endMatch(e.winner === ME ? 'win' : 'loss', 'Служебна победа.');
+      if (e.kind === 'resign') endMatch(e.seat === ME ? 'loss' : 'win', e.seat === ME ? txt('You resigned the game.') : txt('{0} resigned.', names[e.seat]));
+      else if (e.kind === 'forfeit') endMatch(e.winner === ME ? 'win' : 'loss', txt('Forfeit win.'));
     }) : () => {};
     const offTakeover = online ? online.onTakeover((seat) => table.takeover(seat).catch(() => {})) : () => {};
 
@@ -511,7 +512,7 @@ export async function mount(root, ctx) {
       table.close();
     };
 
-    // ---------- свързване ----------
+    // ---------- connecting ----------
     try {
       const res = await table.connect();
       if (gone()) return;
@@ -523,7 +524,7 @@ export async function mount(root, ctx) {
       renderTrick();
       pump();
     } catch (e) {
-      table$.append(h('div', { class: 'ct-msg' }, 'Няма връзка със съдията: ' + e.message));
+      table$.append(h('div', { class: 'ct-msg' }, txt('No connection to the referee: ') + e.message));
     }
   }
 

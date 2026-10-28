@@ -1,6 +1,6 @@
-// Шахматни правила: генериране на ходове, проверка за шах/мат/пат/реми, SAN нотация.
-// Полета: 0 = a8 ... 63 = h1. ред = sq >> 3 (0 е 8-ми ред), колона = sq & 7.
-// Фигури: 'PNBRQK' бели, 'pnbrqk' черни, null празно.
+// Chess rules: move generation, check/mate/stalemate/draw detection, SAN notation.
+// Squares: 0 = a8 ... 63 = h1. rank = sq >> 3 (0 is the 8th rank), file = sq & 7.
+// Pieces: 'PNBRQK' white, 'pnbrqk' black, null empty.
 
 export const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -57,7 +57,7 @@ export function positionKey(st) {
 export function isAttacked(board, sq, by) {
   const r = sq >> 3, c = sq & 7;
   const white = by === 'w';
-  // пешки
+  // pawns
   const pr = white ? r + 1 : r - 1;
   for (const dc of [-1, 1]) {
     if (onBoard(pr, c + dc) && board[pr * 8 + c + dc] === (white ? 'P' : 'p')) return true;
@@ -222,7 +222,7 @@ export function insufficientMaterial(board) {
   return false;
 }
 
-// Състояние на играта: null ако продължава.
+// Game status: null if it continues.
 export function gameStatus(st, repetitionCount = 1) {
   const moves = legalMoves(st);
   if (moves.length === 0) {

@@ -1,4 +1,4 @@
--- Лоби: общ чат за всички влезли играчи. Изпълнете веднъж в Supabase → SQL Editor.
+-- Lobby: shared chat for all logged-in players. Run once in Supabase → SQL Editor.
 
 create table if not exists public.lobby_messages (
   id bigserial primary key,
@@ -16,7 +16,7 @@ create policy "lobby read" on public.lobby_messages for select to authenticated 
 drop policy if exists "lobby write" on public.lobby_messages;
 create policy "lobby write" on public.lobby_messages for insert to authenticated with check (user_id = auth.uid());
 
--- Името и цветът идват от профила (не може да се подправят); не повече от 1 съобщение на 2 секунди.
+-- The name and colour come from the profile (they can't be faked); no more than 1 message per 2 seconds.
 create or replace function public.lobby_before_insert()
 returns trigger
 language plpgsql
@@ -28,7 +28,7 @@ begin
   new.created_at := now();
   select display_name, color into new.name, new.color from profiles where id = auth.uid();
   if exists (select 1 from lobby_messages where user_id = auth.uid() and created_at > now() - interval '2 seconds') then
-    raise exception 'Твърде бързо – изчакайте малко.';
+    raise exception 'Too fast – wait a moment.';
   end if;
   return new;
 end;
@@ -38,12 +38,12 @@ drop trigger if exists lobby_before_insert on public.lobby_messages;
 create trigger lobby_before_insert before insert on public.lobby_messages
   for each row execute function public.lobby_before_insert();
 
--- Съобщенията пристигат веднага (Realtime).
+-- Messages arrive instantly (Realtime).
 do $$ begin
   alter publication supabase_realtime add table public.lobby_messages;
 exception when duplicate_object then null;
 end $$;
 
--- Чистене: пазим чата 7 дни.
+-- Cleanup: we keep the chat for 7 days.
 select cron.unschedule('lobby-cleanup') where exists (select 1 from cron.job where jobname = 'lobby-cleanup');
 select cron.schedule('lobby-cleanup', '0 4 * * *', $$ delete from public.lobby_messages where created_at < now() - interval '7 days' $$);

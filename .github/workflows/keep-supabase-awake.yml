@@ -1,5 +1,5 @@
-# Безплатният план на Supabase спира проекта след 7 дни без заявки.
-# На всеки 2 дни правим една лека заявка, за да остане буден.
+# Supabase's free plan pauses the project after 7 days without requests.
+# Every 2 days we make one light request to keep it awake.
 name: Keep Supabase awake
 
 on:
@@ -17,5 +17,5 @@ jobs:
           URL=$(grep -o "url: '[^']*'" config.js | head -1 | cut -d"'" -f2)
           KEY=$(grep -o "anonKey: '[^']*'" config.js | head -1 | cut -d"'" -f2)
           code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/rest/v1/leaderboard?select=user_id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
-          echo "Supabase отговори: $code"
+          echo "Supabase answered: $code"
           test "$code" = "200"

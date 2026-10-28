@@ -1,12 +1,13 @@
-// Илюстрации за картите на игрите в портала: прожекторна светлина, обемни сенки
-// и краища, които преливат в черно (OLED). Всяка илюстрация има собствени id-та.
+// Illustrations for the game cards on the portal: spotlight, deep shadows
+// and edges that fade into black (OLED). Each illustration has its own ids.
 import { SUIT_PATHS } from './games/cards/suits.js';
 import { buildingSvg, tile, PALETTE, defs as eeDefs } from './games/empires/art.js';
+import { txt } from './i18n.js';
 
 const suit = (s, x, y, size, fill) =>
   `<g transform="translate(${x} ${y}) scale(${size / 100})" fill="${fill}">${SUIT_PATHS[s]}</g>`;
 
-// Общи дефиниции: сянка и винетка към черно.
+// Shared definitions: shadow and vignette to black.
 const defs = (p) => `
   <filter id="${p}-sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".7"/></filter>
   <filter id="${p}-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -14,7 +15,7 @@ const defs = (p) => `
   <radialGradient id="${p}-spot" cx=".5" cy=".2" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`;
 const overlay = (p) => `<rect width="320" height="180" fill="url(#${p}-spot)"/><rect width="320" height="180" fill="url(#${p}-vig)"/>`;
 
-// Мини карта; фигурите (J/Q/K) са с илюстрацията от комплекта.
+// Mini card; the face cards (J/Q/K) use the deck's artwork.
 function miniCard(p, x, y, rot, rank, s) {
   const red = s === 'H' || s === 'D';
   const col = red ? '#cf2f36' : '#141418';
@@ -31,7 +32,7 @@ function miniCard(p, x, y, rot, rank, s) {
 }
 const cardGrad = (p) => `<linearGradient id="${p}-card" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#efe8da"/></linearGradient>`;
 
-// Пул за табла с гравиран ръб и отблясък.
+// Backgammon checker with an engraved rim and a highlight.
 function checker(p, cx, cy, dark) {
   return `<g transform="translate(${cx} ${cy})" filter="url(#${p}-sh)">
     <circle r="11" fill="url(#${p}-${dark ? 'd' : 'l'})"/>
@@ -41,7 +42,7 @@ function checker(p, cx, cy, dark) {
   </g>`;
 }
 
-// Зар в изометрия: горна стена и две странични в сянка.
+// Isometric die: top face and two shaded sides.
 function die(x, y, pips, rot) {
   const pip = ([px, py]) => `<circle cx="${px}" cy="${py}" r="3.3" fill="#1a1012"/>`;
   return `<g transform="translate(${x} ${y}) rotate(${rot})">
@@ -61,7 +62,7 @@ function tablaArt(kind) {
 ` : kind === 'tapa'
     ? [0, 1, 2, 3, 4].map((i) => checker('ta', 297, 25 + i * 21, false)).join('') + [0, 1, 2, 3, 4].map((i) => checker('ta', 297, 155 - i * 21, true)).join('') + checker('ta', 250, 155, false) + checker('ta', 250, 134, true)
     : [0, 1, 2, 3, 4].map((i) => checker('ta', 297, 25 + i * 21, false)).join('') + [0, 1, 2, 3, 4].map((i) => checker('ta', 26, 155 - i * 21, true)).join('');
-  const label = kind === 'tabla' ? '' : `<text x="86" y="98" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="22" font-weight="800" fill="#ffe7a3" filter="url(#ta-glow)" letter-spacing="1">${kind === 'tapa' ? 'ТАПА' : 'ГЮЛБАРА'}</text>`;
+  const label = kind === 'tabla' ? '' : `<text x="86" y="98" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="22" font-weight="800" fill="#ffe7a3" filter="url(#ta-glow)" letter-spacing="1">${kind === 'tapa' ? txt('TAPA') : txt('GULBARA')}</text>`;
   return `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
     <defs>${defs('ta')}
       <linearGradient id="ta-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a5530"/><stop offset=".5" stop-color="#5a3218"/><stop offset="1" stop-color="#2e170a"/></linearGradient>
@@ -114,19 +115,7 @@ export const ART = {
     ${overlay('ch')}
   </svg>`,
 
-  belot: `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-    <defs>${defs('be')}${cardGrad('be')}
-      <radialGradient id="be-felt" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#23854f"/><stop offset=".7" stop-color="#0b3d24"/><stop offset="1" stop-color="#03140b"/></radialGradient>
-      <linearGradient id="be-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>
-    </defs>
-    <rect width="320" height="180" fill="url(#be-felt)"/>
-    ${miniCard('be', 104, 104, -24, 'J', 'S')}
-    ${miniCard('be', 138, 92, -8, '9', 'S')}
-    ${miniCard('be', 174, 92, 8, 'A', 'S')}
-    ${miniCard('be', 208, 104, 24, 'K', 'S')}
-    ${overlay('be')}
-    <text x="302" y="34" text-anchor="end" font-family="Unbounded,Inter,sans-serif" font-size="15" font-weight="700" fill="url(#be-gold)" filter="url(#be-glow)">Всичко коз</text>
-  </svg>`,
+  belot: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="be-felt" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#23854f"/><stop offset=".7" stop-color="#0b3d24"/><stop offset="1" stop-color="#03140b"/></radialGradient>\n      <linearGradient id="be-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#be-felt)"/>\n    {2}\n    {3}\n    {4}\n    {5}\n    {6}\n    <text x="302" y="34" text-anchor="end" font-family="Unbounded,Inter,sans-serif" font-size="15" font-weight="700" fill="url(#be-gold)" filter="url(#be-glow)">All trumps</text>\n  </svg>', defs('be'), cardGrad('be'), miniCard('be', 104, 104, -24, 'J', 'S'), miniCard('be', 138, 92, -8, '9', 'S'), miniCard('be', 174, 92, 8, 'A', 'S'), miniCard('be', 208, 104, 24, 'K', 'S'), overlay('be')),
 
   ludo: `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
     <defs>${defs('lu')}
@@ -158,32 +147,9 @@ export const ART = {
     ${overlay('so')}
   </svg>`,
 
-  blato: `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-    <defs>${defs('bl')}${cardGrad('bl')}
-      <radialGradient id="bl-felt" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#5a3fa0"/><stop offset=".7" stop-color="#21134a"/><stop offset="1" stop-color="#08041a"/></radialGradient>
-      <linearGradient id="bl-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>
-    </defs>
-    <rect width="320" height="180" fill="url(#bl-felt)"/>
-    ${miniCard('bl', 70, 100, -18, 'A', 'S')}
-    ${miniCard('bl', 106, 92, -4, 'K', 'H')}
-    ${miniCard('bl', 142, 100, 12, '8', 'D')}
-    ${overlay('bl')}
-    <text x="248" y="100" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="34" font-weight="800" fill="url(#bl-gold)" filter="url(#bl-glow)">3·5·8</text>
-    <text x="248" y="126" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#e2d6ff">БЛАТО</text>
-  </svg>`,
+  blato: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="bl-felt" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#5a3fa0"/><stop offset=".7" stop-color="#21134a"/><stop offset="1" stop-color="#08041a"/></radialGradient>\n      <linearGradient id="bl-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#bl-felt)"/>\n    {2}\n    {3}\n    {4}\n    {5}\n    <text x="248" y="100" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="34" font-weight="800" fill="url(#bl-gold)" filter="url(#bl-glow)">3·5·8</text>\n    <text x="248" y="126" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#e2d6ff">BLATO</text>\n  </svg>', defs('bl'), cardGrad('bl'), miniCard('bl', 70, 100, -18, 'A', 'S'), miniCard('bl', 106, 92, -4, 'K', 'H'), miniCard('bl', 142, 100, 12, '8', 'D'), overlay('bl')),
 
-  santase: `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-    <defs>${defs('sa')}${cardGrad('sa')}
-      <radialGradient id="sa-felt" cx=".45" cy=".42" r=".75"><stop offset="0" stop-color="#8a2140"/><stop offset=".7" stop-color="#3a0a18"/><stop offset="1" stop-color="#120206"/></radialGradient>
-      <linearGradient id="sa-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>
-    </defs>
-    <rect width="320" height="180" fill="url(#sa-felt)"/>
-    ${miniCard('sa', 104, 96, -14, 'K', 'H')}
-    ${miniCard('sa', 152, 92, 8, 'Q', 'H')}
-    ${overlay('sa')}
-    <text x="250" y="110" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="54" font-weight="800" fill="url(#sa-gold)" filter="url(#sa-glow)">66</text>
-    <text x="250" y="136" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#ffc9d3">САНТАСЕ</text>
-  </svg>`,
+  santase: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="sa-felt" cx=".45" cy=".42" r=".75"><stop offset="0" stop-color="#8a2140"/><stop offset=".7" stop-color="#3a0a18"/><stop offset="1" stop-color="#120206"/></radialGradient>\n      <linearGradient id="sa-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#sa-felt)"/>\n    {2}\n    {3}\n    {4}\n    <text x="250" y="110" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="54" font-weight="800" fill="url(#sa-gold)" filter="url(#sa-glow)">66</text>\n    <text x="250" y="136" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#ffc9d3">SANTASE</text>\n  </svg>', defs('sa'), cardGrad('sa'), miniCard('sa', 104, 96, -14, 'K', 'H'), miniCard('sa', 152, 92, 8, 'Q', 'H'), overlay('sa')),
   empires: (() => {
     const at = (x, y, sc, id, race, L) => `<g transform="translate(${x} ${y}) scale(${sc})">${tile(PALETTE[race], 'built')}${buildingSvg(id, race, L)}</g>`;
     return `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">

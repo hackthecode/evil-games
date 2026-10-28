@@ -1,5 +1,5 @@
--- Evil Empires – таблици за онлайн света. Изпълнете веднъж в Supabase → SQL Editor.
--- Достъп има само сървърът (Edge Function с service role) – затова няма политики за потребителите.
+-- Evil Empires – tables for the online world. Run once in Supabase → SQL Editor.
+-- Only the server has access (Edge Function with the service role) – hence no policies for users.
 
 create table if not exists public.ee_world (
   id int primary key,
@@ -26,7 +26,7 @@ alter table public.ee_world enable row level security;
 alter table public.ee_saves enable row level security;
 alter table public.ee_push enable row level security;
 
--- Записва света и империите наведнъж – само ако никой не ги е променил междувременно.
+-- Saves the world and the empires at once – only if nobody has changed them in the meantime.
 create or replace function public.ee_commit(p_world jsonb, p_world_version int, p_saves jsonb)
 returns boolean
 language plpgsql

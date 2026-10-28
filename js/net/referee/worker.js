@@ -1,9 +1,10 @@
-// SharedWorker – локален „сървър“ за онлайн тест между раздели на един браузър.
-// Държи тайното състояние на мачовете; разделите получават само своите изгледи.
-// Протоколът е същият като при Supabase Edge Function.
+// SharedWorker – a local "server" for online tests between tabs of one browser.
+// Holds the secret state of the matches; tabs receive only their own views.
+// The protocol is the same as with the Supabase Edge Function.
 import { createMatch, forSeat } from './core.js';
 import { reducerFor } from './games.js';
 import { randomHex } from '../../store/hash.js';
+import { tk } from '../../i18n/tk.js';
 
 const matches = new Map(); // key → { match, ports: Map(port → seat) }
 
@@ -20,7 +21,7 @@ async function handle(port, msg) {
     return true;
   }
   const m = matches.get(key);
-  if (!m) throw new Error('Мачът не е намерен.');
+  if (!m) throw new Error(tk('Match not found.'));
   if (op === 'join') {
     m.ports.set(port, seat);
     m.joined.add(seat);
@@ -42,10 +43,10 @@ async function handle(port, msg) {
     m.ports.delete(port);
     return true;
   }
-  throw new Error('Непозната заявка.');
+  throw new Error(tk('Unknown request.'));
 }
 
-// Мачът тръгва, когато всички хора са се свързали (или прекъсналите са заменени с ботове).
+// The match starts when all humans have connected (or the disconnected ones are replaced by bots).
 function maybeStart(m, key) {
   if (m.started) return;
   if (!m.match.seats.every((s, i) => s.bot || m.joined.has(i))) return;

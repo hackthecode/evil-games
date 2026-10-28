@@ -1,11 +1,11 @@
-// Варианти на таблата с общ интерфейс за интерфейса на играта:
-//   'tabla'   – обикновена табла (двигателят от engine.js);
-//   'tapa'    – без биене: единичен противников пул се „затапва“ (затиска);
-//   'gulbara' – двамата се движат в една посока, единичен пул блокира точката,
-//               чифтовете от 4-тия ход нататък ескалират до 6-6.
+// Backgammon variants with a shared interface for the game UI:
+//   'tabla'   – regular backgammon (the engine from engine.js);
+//   'tapa'    – no hitting: a single opposing checker gets "pinned";
+//   'gulbara' – both move in the same direction, a single checker blocks the point,
+//               doubles from the 4th move on escalate up to 6-6.
 //
-// Състояние на вариантите: pts[0..23] = { o: собственик (-1 празно), n: брой, pin: затиснат пул (-1 няма) }.
-// Ходовете са в перспективата на играча: от 23 към 0, домът е 0..5, OFF = -1.
+// Variant state: pts[0..23] = { o: owner (-1 empty), n: count, pin: pinned checker (-1 none) }.
+// Moves are in the player's perspective: from 23 to 0, home is 0..5, OFF = -1.
 import * as STD from './engine.js';
 
 export const OFF = -1;
@@ -15,7 +15,7 @@ export function variantEngine(variant) {
   return standardEngine();
 }
 
-// ---------- обикновена табла: обвивка на engine.js ----------
+// ---------- regular backgammon: a wrapper around engine.js ----------
 function standardEngine() {
   const pair = (list) => (list.length === 4 ? [list[0], list[0]] : list);
   return {
@@ -30,15 +30,15 @@ function standardEngine() {
     pipCount: STD.pipCount,
     winner: STD.winner,
     winPoints: STD.winPoints,
-    // пуловете на всяка точка отдолу нагоре (собственик на всеки пул)
+    // the checkers on each point from bottom to top (the owner of each checker)
     stacks: (s) => s.pts.map((v) => Array(Math.abs(v)).fill(v > 0 ? 0 : 1)),
   };
 }
 
-// ---------- Тапа и Гюлбара ----------
+// ---------- Tapa and Gulbara ----------
 function raceEngine(variant) {
   const tapa = variant === 'tapa';
-  // Гюлбара: черните тръгват от долния ляв ъгъл и се движат в същата посока като белите.
+  // Gulbara: black starts from the bottom left corner and moves in the same direction as white.
   const real = (p, i) => (p === 0 ? i : tapa ? 23 - i : (i + 12) % 24);
   const persp = (p, r) => (p === 0 ? r : tapa ? 23 - r : (r + 12) % 24);
   const empty = () => ({ o: -1, n: 0, pin: -1 });
@@ -51,7 +51,7 @@ function raceEngine(variant) {
   }
   const cloneState = (s) => ({ pts: s.pts.map((x) => ({ ...x })), bar: s.bar.slice(), off: s.off.slice() });
 
-  // всички пулове на p на точката (включително затиснат)
+  // all of p's checkers on the point (including a pinned one)
   const count = (s, p, i) => {
     const x = s.pts[real(p, i)];
     return (x.o === p ? x.n : 0) + (x.pin === p ? 1 : 0);
@@ -65,7 +65,7 @@ function raceEngine(variant) {
 
   function canLand(x, p) {
     if (x.o === -1 || x.o === p) return true;
-    // противников пул: в Тапа единичен незатиснал пул се затапва; в Гюлбара всеки пул блокира
+    // an opposing checker: in Tapa a single unpinned checker gets pinned; in Gulbara every checker blocks
     return tapa && x.n === 1 && x.pin === -1;
   }
 
@@ -91,7 +91,7 @@ function raceEngine(variant) {
     const src = n.pts[real(p, m.from)];
     src.n--;
     if (src.n === 0) {
-      // ако под пула е бил затиснат противников пул – освобождава се
+      // if an opposing checker was pinned under the checker – it is freed
       if (src.pin !== -1) Object.assign(src, { o: src.pin, n: 1, pin: -1 });
       else src.o = -1;
     }
@@ -109,8 +109,8 @@ function raceEngine(variant) {
     return { state: n, hit: false, pin };
   }
 
-  // Всички пълни последователности за списък от ходове (2 зара или 4 при чифт,
-  // в Гюлбара – и остатък от ескалиращ чифт) с правилото за максимално използване.
+  // All full sequences for a list of moves (2 dice or 4 with doubles,
+  // in Gulbara also the rest of escalating doubles) with the maximum-use rule.
   function legalSequences(s, p, list) {
     const orders = list.length === 2 && list[0] !== list[1] ? [list, [list[1], list[0]]] : [list];
     const seqs = [];
@@ -155,7 +155,7 @@ function raceEngine(variant) {
     return n;
   }
 
-  // „Майка“ (Тапа): затапен последен пул на началната точка – незабавна загуба.
+  // "Mother" (Tapa): a pinned last checker on the starting point – an immediate loss.
   const motherPinned = (s, q) => tapa && s.pts[real(q, 23)].pin === q;
 
   function winner(s) {
@@ -165,7 +165,7 @@ function raceEngine(variant) {
     return -1;
   }
 
-  // 1 точка; 2 – марс (губещият не е изнесъл нито един пул) или затапена „майка“.
+  // 1 point; 2 – gammon (the loser has not borne off a single checker) or a pinned "mother".
   const winPoints = (s, w) => (motherPinned(s, 1 - w) || s.off[1 - w] === 0 ? 2 : 1);
 
   // ---------- AI ----------
@@ -179,8 +179,8 @@ function raceEngine(variant) {
         score += x.n >= 2 ? 1.5 : 0;
         if (x.n > 5) score -= (x.n - 5) * 0.6;
         if (tapa) {
-          if (x.pin === o) score += 10 + (24 - persp(o, r)) * 0.3; // затиснат противник
-          // единичен пул може да бъде затапен от противник, който идва отзад
+          if (x.pin === o) score += 10 + (24 - persp(o, r)) * 0.3; // pinned opponent
+          // a single checker can be pinned by an opponent coming from behind
           if (x.n === 1 && x.pin === -1) {
             for (let d = 1; d <= 12; d++) {
               const j = i + d;
@@ -189,7 +189,7 @@ function raceEngine(variant) {
             }
           }
         } else {
-          // Гюлбара: точка, която блокира пулове на противника, които идват отзад
+          // Gulbara: a point that blocks opposing checkers coming from behind
           const oi = persp(o, r);
           for (let d = 1; d <= 6; d++) {
             const src = oi + d;
@@ -200,14 +200,14 @@ function raceEngine(variant) {
     }
     for (const q of [0, 1]) if (motherPinned(s, q)) score += q === p ? -1000 : 1000;
     if (tapa) {
-      // „майката“: единичен пул на началната точка, до който противникът може да стигне, е огромен риск
+      // the "mother": a single checker on the starting point that the opponent can reach is a huge risk
       for (const q of [0, 1]) {
         const start = s.pts[real(q, 23)];
         if (start.o !== q || start.n !== 1 || start.pin !== -1) continue;
         const enemy = 1 - q;
         let threat = 0;
         for (let d = 1; d <= 12; d++) {
-          // противникът стига началната точка на q (своята точка 0) от своята точка d
+          // the opponent reaches q's starting point (their point 0) from their point d
           if (s.pts[real(enemy, d)].o === enemy) threat = Math.max(threat, d <= 6 ? 3 : 1);
         }
         if (threat) score += (q === p ? -1 : 1) * 25 * threat;
@@ -228,7 +228,7 @@ function raceEngine(variant) {
     return best;
   }
 
-  // пуловете на точката отдолу нагоре: затиснатият е най-отдолу
+  // the checkers on the point from bottom to top: the pinned one is at the bottom
   const stacks = (s) => s.pts.map((x) => [...(x.pin !== -1 ? [x.pin] : []), ...Array(x.n).fill(x.o)]);
 
   return {

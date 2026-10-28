@@ -1,7 +1,8 @@
-// Инсталиране на портала като приложение (начален екран на телефона / компютъра).
-// Chrome/Edge/Android: собственият прозорец на браузъра; iPhone/iPad: кратки указания
-// („Сподели“ → „Добави към началния екран“), защото Safari няма такъв прозорец.
+// Installing the portal as an app (home screen of the phone / computer).
+// Chrome/Edge/Android: the browser's own prompt; iPhone/iPad: short instructions
+// ("Share" → "Add to Home Screen"), because Safari has no such prompt.
 import { h, modal } from './ui.js';
+import { txt } from './i18n.js';
 
 const DISMISS = 'eg.install.dismissed';
 let deferred = null;
@@ -33,26 +34,26 @@ export async function install() {
   }
   if (isIOS()) {
     await modal({
-      title: 'Добавете Evil Games на началния екран',
+      title: txt('Add Evil Games to the home screen'),
       body: h('ol', { class: 'install-steps' },
-        h('li', null, 'Отворете сайта в Safari.'),
-        h('li', null, 'Натиснете бутона „Сподели“ ', h('span', { class: 'install-ico', 'aria-hidden': 'true' }, '⬆︎'), ' в долната лента.'),
-        h('li', null, 'Изберете „Добави към началния екран“ и после „Добави“.'),
-        h('li', null, 'Отваряйте играта от новата икона – на цял екран, като приложение. Известията на Evil Empires работят само така.')),
-      actions: [{ label: 'Разбрах', value: true, primary: true }],
+        h('li', null, txt('Open the site in Safari.')),
+        h('li', null, txt('Tap the "Share" button '), h('span', { class: 'install-ico', 'aria-hidden': 'true' }, '⬆︎'), txt(' in the bottom bar.')),
+        h('li', null, txt('Choose "Add to Home Screen" and then "Add".')),
+        h('li', null, txt('Open the game from the new icon – full screen, like an app. Evil Empires notifications only work this way.'))),
+      actions: [{ label: txt('Got it'), value: true, primary: true }],
     });
   }
 }
 
-/** Лента „Инсталирай като приложение“ (за началната страница); null, ако не е нужна. */
+/** "Install as an app" banner (for the home page); null if not needed. */
 export function installBanner() {
   let off = false;
   try { off = !!localStorage.getItem(DISMISS); } catch {}
   const el = h('section', { class: 'install-banner', hidden: true },
     h('img', { src: 'assets/icons/icon-192.png', alt: '', width: 44, height: 44 }),
-    h('div', null, h('b', null, 'Evil Games като приложение'), h('small', { class: 'muted' }, 'Икона на началния екран, цял екран и известия за Evil Empires.')),
-    h('button', { class: 'btn btn-primary btn-sm', onclick: () => install() }, 'Инсталирай'),
-    h('button', { class: 'icon-btn', 'aria-label': 'Скрий', onclick: () => { try { localStorage.setItem(DISMISS, '1'); } catch {} el.remove(); } }, '✕'));
+    h('div', null, h('b', null, txt('Evil Games as an app')), h('small', { class: 'muted' }, txt('Home screen icon, full screen and notifications for Evil Empires.'))),
+    h('button', { class: 'btn btn-primary btn-sm', onclick: () => install() }, txt('Install')),
+    h('button', { class: 'icon-btn', 'aria-label': txt('Hide'), onclick: () => { try { localStorage.setItem(DISMISS, '1'); } catch {} el.remove(); } }, '✕'));
   const sync = () => { el.hidden = off || !canInstall(); };
   listeners.add(sync);
   sync();

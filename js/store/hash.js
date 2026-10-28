@@ -1,6 +1,7 @@
-// Хеширане на пароли: PBKDF2 (Web Crypto) когато е налично.
-// Web Crypto изисква "secure context" (https или localhost). При достъп по
-// локален IP (напр. от телефон в същата мрежа) ползваме резервен SHA-256.
+// Password hashing: PBKDF2 (Web Crypto) when available.
+// Web Crypto requires a "secure context" (https or localhost). When accessed via
+// a local IP (e.g. from a phone on the same network) we use a fallback SHA-256.
+import { tk } from '../i18n/tk.js';
 
 const enc = new TextEncoder();
 
@@ -35,7 +36,7 @@ export async function verifyPassword(password, salt, stored) {
     return 'sha$' + h === stored;
   }
   if (!globalThis.crypto?.subtle) {
-    throw new Error('Този акаунт е създаден на защитен адрес (localhost/https). Отворете портала оттам, за да влезете.');
+    throw new Error(tk('This account was created on a secure address (localhost/https). Open the portal from there to log in.'));
   }
   return (await hashPassword(password, salt)) === stored;
 }
@@ -44,7 +45,7 @@ function toHex(bytes) {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Компактна реализация на SHA-256 (резервен вариант).
+// A compact SHA-256 implementation (fallback).
 export function sha256(str) {
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,

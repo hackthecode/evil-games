@@ -1,5 +1,5 @@
-// Бърза (автоматична) битка между две армии. Детерминирана при еднакво зърно –
-// същият резултат може да се пресметне и на сървъра.
+// A quick (automatic) battle between two armies. Deterministic for the same seed –
+// the same result can be computed on the server too.
 import { COUNTER } from './data.js';
 
 export function rng(seed) {
@@ -22,10 +22,10 @@ export function hashStr(s) {
 const mult = (a, b) => COUNTER[a]?.[b] ?? 1;
 
 /**
- * side: [{ key, cls, n, hp, atk, def }] (atk/def вече с бонусите).
- * defMult/defHp – множители за защитниците (стена, нощен бонус).
- * Връща { win: 'att' | 'def', rounds, att: [{key, n, lost, dmg}], def: [...] }.
- * Стрелците стрелят сами в първия рунд; после всички едновременно.
+ * side: [{ key, cls, n, hp, atk, def }] (atk/def already include bonuses).
+ * defMult/defHp – multipliers for the defenders (wall, night bonus).
+ * Returns { win: 'att' | 'def', rounds, att: [{key, n, lost, dmg}], def: [...] }.
+ * Archers shoot alone in the first round; then everyone at once.
  */
 export function fight(attSide, defSide, seed, { maxRounds = 8, defMult = 1, defHp = 1 } = {}) {
   const rand = rng(seed);
@@ -71,5 +71,5 @@ function apply(side, hits) {
   });
 }
 
-// Груба оценка на силата на армия (за подсказки в интерфейса).
+// A rough estimate of an army's strength (for hints in the UI).
 export const power = (side, defMult = 1) => Math.round(side.reduce((a, g) => a + g.n * Math.sqrt(g.hp * Math.max(g.atk, 0.5) * (1 + (g.def * defMult) / 5)), 0));

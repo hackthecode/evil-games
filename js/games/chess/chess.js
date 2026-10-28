@@ -6,27 +6,28 @@ import {
   positionKey, kingSquare, colorOf,
 } from './engine.js';
 import { search, LEVELS } from './ai.js';
+import { txt } from '../../i18n.js';
 
-const LEVEL_NAMES = { easy: 'Лесно', medium: 'Средно', hard: 'Трудно' };
+const LEVEL_NAMES = { easy: txt('Easy'), medium: txt('Medium'), hard: txt('Hard') };
 const PIECE_VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
 const REASONS = {
-  checkmate: 'Мат',
-  stalemate: 'Пат',
-  fifty: 'Правило на 50-те хода',
-  repetition: 'Трикратно повторение',
-  material: 'Недостатъчен материал',
-  resign: 'Предаване',
-  agreement: 'Реми по споразумение',
-  abandon: 'Противникът напусна',
-  stall: 'Бездействие',
-  desync: 'Грешка в синхронизацията',
+  checkmate: txt('Checkmate'),
+  stalemate: txt('Stalemate'),
+  fifty: txt('50-move rule'),
+  repetition: txt('Threefold repetition'),
+  material: txt('Insufficient material'),
+  resign: txt('Resign'),
+  agreement: txt('Draw by agreement'),
+  abandon: txt('The opponent left'),
+  stall: txt('Inactivity'),
+  desync: txt('Synchronization error'),
 };
 
-// Комплекти фигури (свободни лицензи, от проекта lichess) и теми на дъската.
+// Piece sets (free licenses, from the lichess project) and board themes.
 export const PIECE_SETS = {
-  celtic: 'Келтски', fantasy: 'Фентъзи', rhosgfx: 'Дървени', merida: 'Мерида', cburnett: 'Класически',
+  celtic: txt('Celtic'), fantasy: txt('Fantasy'), rhosgfx: txt('Wooden'), merida: txt('Merida'), cburnett: txt('Classic'),
 };
-export const BOARD_THEMES = { wine: 'Бордо', wood: 'Дърво', marble: 'Мрамор', green: 'Турнир', ocean: 'Лед' };
+export const BOARD_THEMES = { wine: txt('Burgundy'), wood: txt('Wood'), marble: txt('Marble'), green: txt('Tournament'), ocean: txt('Ice') };
 let look = loadPrefs('chess.look', { pieces: 'celtic', board: 'wine' });
 const pieceSrc = (p) => {
   const f = `${p < 'a' ? 'w' : 'b'}${p.toUpperCase()}.svg`;
@@ -34,7 +35,7 @@ const pieceSrc = (p) => {
 };
 
 export async function mount(root, ctx) {
-  const net = ctx.online || null; // онлайн мач срещу реален играч
+  const net = ctx.online || null; // online match against a real player
   let destroyed = false;
   let offEvents = () => {};
   let worker = null;
@@ -47,11 +48,11 @@ export async function mount(root, ctx) {
     if (net) return play(net.seat === 0 ? 'w' : 'b', 'online');
     const opts = await setupScreen(root, {
       gameId: 'chess',
-      title: 'Нова игра',
-      subtitle: 'Изберете цвят и ниво на компютъра.',
+      title: txt('New game'),
+      subtitle: txt('Choose a colour and the computer\'s level.'),
       groups: [
-        { key: 'color', label: 'Играете с', value: 'w', options: [['w', 'Белите'], ['b', 'Черните'], ['r', 'Случайно']] },
-        { key: 'level', label: 'Трудност', value: 'medium', options: Object.entries(LEVEL_NAMES) },
+        { key: 'color', label: txt('You play'), value: 'w', options: [['w', txt('White')], ['b', txt('Black')], ['r', txt('Random')]] },
+        { key: 'level', label: txt('Difficulty'), value: 'medium', options: Object.entries(LEVEL_NAMES) },
       ],
     });
     if (destroyed) return;
@@ -71,9 +72,9 @@ export async function mount(root, ctx) {
     let thinking = false;
     let reqId = 0;
     let lastMove = null;
-    let moveResolver = null; // онлайн: чака хода на играча
+    let moveResolver = null; // online: waiting for the player's move
     let localAnim = true;
-    const opp = net ? net.name(1 - net.seat) : 'Компютър';
+    const opp = net ? net.name(1 - net.seat) : txt('Computer');
 
     // ---------- DOM ----------
     const squaresEl = h('div', { class: 'cb-squares' });
@@ -87,19 +88,19 @@ export async function mount(root, ctx) {
     }
     const pieceEls = new Map();
 
-    const aiBar = playerBar(net ? opp : 'Компютър · ' + LEVEL_NAMES[level], human === 'w' ? 'b' : 'w');
+    const aiBar = playerBar(net ? opp : txt('Computer · ') + LEVEL_NAMES[level], human === 'w' ? 'b' : 'w');
     const meBar = playerBar(ctx.user.displayName, human);
     const movesEl = h('ol', { class: 'cb-moves' });
     const statusEl = h('div', { class: 'g-status' });
 
-    const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), 'Върни');
-    const flipBtn = h('button', { class: 'btn', onclick: () => { flipped = !flipped; renderAll(); } }, icon('flip', 16), 'Обърни');
-    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), 'Предай се');
-    const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), 'Нова игра');
-    const drawBtn = h('button', { class: 'btn', onclick: offerDraw }, '½ Реми?');
-    const lookBtn = h('button', { class: 'btn', onclick: chooseLook }, '🎨 Вид');
+    const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), txt('Undo'));
+    const flipBtn = h('button', { class: 'btn', onclick: () => { flipped = !flipped; renderAll(); } }, icon('flip', 16), txt('Flip'));
+    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), txt('Resign'));
+    const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), txt('New game'));
+    const drawBtn = h('button', { class: 'btn', onclick: offerDraw }, txt('½ Draw?'));
+    const lookBtn = h('button', { class: 'btn', onclick: chooseLook }, txt('🎨 Style'));
     const tools = net ? [flipBtn, drawBtn, resignBtn, lookBtn, muteButton()] : [undoBtn, flipBtn, resignBtn, newBtn, lookBtn, muteButton()];
-    // координатите са в рамката около дъската
+    // the coordinates are in the frame around the board
     const filesEl = h('div', { class: 'cb-files' }, Array.from({ length: 8 }, () => h('span')));
     const ranksEl = h('div', { class: 'cb-ranks' }, Array.from({ length: 8 }, () => h('span')));
     const frame = h('div', { class: 'cb-frame', 'data-theme': look.board }, ranksEl, board, filesEl);
@@ -125,7 +126,7 @@ export async function mount(root, ctx) {
       return { el, caps, color };
     }
 
-    // ---------- рендиране ----------
+    // ---------- rendering ----------
     const view = (sq) => (flipped ? 63 - sq : sq);
     const placeEl = (el, sq) => {
       const v = view(sq);
@@ -151,7 +152,7 @@ export async function mount(root, ctx) {
       [...ranksEl.children].forEach((x, i) => (x.textContent = flipped ? i + 1 : 8 - i));
     }
 
-    // Избор на фигури и дъска – прилага се веднага и се запомня.
+    // Choosing pieces and board – applied immediately and remembered.
     function chooseLook() {
       const apply = (patch) => {
         look = { ...look, ...patch };
@@ -163,12 +164,12 @@ export async function mount(root, ctx) {
       const preview = () => h('div', { class: 'look-pieces' }, ['K', 'Q', 'N', 'k', 'q', 'n'].map((p) => h('img', { src: pieceSrc(p), alt: '' })));
       let pv = preview();
       const box = h('div', { class: 'look-box' },
-        h('div', { class: 'opt-group' }, h('span', null, 'Фигури'),
+        h('div', { class: 'opt-group' }, h('span', null, txt('Pieces')),
           seg(Object.entries(PIECE_SETS), look.pieces, (v) => { apply({ pieces: v }); const n = preview(); pv.replaceWith(n); pv = n; })),
         pv,
-        h('div', { class: 'opt-group' }, h('span', null, 'Дъска'), seg(Object.entries(BOARD_THEMES), look.board, (v) => apply({ board: v }))),
+        h('div', { class: 'opt-group' }, h('span', null, txt('Board')), seg(Object.entries(BOARD_THEMES), look.board, (v) => apply({ board: v }))),
       );
-      modal({ title: 'Вид на дъската', body: box, actions: [{ label: 'Готово', value: true, primary: true }], className: 'modal-wide' });
+      modal({ title: txt('Board style'), body: box, actions: [{ label: txt('Done'), value: true, primary: true }], className: 'modal-wide' });
     }
 
     function rebuildPieces() {
@@ -184,7 +185,7 @@ export async function mount(root, ctx) {
     }
 
     function renderInfo() {
-      // взети фигури и материално предимство
+      // captured pieces and material advantage
       const count = (b) => {
         const m = {};
         for (const p of b) if (p && p.toUpperCase() !== 'K') m[p] = (m[p] || 0) + 1;
@@ -206,7 +207,7 @@ export async function mount(root, ctx) {
         if (adv > 0) bar.caps.append(h('span', { class: 'adv' }, '+' + adv));
         bar.el.classList.toggle('to-move', !over && st.turn === bar.color);
       }
-      // ходове
+      // moves
       movesEl.replaceChildren();
       for (let i = 0; i < history.length; i += 2) {
         movesEl.append(h('li', null,
@@ -219,9 +220,9 @@ export async function mount(root, ctx) {
       resignBtn.disabled = over;
       drawBtn.disabled = over;
       if (!over) {
-        statusEl.textContent = thinking ? 'Компютърът мисли…'
-          : st.turn === human ? (inCheck(st) ? 'Шах! Вие сте на ход.' : 'Вие сте на ход')
-          : net ? `${opp} е на ход…` : '';
+        statusEl.textContent = thinking ? txt('The computer is thinking…')
+          : st.turn === human ? (inCheck(st) ? txt('Check! It\'s your move.') : txt('Your move'))
+          : net ? txt('{0} to move…', opp) : '';
       }
     }
 
@@ -231,11 +232,11 @@ export async function mount(root, ctx) {
       renderInfo();
     }
 
-    // ---------- ходове ----------
+    // ---------- moves ----------
     function applyMove(m, animate = true) {
       const san = toSAN(st, m, legal);
       history.push({ st, move: m, san });
-      // анимация на фигурите
+      // piece animation
       const el = pieceEls.get(m.from);
       const capSq = m.flag === 'ep' ? m.to + (st.turn === 'w' ? 8 : -8) : m.to;
       const capEl = m.captured ? pieceEls.get(capSq) : null;
@@ -292,18 +293,18 @@ export async function mount(root, ctx) {
       renderInfo();
       const outcome = !winner ? 'draw' : winner === human ? 'win' : 'loss';
       const moves = Math.ceil(history.length / 2);
-      statusEl.textContent = `${REASONS[reason]} – ${{ win: 'вие печелите!', loss: `${net ? opp : 'компютърът'} печели.`, draw: 'реми.' }[outcome]}`;
+      statusEl.textContent = `${REASONS[reason]} – ${{ win: txt('you win!'), loss: txt('{0} wins.', net ? opp : txt('the computer')), draw: txt('draw.') }[outcome]}`;
       if (reason === 'desync') return;
       await ctx.report(outcome, net
-        ? { summary: `Онлайн срещу ${opp} · ${REASONS[reason]} · ${moves} хода`, online: true, opponent: opp, color: human }
-        : { summary: `${REASONS[reason]} · ${LEVEL_NAMES[level]} · ${moves} хода`, level, color: human });
+        ? { summary: txt('Online against {0} · {1} · {2} moves', opp, REASONS[reason], moves), online: true, opponent: opp, color: human }
+        : { summary: txt('{0} · {1} · {2} moves', REASONS[reason], LEVEL_NAMES[level], moves), level, color: human });
       if (destroyed) return;
-      const choice = await showResult({ outcome, text: `${REASONS[reason]} след ${moves} хода.`, again: net ? 'Реванш' : undefined });
+      const choice = await showResult({ outcome, text: txt('{0} after {1} moves.', REASONS[reason], moves), again: net ? txt('Rematch') : undefined });
       if (choice === 'again') net ? net.rematch() : startGame();
       else if (choice === 'exit') location.hash = net ? '#/online/chess' : '#/';
     }
 
-    // ---------- онлайн ----------
+    // ---------- online ----------
     const findLegal = (d) => d && legal.find((x) => x.from === d.from && x.to === d.to && (x.promo || null) === (d.promo || null));
     async function turnLoop() {
       while (!over && !destroyed) {
@@ -318,7 +319,7 @@ export async function mount(root, ctx) {
     async function offerDraw() {
       if (over) return;
       net.offerDraw();
-      toast('Предложихте реми.');
+      toast(txt('You offered a draw.'));
     }
     offEvents();
     offEvents = net ? net.onEvent(async (e) => {
@@ -328,9 +329,9 @@ export async function mount(root, ctx) {
       else if (e.kind === 'forfeit') finish(e.reason === 'stall' ? 'stall' : 'abandon', e.winner === 0 ? 'w' : 'b');
       else if (e.kind === 'draw') finish('agreement', null);
       else if (e.kind === 'desync') finish('desync', null);
-      else if (e.kind === 'draw-declined' && e.seat !== mine) toast('Противникът отказа ремито.');
+      else if (e.kind === 'draw-declined' && e.seat !== mine) toast(txt('The opponent declined the draw.'));
       else if (e.kind === 'draw-offer' && e.seat !== mine) {
-        net.answerDraw(await confirmDialog('Предложение за реми', `${opp} предлага реми. Приемате ли?`, 'Приемам'));
+        net.answerDraw(await confirmDialog(txt('Draw offer'), txt('{0} offers a draw. Do you accept?', opp), txt('Accept')));
       }
     }) : () => {};
 
@@ -392,7 +393,7 @@ export async function mount(root, ctx) {
       });
     }
 
-    // ---------- въвеждане (клик и влачене) ----------
+    // ---------- input (click and drag) ----------
     let drag = null;
     const sqFromPoint = (x, y) => {
       const r = board.getBoundingClientRect();
@@ -457,7 +458,7 @@ export async function mount(root, ctx) {
     board.addEventListener('pointerup', endDrag);
     board.addEventListener('pointercancel', endDrag);
 
-    // ---------- бутони ----------
+    // ---------- buttons ----------
     function undo() {
       if (thinking || over) return;
       let n = st.turn === human ? 2 : 1;
@@ -476,15 +477,15 @@ export async function mount(root, ctx) {
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', 'Сигурни ли сте, че искате да се предадете? Играта ще се отчете като загуба.', 'Предай се', true))) return;
+      if (!(await confirmDialog(txt('Resign'), txt('Are you sure you want to resign? The game will count as a loss.'), txt('Resign'), true))) return;
       reqId++;
-      if (net) net.resign(); // събитието завършва играта и при двамата
+      if (net) net.resign(); // the event ends the game for both players
       else finish('resign', human === 'w' ? 'b' : 'w');
     }
 
     async function newGame() {
       if (!over && history.length > 0 &&
-          !(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+          !(await confirmDialog(txt('New game'), txt('The current game will be stopped without being counted. Continue?')))) return;
       reqId++;
       over = true;
       startGame();

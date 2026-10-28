@@ -1,10 +1,10 @@
-// Supabase Edge Function „empires“ – сървърът на Evil Empires.
-// Логиката е в bundle (генерира се от js/ с tools/build-empires.py) – същата, която
-// работи и в браузъра. Всяко действие се проверява тук, а записите са в базата.
+// Supabase Edge Function "empires" – the Evil Empires server.
+// The logic is in the bundle (generated from js/ with tools/build-empires.py) – the same one that
+// runs in the browser. Every action is checked here, and the records are in the database.
 //
-// Заявки (POST JSON, с токена на влезлия потребител):
+// Requests (POST JSON, with the logged-in user's token):
 //   sync | new { race, name } | act { name, args } | world { name, args } | reset | push { sub } | unpush { endpoint }
-//   cron (без потребител, със заглавка x-cron-secret) – от pg_cron на няколко минути.
+//   cron (no user, with the x-cron-secret header) – from pg_cron every few minutes.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
@@ -80,16 +80,17 @@ Deno.serve(async (req: Request) => {
     const svc = createClient(URL_, SERVICE, { auth: { persistSession: false } });
     const db = makeDb(svc);
     if (body?.op === 'cron') {
-      if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) return json({ error: 'Забранено.' }, 403);
+      if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) return json({ error: 'Forbidden.' }, 403);
       return json(await cron(db, Date.now(), sendPush));
     }
     const auth = req.headers.get('Authorization') || '';
     const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Не сте влезли.' }, 401);
-    // блокиран акаунт (supabase/admin.sql); ако таблицата я няма – без проверка
+    if (!user) return json({ error: 'You are not logged in.' }, 401);
+    // banned account (supabase/admin.sql); if the table doesn't exist – no check
     const { data: ban } = await svc.from('bans').select('until, reason').eq('user_id', user.id).gt('until', new Date().toISOString()).maybeSingle();
-    if (ban) return json({ error: `Акаунтът е блокиран до ${new Date(ban.until).toLocaleString('bg-BG', { timeZone: 'Europe/Sofia' })}${ban.reason ? ` (${ban.reason})` : ''}.` }, 403);
+    // a translation token (see js/i18n/tk.js) – the browser shows it in the player's language
+    if (ban) return json({ error: `\u0001The account is banned until {0}{1}.\u001f${new Date(ban.until).toISOString().slice(0, 16).replace('T', ' ')} UTC\u001f${ban.reason ? ` (${ban.reason})` : ''}\u0002` }, 403);
     return json(await handle(db, user.id, body));
   } catch (e) {
     return json({ error: (e as Error).message || String(e) });

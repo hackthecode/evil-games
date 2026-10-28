@@ -1,13 +1,14 @@
-// Локално хранилище: акаунти, статистика и история в localStorage.
+// Local storage: accounts, statistics and history in localStorage.
 import { hashPassword, verifyPassword, randomHex } from './hash.js';
 import { eloDeltas, START_RATING } from './elo.js';
+import { txt } from '../i18n.js';
 
 const DB_KEY = 'kare.db.v1';
 const SESSION_KEY = 'kare.session.v1';
 const HISTORY_LIMIT = 400;
 
-// Сесията се пази и за раздела (sessionStorage): така в два раздела може да има
-// различни потребители – нужно за тест на онлайн игра на един компютър.
+// The session is also kept per tab (sessionStorage): this way two tabs can have
+// different users – needed to test online games on one computer.
 const session = {
   get() {
     try {
@@ -63,7 +64,7 @@ export function createLocalStore() {
       const db = load();
       const lower = username.toLowerCase();
       if (Object.values(db.users).some((u) => u.username.toLowerCase() === lower)) {
-        throw new Error('Това потребителско име вече е заето.');
+        throw new Error(txt('This username is already taken.'));
       }
       const salt = randomHex(16);
       const user = {
@@ -86,7 +87,7 @@ export function createLocalStore() {
       const lower = username.toLowerCase();
       const user = Object.values(db.users).find((u) => u.username.toLowerCase() === lower);
       if (!user || !(await verifyPassword(password, user.salt, user.hash))) {
-        throw new Error('Грешно потребителско име или парола.');
+        throw new Error(txt('Wrong username or password.'));
       }
       session.set(user.id);
       return publicUser(user);
@@ -99,7 +100,7 @@ export function createLocalStore() {
     async updateProfile(userId, { displayName, color }) {
       const db = load();
       const u = db.users[userId];
-      if (!u) throw new Error('Няма такъв потребител.');
+      if (!u) throw new Error(txt('No such user.'));
       if (displayName) u.displayName = displayName;
       if (color) u.color = color;
       save(db);
@@ -139,15 +140,15 @@ export function createLocalStore() {
       return load().history.filter((h) => h.userId === userId).slice(0, limit);
     },
 
-    // ---------- рейтинг ----------
-    // Всеки играч съобщава своя резултат; рейтингът се изчислява веднъж, когато
-    // всички са съобщили еднакъв състав и съгласувани резултати.
+    // ---------- rating ----------
+    // Each player reports their result; the rating is computed once,
+    // when everyone has reported the same line-up and consistent results.
     async reportRated({ userId, game, key, team, outcome, players }) {
-      // всеки играч пише в собствен ключ – раздели, които пишат едновременно, не си пречат
+      // each player writes to their own key – tabs writing at the same time don't interfere
       const base = `kare.rated.${key}`;
       const sig = JSON.stringify(players);
       localStorage.setItem(`${base}.${userId}`, JSON.stringify({ uid: userId, team, outcome, sig }));
-      // записите от другите раздели пристигат със закъснение – проверяваме и малко по-късно
+      // writes from other tabs arrive late – we check again a bit later
       const tryApply = () => {
         const reps = players.map((p) => JSON.parse(localStorage.getItem(`${base}.${p.uid}`) || 'null'));
         if (reps.some((r) => !r || r.sig !== sig) || localStorage.getItem(`${base}.done`)) return false;
@@ -162,7 +163,7 @@ export function createLocalStore() {
       return load().ratings?.[userId] || {};
     },
 
-    // ---------- приятели ----------
+    // ---------- friends ----------
     async searchUsers(userId, q) {
       const s = q.trim().toLowerCase();
       if (!s) return [];
@@ -228,7 +229,7 @@ export function createLocalStore() {
   };
 }
 
-// Прилага промените в рейтинга от един мач (веднъж – виж маркера „done“).
+// Applies the rating changes from a match (once – see the "done" marker).
 function applyElo(game, reps) {
   const db = load();
   db.ratings ||= {};

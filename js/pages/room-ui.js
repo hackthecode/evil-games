@@ -1,5 +1,5 @@
-// Онлайн стая в страницата за игра: избор на места, старт, ленти за връзката,
-// бързи реакции и превключване към играта, когато мачът започне.
+// Online room on the game page: choosing seats, start, connection bars,
+// quick reactions and switching to the game when the match starts.
 import { navigate } from '../app.js';
 import { Room, ACTIVE_KEY } from '../net/room.js';
 import { seg } from '../games/common.js';
@@ -9,8 +9,9 @@ import { social } from '../net/social.js';
 import { store } from '../store/index.js';
 import { h, toast, avatar, modal } from '../ui.js';
 import { icon } from '../icons.js';
+import { txt } from '../i18n.js';
 
-const EMOTES = ['👍', '😈', '😂', '😮', '🔥', 'Добра игра!'];
+const EMOTES = ['👍', '😈', '😂', '😮', '🔥', txt('Good game!')];
 
 export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame }) {
   let pending = null;
@@ -25,10 +26,10 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
   let instance = null;
   let gone = false;
 
-  // ---------- лента над играта ----------
+  // ---------- bar above the game ----------
   const dot = h('span', { class: 'net-dot' });
-  const netLabel = h('span', null, 'Свързване…');
-  const emoteBtn = h('button', { class: 'icon-btn', title: 'Реакция', 'aria-label': 'Реакция', onclick: openEmotes }, '😈');
+  const netLabel = h('span', null, txt('Connecting…'));
+  const emoteBtn = h('button', { class: 'icon-btn', title: txt('Reaction'), 'aria-label': txt('Reaction'), onclick: openEmotes }, '😈');
   const chip = h('span', { class: 'net-chip' }, dot, netLabel);
   bar.querySelector('.clock')?.before(chip, emoteBtn);
   const banner = h('div', { class: 'net-banner', hidden: true });
@@ -59,28 +60,28 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
     const others = room.humanUids().filter((u) => u !== user.id);
     const allIn = others.every((u) => room.isPresent(u));
     dot.className = 'net-dot ' + (allIn ? 'ok' : 'warn');
-    netLabel.textContent = `Онлайн · ${room.id}`;
+    netLabel.textContent = txt('Online · {0}', room.id);
   };
 
-  // ---------- стаята преди мача ----------
+  // ---------- the room before the match ----------
   function renderRoom() {
     if (instance || gone || room.inMatch()) return;
     updateChip();
     const info = room.info;
     if (!info) {
       root.replaceChildren(h('div', { class: 'g-setup' }, h('div', { class: 'g-setup-card glass' },
-        h('h2', null, 'Свързване със стаята…'),
-        h('p', { class: 'muted' }, `Код: ${roomId}. Ако стаята не съществува или домакинът е излязъл, върнете се в лобито.`),
-        h('a', { class: 'btn', href: lobbyHref }, icon('back', 16), 'Към лобито'),
+        h('h2', null, txt('Connecting to the room…')),
+        h('p', { class: 'muted' }, txt('Code: {0}. If the room doesn\'t exist or the host has left, go back to the lobby.', roomId)),
+        h('a', { class: 'btn', href: lobbyHref }, icon('back', 16), txt('To the lobby')),
       )));
       return;
     }
     const mine = room.mySeat();
     if (info.status === 'playing' && mine < 0) {
       root.replaceChildren(h('div', { class: 'g-setup' }, h('div', { class: 'g-setup-card glass' },
-        h('h2', null, 'Мачът вече е започнал'),
-        h('p', { class: 'muted' }, 'В тази стая вече се играе. Създайте нова стая или изберете друга.'),
-        h('a', { class: 'btn btn-primary', href: lobbyHref }, 'Към лобито'),
+        h('h2', null, txt('The match has already started')),
+        h('p', { class: 'muted' }, txt('A game is already being played in this room. Create a new room or choose another one.')),
+        h('a', { class: 'btn btn-primary', href: lobbyHref }, txt('To the lobby')),
       )));
       return;
     }
@@ -93,8 +94,8 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
         s
           ? h('div', { class: 'seat-who' }, avatar({ displayName: s.name, color: s.color }, 34),
               h('b', null, s.name), h('span', { class: `net-dot ${here ? 'ok' : 'warn'}` }))
-          : h('div', { class: 'seat-who muted' }, cfg.bots ? [icon('bot', 22), 'Свободно (бот)'] : cfg.race ? 'Свободно (по желание)' : 'Свободно'),
-        !s && h('button', { class: 'btn btn-sm', onclick: () => room.sit(i) }, 'Седни тук'),
+          : h('div', { class: 'seat-who muted' }, cfg.bots ? [icon('bot', 22), txt('Free (bot)')] : cfg.race ? txt('Free (optional)') : txt('Free')),
+        !s && h('button', { class: 'btn btn-sm', onclick: () => room.sit(i) }, txt('Sit here')),
       );
     });
     const host = room.isHost();
@@ -108,51 +109,51 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
     const need = cfg.bots || cfg.race ? cfg.minHumans : cfg.seats;
     root.replaceChildren(h('div', { class: 'g-setup' }, h('div', { class: 'g-setup-card glass room-card' },
       h('div', null,
-        h('h2', null, `Стая ${room.id}`),
-        h('p', { class: 'muted', style: { margin: '6px 0 0' } }, host ? 'Вие сте домакин. Поканете приятел с връзката.' : 'Чакаме домакина да започне.'),
+        h('h2', null, txt('Room {0}', room.id)),
+        h('p', { class: 'muted', style: { margin: '6px 0 0' } }, host ? txt('You are the host. Invite a friend with the link.') : txt('Waiting for the host to start.')),
       ),
       localNetNotice(),
       h('div', { class: 'invite' },
-        h('input', { value: link, readonly: true, 'aria-label': 'Връзка за покана', onclick: (e) => e.target.select() }),
+        h('input', { value: link, readonly: true, 'aria-label': txt('Invitation link'), onclick: (e) => e.target.select() }),
         h('button', {
           class: 'btn', onclick: async () => {
             try {
               if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: `${game.name} – Evil Games`, url: link });
               else {
                 await navigator.clipboard.writeText(link);
-                toast('Връзката е копирана.', 'success');
+                toast(txt('The link has been copied.'), 'success');
               }
             } catch {}
           },
-        }, icon('link', 16), 'Връзка'),
-        h('button', { class: 'btn btn-primary', onclick: inviteFriend }, icon('users', 16), 'Покани приятел'),
+        }, icon('link', 16), txt('Link')),
+        h('button', { class: 'btn btn-primary', onclick: inviteFriend }, icon('users', 16), txt('Invite a friend')),
       ),
       h('div', { class: `seat-grid n${cfg.seats}` }, seats),
       optsEl,
       host
         ? h('button', { class: 'btn btn-primary btn-lg btn-block', disabled: !room.canStart(), onclick: () => room.start() },
-            icon('play', 18), humans < need ? `Нужни са поне ${need} играчи` : 'Започни мача')
-        : h('p', { class: 'muted center' }, mine >= 0 ? 'Готови сте. Мачът започва, когато домакинът натисне „Започни“.' : 'Изберете свободно място.'),
-      h('a', { class: 'btn btn-ghost btn-block', href: lobbyHref }, icon('back', 16), 'Напусни стаята'),
+            icon('play', 18), humans < need ? txt('At least {0} players are needed', need) : txt('Start the match'))
+        : h('p', { class: 'muted center' }, mine >= 0 ? txt('You are ready. The match starts when the host presses "Start".') : txt('Choose a free seat.')),
+      h('a', { class: 'btn btn-ghost btn-block', href: lobbyHref }, icon('back', 16), txt('Leave the room')),
     )));
   }
 
-  // Покана към приятел на линия: избор от списъка и съобщение в неговата кутия.
+  // Invitation to a friend who is online: choosing from the list and a message to their mailbox.
   async function inviteFriend() {
     const friends = (await store.listFriends(user.id)).filter((f) => f.status === 'friend');
     const on = friends.filter((f) => social.isOnline(f.user.id));
     if (!on.length) {
-      toast(friends.length ? 'Никой от приятелите ви не е на линия.' : 'Още нямате приятели – добавете ги от „Приятели“.');
+      toast(friends.length ? txt('None of your friends are online.') : txt('You have no friends yet – add them from "Friends".'));
       return;
     }
     const uid = await modal({
-      title: 'Покани приятел',
-      body: h('p', { class: 'muted' }, 'Приятели на линия:'),
-      actions: [...on.map((f) => ({ label: f.user.displayName, value: f.user.id })), { label: 'Отказ', value: null }],
+      title: txt('Invite a friend'),
+      body: h('p', { class: 'muted' }, txt('Friends online:')),
+      actions: [...on.map((f) => ({ label: f.user.displayName, value: f.user.id })), { label: txt('Cancel'), value: null }],
     });
     if (!uid) return;
     await social.invite(uid, { game: game.id, gameName: game.name, room: room.id });
-    toast('Поканата е изпратена.', 'success');
+    toast(txt('The invitation has been sent.'), 'success');
   }
 
   const ratedInfo = () => room.ratedInfo();
@@ -167,7 +168,7 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
       console.warn('rating', e);
     }
   };
-  // онлайн резултатите отиват и в рейтинга
+  // online results also go into the rating
   const ratedCtx = {
     ...ctx,
     async report(outcome, meta) {
@@ -176,7 +177,7 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
     },
   };
 
-  // ---------- мач ----------
+  // ---------- match ----------
   async function startGame(resumed) {
     instance?.destroy?.();
     instance = null;
@@ -200,24 +201,24 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
         break;
       case 'starting':
         if (instance) break;
-        root.replaceChildren(h('div', { class: 'g-setup' }, h('div', { class: 'g-setup-card glass' }, h('h2', null, 'Мачът започва…'))));
+        root.replaceChildren(h('div', { class: 'g-setup' }, h('div', { class: 'g-setup-card glass' }, h('h2', null, txt('The match is starting…')))));
         break;
       case 'match':
         startGame(e.resumed);
         break;
       case 'absent':
         if (e.left > 0) {
-          const verdict = game.online.seats === 2 ? 'служебна победа за вас' : 'мястото се поема от бот';
-          showBanner(`<b>${esc(seatName(e.seat))}</b> прекъсна връзката. Изчакваме… ${Math.ceil(e.left / 1000)} с, след това – ${verdict}.`);
+          const verdict = game.online.seats === 2 ? txt('a forfeit win for you') : txt('a bot takes over the seat');
+          showBanner(txt('<b>{0}</b> lost the connection. Waiting… {1} s, then – {2}.', esc(seatName(e.seat)), Math.ceil(e.left / 1000), verdict));
         } else showBanner('');
         break;
       case 'takeover':
-        toast(`${seatName(e.seat)} е заменен от бот.`);
+        toast(txt('{0} has been replaced by a bot.', seatName(e.seat)));
         showBanner('');
         break;
       case 'stall':
-        showBanner(`<b>${esc(seatName(e.seat))}</b> не е играл отдавна.`, [
-          h('button', { class: 'btn btn-sm btn-danger', onclick: () => { room.claim('stall'); showBanner(''); } }, 'Поискай служебна победа'),
+        showBanner(txt('<b>{0}</b> hasn\'t played for a while.', esc(seatName(e.seat))), [
+          h('button', { class: 'btn btn-sm btn-danger', onclick: () => { room.claim('stall'); showBanner(''); } }, txt('Claim a forfeit win')),
         ]);
         break;
       case 'emote':
@@ -225,9 +226,9 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
         break;
       case 'votes': {
         const waiting = room.humanUids().filter((u) => !room.votes.has(u));
-        if (room.votes.has(user.id) && waiting.length) showBanner('Чакаме другите играчи да приемат реванша…');
-        else if (!room.votes.has(user.id) && room.votes.size) showBanner('Противникът иска реванш.', [
-          h('button', { class: 'btn btn-sm btn-primary', onclick: () => room.rematch() }, 'Реванш'),
+        if (room.votes.has(user.id) && waiting.length) showBanner(txt('Waiting for the other players to accept the rematch…'));
+        else if (!room.votes.has(user.id) && room.votes.size) showBanner(txt('The opponent wants a rematch.'), [
+          h('button', { class: 'btn btn-sm btn-primary', onclick: () => room.rematch() }, txt('Rematch')),
         ]);
         break;
       }
@@ -243,21 +244,21 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
   try {
     await room.connect();
   } catch (e) {
-    root.replaceChildren(h('p', { class: 'empty' }, 'Няма връзка: ' + e.message));
+    root.replaceChildren(h('p', { class: 'empty' }, txt('No connection: ') + e.message));
     return { cleanup: async () => {} };
   }
   renderRoom();
-  // покана, поискана от страницата „Приятели“ при създаване на стаята
+  // an invitation requested from the "Friends" page when creating the room
   try {
     const inv = JSON.parse(sessionStorage.getItem(INVITE_AFTER_KEY) || 'null');
     if (inv?.room === room.id) {
       sessionStorage.removeItem(INVITE_AFTER_KEY);
       social.send(inv.uid, { kind: inv.kind || 'invite', game: game.id, gameName: game.name, room: room.id })
-        .then(() => toast(`Поканата до ${inv.name} е изпратена.`, 'success'))
+        .then(() => toast(txt('The invitation to {0} has been sent.', inv.name), 'success'))
         .catch(() => {});
     }
   } catch {}
-  // ако никой не отговори, но аз съм създателят – стаята вече е готова
+  // if nobody answers but I'm the creator – the room is already ready
   setTimeout(() => !instance && renderRoom(), 1500);
 
   return {
@@ -268,7 +269,7 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
       if (room.inMatch() && room.mySeat() >= 0) {
         const info = ratedInfo();
         room.resign();
-        await ctx.report('loss', { summary: `Онлайн · напуснат мач`, online: true });
+        await ctx.report('loss', { summary: txt('Online · left match'), online: true });
         if (info && !rated) store.reportRated({ userId: user.id, game: game.id, outcome: 'loss', ...info }).catch(() => {});
       }
       localStorage.removeItem(ACTIVE_KEY);
@@ -279,8 +280,8 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-// Незавършен онлайн мач (затворен раздел и т.н.): предлагаме връщане,
-// а ако е изоставен отдавна – отчитаме загуба.
+// An unfinished online match (closed tab etc.): we offer to go back,
+// and if it was abandoned long ago – we count a loss.
 export async function checkAbandoned(store, user) {
   let a;
   try { a = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null'); } catch {}
@@ -290,22 +291,22 @@ export async function checkAbandoned(store, user) {
   if (Date.now() - a.at > 5 * 60000) {
     localStorage.removeItem(ACTIVE_KEY);
     try {
-      await store.recordGame(user.id, a.game, { result: 'loss', meta: { summary: 'Онлайн · изоставен мач', online: true } });
+      await store.recordGame(user.id, a.game, { result: 'loss', meta: { summary: txt('Online · abandoned match'), online: true } });
       rateLoss();
     } catch {}
-    toast('Незавършен онлайн мач беше отчетен като загуба.', 'error', 4000);
+    toast(txt('An unfinished online match was counted as a loss.'), 'error', 4000);
     return;
   }
   const choice = await modal({
-    title: 'Незавършен онлайн мач',
-    body: h('p', null, 'Имате започнат онлайн мач. Върнете се, преди противникът да получи служебна победа.'),
-    actions: [{ label: 'Откажи се (загуба)', value: 'quit' }, { label: 'Върни се', value: 'back', primary: true }],
+    title: txt('Unfinished online match'),
+    body: h('p', null, txt('You have an online match in progress. Go back before your opponent gets a forfeit win.')),
+    actions: [{ label: txt('Give up (loss)'), value: 'quit' }, { label: txt('Go back'), value: 'back', primary: true }],
   });
   if (choice === 'back') navigate(`/play/${a.game}?room=${a.room}`);
   else if (choice === 'quit') {
     localStorage.removeItem(ACTIVE_KEY);
     try {
-      await store.recordGame(user.id, a.game, { result: 'loss', meta: { summary: 'Онлайн · изоставен мач', online: true } });
+      await store.recordGame(user.id, a.game, { result: 'loss', meta: { summary: txt('Online · abandoned match'), online: true } });
       rateLoss();
     } catch {}
   }

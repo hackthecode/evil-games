@@ -1,11 +1,12 @@
-// Белот за сървъра-съдия: ръцете на четиримата са само тук. Анонсите и „белот“
-// се изчисляват от съдията и се съобщават публично в хода, в който се обявяват.
+// Belot for the referee server: the hands of the four players are only here. Declarations and "belot"
+// are computed by the referee and announced publicly in the move in which they are declared.
 import { makeDeck, shuffle, sortHand } from '../cards/cards.js';
 import { seededRng } from '../../net/rng.js';
 import {
   RANKS, teamOf, legalCards, trickWinner, findDeclarations, resolveDeclarations, isBelot,
   scoreDeal, legalBids, applyBid, aiBid, aiPlay, cardPoints, handOrder,
 } from './engine.js';
+import { tk } from '../../i18n/tk.js';
 
 const sortFor = (hand, contract) => (contract
   ? sortHand(hand, handOrder(contract))
@@ -57,7 +58,7 @@ export default {
       h.turn = (p + 1) % 4;
       if (done) {
         if (!h.bidding.current) {
-          // всички пасуваха – ново раздаване със следващия раздаващ
+          // everyone passed – a new deal with the next dealer
           S.dealer = (S.dealer + 1) % 4;
           S.phase = 'deal';
           return { bid: data, redeal: true };
@@ -85,7 +86,7 @@ export default {
       const belot = isBelot(card, hand, h.trick, h.contract);
       if (belot) {
         h.belot[teamOf(p)] += 20;
-        notes.push('Белот');
+        notes.push(tk('Belot'));
       }
       h.hands[p] = hand.filter((c) => c !== card);
       h.trick.push({ p, card });

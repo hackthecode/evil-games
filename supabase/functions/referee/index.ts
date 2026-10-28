@@ -1,12 +1,26 @@
-// АВТОМАТИЧНО ГЕНЕРИРАН ФАЙЛ – не редактирайте ръчно.
-// Източник: модулите в js/ (виж tools/build-referee.py).
+// AUTO-GENERATED FILE – do not edit by hand.
+// Source: the modules in js/ (see tools/build-referee.py).
 // @ts-nocheck
 /* eslint-disable */
 const __m = {};
+__m['js/i18n/tk.js'] = (() => {
+// Translatable text for code that also runs on the server (game logic, Supabase Edge Functions).
+// tk('English text {0}', arg) returns a compact token; the browser turns it into the player's
+// language when it is displayed (see js/i18n.js → decode). Arguments may be tokens themselves.
+const T_OPEN = '\u0001', T_SEP = '\u001f', T_CLOSE = '\u0002';
+
+function tk(key, ...args) {
+  return T_OPEN + key + args.map((a) => T_SEP + String(a ?? '')).join('') + T_CLOSE;
+}
+
+return { T_OPEN, tk };
+})();
+
 __m['js/store/hash.js'] = (() => {
-// Хеширане на пароли: PBKDF2 (Web Crypto) когато е налично.
-// Web Crypto изисква "secure context" (https или localhost). При достъп по
-// локален IP (напр. от телефон в същата мрежа) ползваме резервен SHA-256.
+// Password hashing: PBKDF2 (Web Crypto) when available.
+// Web Crypto requires a "secure context" (https or localhost). When accessed via
+// a local IP (e.g. from a phone on the same network) we use a fallback SHA-256.
+const { tk } = __m['js/i18n/tk.js'];
 
 const enc = new TextEncoder();
 
@@ -41,7 +55,7 @@ async function verifyPassword(password, salt, stored) {
     return 'sha$' + h === stored;
   }
   if (!globalThis.crypto?.subtle) {
-    throw new Error('Този акаунт е създаден на защитен адрес (localhost/https). Отворете портала оттам, за да влезете.');
+    throw new Error(tk('This account was created on a secure address (localhost/https). Open the portal from there to log in.'));
   }
   return (await hashPassword(password, salt)) === stored;
 }
@@ -50,7 +64,7 @@ function toHex(bytes) {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Компактна реализация на SHA-256 (резервен вариант).
+// A compact SHA-256 implementation (fallback).
 function sha256(str) {
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -99,11 +113,11 @@ return { randomHex, hashPassword, verifyPassword, sha256 };
 })();
 
 __m['js/net/rng.js'] = (() => {
-// Детерминиран генератор на случайни числа за онлайн игрите: всички клиенти
-// получават едни и същи зарове/разбърквания от общия seed на мача.
+// Deterministic random number generator for online games: all clients
+// get the same dice/shuffles from the match's shared seed.
 const { sha256 } = __m['js/store/hash.js'];
 
-// sfc32, инициализиран с SHA-256(seed | етикет). Връща функция → [0, 1).
+// sfc32, seeded with SHA-256(seed | label). Returns a function → [0, 1).
 function seededRng(seed, label) {
   const h = sha256(`${seed}|${label}`);
   let [a, b, c, d] = [0, 8, 16, 24].map((i) => parseInt(h.slice(i, i + 8), 16) >>> 0);
@@ -122,7 +136,7 @@ function seededRng(seed, label) {
   return next;
 }
 
-// Криптографски случайно число – за игри срещу компютъра.
+// A cryptographically random number – for games against the computer.
 function cryptoRng() {
   const u = new Uint32Array(1);
   crypto.getRandomValues(u);
@@ -133,7 +147,8 @@ return { seededRng, cryptoRng };
 })();
 
 __m['js/games/cards/suits.js'] = (() => {
-// Векторни символи на боите (viewBox 0 0 100 100) – изглеждат еднакво на всички устройства.
+// Vector suit symbols (viewBox 0 0 100 100) – they look the same on all devices.
+const { tk } = __m['js/i18n/tk.js'];
 const SUIT_PATHS = {
   H: '<path d="M50 90C22 66 4 49 4 29 4 14 15 4 29 4c10 0 17 6 21 14 4-8 11-14 21-14 14 0 25 10 25 25 0 20-18 37-46 61z"/>',
   D: '<path d="M50 3c10 17 24 33 40 47-16 14-30 30-40 47C40 80 26 64 10 50 26 36 40 20 50 3z"/>',
@@ -141,7 +156,7 @@ const SUIT_PATHS = {
   C: '<circle cx="50" cy="28" r="20"/><circle cx="26" cy="58" r="20"/><circle cx="74" cy="58" r="20"/><path d="M44 50h12v8c1 15 6 27 14 38H30c8-11 13-23 14-38z"/>',
 };
 
-const SUIT_NAMES = { C: 'Спатия', D: 'Каро', H: 'Купа', S: 'Пика' };
+const SUIT_NAMES = { C: tk('Clubs'), D: tk('Diamonds'), H: tk('Hearts'), S: tk('Spades') };
 const isRed = (s) => s === 'H' || s === 'D';
 
 function suitSvg(s, cls = 'suit') {
@@ -152,7 +167,7 @@ return { SUIT_PATHS, SUIT_NAMES, isRed, suitSvg };
 })();
 
 __m['js/games/cards/cards.js'] = (() => {
-// Общи функции за игри с карти: рендиране, тесте, разбъркване.
+// Shared functions for card games: rendering, deck, shuffling.
 const { suitSvg, isRed } = __m['js/games/cards/suits.js'];
 const { cryptoRng } = __m['js/net/rng.js'];
 
@@ -164,7 +179,7 @@ function makeDeck(ranks) {
   return deck;
 }
 
-// rnd: функция → [0, 1); в онлайн игрите е общият генератор на мача.
+// rnd: function → [0, 1); in online games it's the match's shared generator.
 function shuffle(arr, rnd = cryptoRng) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -195,8 +210,8 @@ function centerHtml(c) {
   return `<div class="ace">${suitSvg(c.s)}</div>`;
 }
 
-// Фигури (вале, дама, поп): илюстрации English pattern от Dmitry Fomin (CC0),
-// префиоцветени в палитрата на портала. Зареждат се предварително, за да няма примигване.
+// Face cards (jack, queen, king): English pattern illustrations by Dmitry Fomin (CC0),
+// recoloured in the portal's palette. Preloaded so there is no flicker.
 const COURT = new Set(['J', 'Q', 'K']);
 const courtSrc = (c) => `assets/cards/${c.r}${c.s}.svg`;
 if (typeof Image !== 'undefined') for (const s of SUITS) for (const r of COURT) new Image().src = courtSrc({ r, s });
@@ -225,7 +240,7 @@ function cardEl(card, { faceDown = false, cls = '' } = {}) {
   return el;
 }
 
-// Сортира ръка по боя (редуващи се цветове) и сила.
+// Sorts a hand by suit (alternating colours) and strength.
 function sortHand(hand, rankOrder, suitOrder = ['S', 'H', 'C', 'D']) {
   return hand.slice().sort((a, b) => {
     const sa = suitOrder.indexOf(a.s), sb = suitOrder.indexOf(b.s);
@@ -234,7 +249,7 @@ function sortHand(hand, rankOrder, suitOrder = ['S', 'H', 'C', 'D']) {
   });
 }
 
-// Подрежда картите в ръката като ветрило.
+// Lays out the cards in the hand as a fan.
 function layoutFan(container, { spreadDeg = 5, lift = 0.6 } = {}) {
   const cards = [...container.children];
   const n = cards.length;
@@ -250,13 +265,14 @@ return { SUITS, makeDeck, shuffle, cardEl, sortHand, layoutFan };
 })();
 
 __m['js/games/belot/engine.js'] = (() => {
-// Български белот: правила, анонси, точкуване и AI.
-// Играчи: 0 = Юг (вие), 1 = Изток, 2 = Север (партньор), 3 = Запад. Ход обратно на часовниковата стрелка: 0→1→2→3.
-// Отбори: 0 = играчи 0 и 2, 1 = играчи 1 и 3.
+// Bulgarian belot: rules, declarations, scoring and AI.
+// Players: 0 = South (you), 1 = East, 2 = North (partner), 3 = West. Turns go counter-clockwise: 0→1→2→3.
+// Teams: 0 = players 0 and 2, 1 = players 1 and 3.
+const { tk } = __m['js/i18n/tk.js'];
 
 const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const CONTRACTS = ['C', 'D', 'H', 'S', 'NT', 'AT'];
-const CONTRACT_NAMES = { C: 'Спатия', D: 'Каро', H: 'Купа', S: 'Пика', NT: 'Без коз', AT: 'Всичко коз' };
+const CONTRACT_NAMES = { C: tk('Clubs'), D: tk('Diamonds'), H: tk('Hearts'), S: tk('Spades'), NT: tk('No trumps'), AT: tk('All trumps') };
 
 const NT_ORDER = { 7: 0, 8: 1, 9: 2, J: 3, Q: 4, K: 5, 10: 6, A: 7 };
 const TR_ORDER = { 7: 0, 8: 1, Q: 2, K: 3, 10: 4, A: 5, 9: 6, J: 7 };
@@ -273,7 +289,7 @@ const order = (card, contract) => (isTrump(card, contract) ? TR_ORDER : NT_ORDER
 const cardPoints = (card, contract) => (contract === 'NT' ? NT_PTS : isTrump(card, contract) ? TR_PTS : NT_PTS)[card.r];
 const handOrder = (contract) => (c) => order(c, contract) + (isTrump(c, contract) && contract !== 'AT' ? 100 : 0);
 
-// ---------- ръка (взятка) ----------
+// ---------- trick ----------
 function trickWinner(trick, contract) {
   const led = trick[0].card.s;
   let best = trick[0];
@@ -317,7 +333,7 @@ function legalCards(hand, trick, contract, me) {
   return hand.slice();
 }
 
-// ---------- анонси ----------
+// ---------- declarations ----------
 function findDeclarations(hand, contract) {
   if (contract === 'NT') return [];
   const res = [];
@@ -325,7 +341,7 @@ function findDeclarations(hand, contract) {
   for (const r of ['J', '9', 'A', '10', 'K', 'Q']) {
     const cards = hand.filter((c) => c.r === r);
     if (cards.length === 4) {
-      res.push({ type: 'carre', rank: r, points: r === 'J' ? 200 : r === '9' ? 150 : 100, name: `Каре ${r}` });
+      res.push({ type: 'carre', rank: r, points: r === 'J' ? 200 : r === '9' ? 150 : 100, name: tk('Four of a kind {0}', r) });
       cards.forEach((c) => used.add(c.id));
     }
   }
@@ -340,7 +356,7 @@ function findDeclarations(hand, contract) {
         res.push({
           type: 'seq', len: take, high: top, suit: s,
           points: take === 3 ? 20 : take === 4 ? 50 : 100,
-          name: take === 3 ? 'Терца' : take === 4 ? 'Кварта' : 'Квинта',
+          name: take === 3 ? tk('Tierce') : take === 4 ? tk('Quarte') : tk('Quint'),
         });
         len -= take;
         top -= take;
@@ -360,7 +376,7 @@ function findDeclarations(hand, contract) {
 
 const seqKey = (d) => d.len * 10 + d.high;
 
-// Кои анонси се зачитат: последователностите само за отбора с най-високата.
+// Which declarations count: sequences only for the team with the highest one.
 function resolveDeclarations(declsByPlayer) {
   const pts = [0, 0];
   const bestSeq = [-1, -1];
@@ -377,7 +393,7 @@ function resolveDeclarations(declsByPlayer) {
   return { pts, seqTeam };
 }
 
-// Белот: при изиграване на дама/поп коз, когато другата карта е в ръката.
+// Belot: when playing the queen/king of trumps while the other card is in the hand.
 function isBelot(card, hand, trick, contract) {
   if (contract === 'NT' || (card.r !== 'K' && card.r !== 'Q')) return false;
   if (!isTrump(card, contract)) return false;
@@ -386,7 +402,7 @@ function isBelot(card, hand, trick, contract) {
   return hand.some((c) => c.s === card.s && c.r === other);
 }
 
-// ---------- точкуване ----------
+// ---------- scoring ----------
 const roundGP = (x, contract) => {
   const th = isSuitContract(contract) ? 7 : 5;
   return Math.floor(x / 10) + (x % 10 >= th ? 1 : 0);
@@ -427,7 +443,7 @@ function scoreDeal({ contract, bidTeam, mult, tricks, declPts, belotPts, hanging
   }
   const gp = raw.map((x) => roundGP(x, contract));
   if (outcome === 'hanging') newHanging = roundGP(total[bidTeam], contract);
-  // висящи точки от предишното раздаване отиват при победителя в това
+  // hanging points from the previous deal go to the winner of this one
   if (hanging > 0 && outcome !== 'hanging') {
     const w = gp[0] > gp[1] ? 0 : gp[1] > gp[0] ? 1 : -1;
     if (w >= 0) gp[w] += hanging;
@@ -436,7 +452,7 @@ function scoreDeal({ contract, bidTeam, mult, tricks, declPts, belotPts, hanging
   return { cardPts, total, gp, outcome, capot, hanging: newHanging };
 }
 
-// ---------- обявяване ----------
+// ---------- bidding ----------
 function legalBids(bidding, player) {
   const cur = bidding.current; // {contract, player, mult}
   const res = ['pass'];
@@ -449,7 +465,7 @@ function legalBids(bidding, player) {
   return res;
 }
 
-// Връща true ако обявяването е приключило.
+// Returns true if the bidding is over.
 function applyBid(bidding, player, bid) {
   bidding.history.push({ player, bid });
   if (bid === 'pass') bidding.passes++;
@@ -532,7 +548,7 @@ function aiBid(hand, bidding, player, aggression = 1) {
   return 'pass';
 }
 
-// Изчислява дали картата е „най-силната останала“ в боята си.
+// Computes whether the card is the "highest remaining" in its suit.
 function isMaster(card, contract, seen) {
   for (const r of RANKS) {
     const id = r + card.s;
@@ -555,7 +571,7 @@ function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
   const high = (cards) => cards.slice().sort((a, b) => pts(b) - pts(a) || order(b, contract) - order(a, contract))[0];
 
   if (!trick.length) {
-    // извеждане
+    // leading
     if (isSuitContract(contract) && teamOf(me) === bidTeam) {
       const myTrumps = legal.filter((c) => c.s === contract);
       const outstanding = RANKS.filter((r) => !seen.has(r + contract)).length;
@@ -566,7 +582,7 @@ function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
     }
     const masters = legal.filter((c) => isMaster(c, contract, seen) && !(trumpLike(c) && teamOf(me) !== bidTeam));
     if (masters.length) return high(masters);
-    // ниска карта от най-дългата некозова боя, без да се извеждат десетки/аса
+    // a low card from the longest non-trump suit, without leading tens/aces
     const nonTrump = legal.filter((c) => !trumpLike(c));
     const pool = nonTrump.length ? nonTrump : legal;
     const bySuit = {};
@@ -602,11 +618,12 @@ return { RANKS, CONTRACTS, CONTRACT_NAMES, teamOf, partnerOf, isTrump, order, ca
 })();
 
 __m['js/games/belot/referee.js'] = (() => {
-// Белот за сървъра-съдия: ръцете на четиримата са само тук. Анонсите и „белот“
-// се изчисляват от съдията и се съобщават публично в хода, в който се обявяват.
+// Belot for the referee server: the hands of the four players are only here. Declarations and "belot"
+// are computed by the referee and announced publicly in the move in which they are declared.
 const { makeDeck, shuffle, sortHand } = __m['js/games/cards/cards.js'];
 const { seededRng } = __m['js/net/rng.js'];
 const { RANKS, teamOf, legalCards, trickWinner, findDeclarations, resolveDeclarations, isBelot, scoreDeal, legalBids, applyBid, aiBid, aiPlay, cardPoints, handOrder } = __m['js/games/belot/engine.js'];
+const { tk } = __m['js/i18n/tk.js'];
 
 const sortFor = (hand, contract) => (contract
   ? sortHand(hand, handOrder(contract))
@@ -658,7 +675,7 @@ const __default = {
       h.turn = (p + 1) % 4;
       if (done) {
         if (!h.bidding.current) {
-          // всички пасуваха – ново раздаване със следващия раздаващ
+          // everyone passed – a new deal with the next dealer
           S.dealer = (S.dealer + 1) % 4;
           S.phase = 'deal';
           return { bid: data, redeal: true };
@@ -686,7 +703,7 @@ const __default = {
       const belot = isBelot(card, hand, h.trick, h.contract);
       if (belot) {
         h.belot[teamOf(p)] += 20;
-        notes.push('Белот');
+        notes.push(tk('Belot'));
       }
       h.hands[p] = hand.filter((c) => c !== card);
       h.trick.push({ p, card });
@@ -780,7 +797,7 @@ return { default: __default };
 })();
 
 __m['js/games/santase/engine.js'] = (() => {
-// Сантасе (66): правила и AI. Играчи: 0 = вие, 1 = компютър.
+// Santase (66): rules and AI. Players: 0 = you, 1 = computer.
 
 const RANKS = ['9', 'J', 'Q', 'K', '10', 'A'];
 const ORDER = { 9: 0, J: 1, Q: 2, K: 3, 10: 4, A: 5 };
@@ -794,17 +811,17 @@ function newDeal(deck, dealer) {
   for (const cnt of [3, 3]) {
     for (const p of [leader, dealer]) for (let i = 0; i < cnt; i++) hands[p].push(deck[k++]);
   }
-  const rest = deck.slice(k); // 12 карти; първата е открития коз (най-отдолу)
+  const rest = deck.slice(k); // 12 cards; the first is the face-up trump (at the bottom)
   const trumpCard = rest[0];
   return {
     hands,
-    stock: rest, // stock[0] = открития коз, теглене от края
+    stock: rest, // stock[0] = the face-up trump, drawing from the end
     trump: trumpCard.s,
     closedBy: -1,
     leader,
-    lead: null, // изиграна първа карта в текущата ръка
+    lead: null, // the first card played in the current trick
     points: [0, 0],
-    pending: [0, 0], // обявени 20/40 преди първа взета ръка
+    pending: [0, 0], // 20/40 declared before the first trick taken
     tricks: [0, 0],
     marriages: [[], []],
     lastWinner: -1,
@@ -855,7 +872,7 @@ function exchange(d, p) {
 const total = (d, p) => d.points[p] + (d.tricks[p] > 0 ? d.pending[p] : 0);
 const scoreOf = total;
 
-// Изиграва карта. Връща събитие {type: 'lead'|'trick', marriage, trickWinner, ...}.
+// Plays a card. Returns an event {type: 'lead'|'trick', marriage, trickWinner, ...}.
 function play(d, p, card) {
   d.hands[p] = d.hands[p].filter((c) => c.id !== card.id);
   if (!d.lead) {
@@ -893,7 +910,7 @@ function play(d, p, card) {
   return { type: 'trick', winner: w, cards: [lead.card, card], drew };
 }
 
-// Точки за мача при край на раздаването.
+// Match points at the end of the deal.
 function dealResult(d) {
   const w = d.winner;
   const l = 1 - w;
@@ -906,7 +923,7 @@ function dealResult(d) {
 
 // ---------- AI ----------
 function unseenHigher(card, d, p, seen) {
-  // има ли невидяна по-силна карта от същата боя
+  // is there an unseen higher card of the same suit
   for (const r of RANKS) {
     if (ORDER[r] <= ORDER[card.r]) continue;
     const id = r + card.s;
@@ -916,7 +933,7 @@ function unseenHigher(card, d, p, seen) {
 }
 
 function aiDecideAction(d, p, seen) {
-  // действия преди извеждане: смяна на 9 и затваряне
+  // actions before leading: exchanging the 9 and closing
   const acts = [];
   if (canExchange(d, p)) acts.push('exchange');
   if (canClose(d, p)) {
@@ -948,7 +965,7 @@ function aiPlay(d, p, seenIds) {
   const lowest = (cards) => cards.slice().sort((a, b) => val(a) - val(b))[0];
 
   if (!d.lead) {
-    // обяви 20/40, ако е възможно
+    // declare 20/40 if possible
     const marriages = legal.filter((c) => marriageFor(d, p, c));
     if (marriages.length) {
       marriages.sort((a, b) => (b.s === trump) - (a.s === trump) || (a.r === 'Q' ? -1 : 1));
@@ -974,7 +991,7 @@ function aiPlay(d, p, seenIds) {
   }
   const sameSuitWins = winning.filter((c) => c.s === L.s);
   if (sameSuitWins.length) {
-    const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // вземи с най-силната (10 или асо носят точки)
+    const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // take with the strongest (10 or ace bring points)
     const cheap = sameSuitWins.sort((a, b) => val(a) - val(b))[0];
     return lpts >= 10 || PTS[best.r] >= 10 ? (PTS[best.r] >= 10 ? best : cheap) : cheap;
   }
@@ -990,8 +1007,8 @@ return { RANKS, PTS, order, newDeal, isStrict, legalCards, beats, marriageFor, c
 })();
 
 __m['js/games/santase/referee.js'] = (() => {
-// Сантасе за сървъра-съдия: пълното състояние (с картите на двамата) е само тук,
-// всеки играч получава изглед със своите карти.
+// Santase for the referee server: the full state (with both players' cards) is only here,
+// each player gets a view with their own cards.
 const { makeDeck, shuffle } = __m['js/games/cards/cards.js'];
 const { seededRng } = __m['js/net/rng.js'];
 const { RANKS, newDeal, legalCards, play, canClose, canExchange, exchange, scoreOf, dealResult, aiPlay, aiDecideAction } = __m['js/games/santase/engine.js'];
@@ -1057,7 +1074,7 @@ const __default = {
     return {
       kind: 'card', card, marriage: ev.marriage || 0,
       trick: ev.type === 'trick' ? { winner: ev.winner } : null,
-      // изтеглените карти са тайни; публично е само дали последната е била откритият коз
+      // the drawn cards are secret; it's public only whether the last one was the face-up trump
       drew: ev.drew ? { lastTrump: stockBefore === 2 } : null,
     };
   },
@@ -1109,16 +1126,16 @@ return { TARGET, default: __default };
 })();
 
 __m['js/games/blato/engine.js'] = (() => {
-// Блато (3-5-8): трима играчи, 52 карти, по 16 карти и 4 в „блатото“.
-// Раздаващият трябва да вземе 8 ръце, следващият – 5, третият – 3.
-// Играе се обратно на часовниковата стрелка: следващ играч = (p + 1) % 3.
+// Blato (3-5-8): three players, 52 cards, 16 cards each and 4 in the "swamp".
+// The dealer must take 8 tricks, the next player 5, the third 3.
+// Play goes counter-clockwise: next player = (p + 1) % 3.
 
 const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const SUITS = ['C', 'D', 'H', 'S'];
 const power = (c) => RANKS.indexOf(c.r);
 const next = (p) => (p + 1) % 3;
 
-// Цел за всеки играч спрямо раздаващия.
+// Goal for each player relative to the dealer.
 const targetOf = (p, dealer) => [8, 5, 3][(p - dealer + 3) % 3];
 
 function deal(deck) {
@@ -1142,27 +1159,27 @@ function trickWinner(trick, trump) {
 }
 
 /**
- * Размяна в началото на раздаването според предишното: играч, взел повече от целта си,
- * дава толкова карти, колкото е взел в повече, на изоставащите, а те връщат
- * най-силната си карта от същата боя (или същата карта, ако нямат друга от боята).
- * Връща списък { from, to, count } в реда на изпълнение.
+ * Exchange at the start of a deal based on the previous one: a player who took more than their goal
+ * gives as many cards as they took in excess to those who fell short, and they return
+ * their strongest card of the same suit (or the same card if they have no other of that suit).
+ * Returns a list { from, to, count } in execution order.
  */
 function exchangePlan(diff, dealer) {
   const ups = [0, 1, 2].filter((p) => diff[p] > 0);
   const downs = [0, 1, 2].filter((p) => diff[p] < 0);
   const plan = [];
   if (ups.length === 1) {
-    // един напред: дава на всеки изоставащ толкова карти, колкото той не е взел
+    // one ahead: gives each player who fell short as many cards as they lacked
     for (const d of downs) plan.push({ from: ups[0], to: d, count: -diff[d] });
   } else if (ups.length === 2) {
-    // двама напред: първо този с по-високата цел за новото раздаване
+    // two ahead: first the one with the higher goal for the new deal
     ups.sort((a, b) => targetOf(b, dealer) - targetOf(a, dealer));
     for (const u of ups) plan.push({ from: u, to: downs[0], count: diff[u] });
   }
   return plan.filter((x) => x.count > 0);
 }
 
-// Какво връща получателят за всяка получена карта: най-силната от същата боя.
+// What the receiver returns for each received card: the strongest of the same suit.
 function returnCards(hand, received) {
   const h = [...hand, ...received];
   const back = [];
@@ -1184,14 +1201,14 @@ function aiTrump(hand) {
   return [...SUITS].sort((a, b) => suitScore(hand, b) - suitScore(hand, a))[0];
 }
 
-// Подарява най-слабите карти (пази асата, поповете и коза, ако е известен).
+// Gives away the weakest cards (keeps aces, kings and trumps if known).
 function aiGive(hand, count, trump = null) {
   return [...hand]
     .sort((a, b) => (a.s === trump) - (b.s === trump) || power(a) - power(b))
     .slice(0, count);
 }
 
-// Сваля 4 карти: най-слабите некозове, като предпочита да остави къси бои празни.
+// Discards 4 cards: the weakest non-trumps, preferring to leave short suits empty.
 function aiDiscard(hand, trump) {
   const count = (s) => hand.filter((c) => c.s === s).length;
   return [...hand]
@@ -1204,7 +1221,7 @@ function aiPlay({ hand, trick, trump, played }) {
   const legal = legalCards(hand, trick);
   const byPow = (a, b) => power(a) - power(b);
   if (!trick.length) {
-    // води с най-високата сигурна карта (няма по-висока неизиграна в боята), иначе с най-ниската
+    // leads with the highest safe card (no higher unplayed card in the suit), otherwise with the lowest
     const sure = legal.filter((c) => RANKS.slice(power(c) + 1).every((r) => played.has(r + c.s) || hand.some((x) => x.s === c.s && x.r === r)));
     const nonTrumpSure = sure.filter((c) => c.s !== trump);
     if (nonTrumpSure.length) return nonTrumpSure.sort(byPow).pop();
@@ -1215,7 +1232,7 @@ function aiPlay({ hand, trick, trump, played }) {
   const winsWith = (c) => trickWinner([...trick, { p: -1, card: c }], trump) === -1;
   const winning = legal.filter(winsWith).sort(byPow);
   if (winning.length) {
-    // последен играч или сигурна победа – взема с най-евтината печеливша карта
+    // last player or a sure win – takes with the cheapest winning card
     return trick.length === 2 ? winning[0] : winning[winning.length - 1].s === trump ? winning[0] : winning[winning.length - 1];
   }
   return legal.sort(byPow)[0];
@@ -1225,7 +1242,7 @@ return { RANKS, SUITS, power, next, targetOf, deal, legalCards, trickWinner, exc
 })();
 
 __m['js/games/blato/referee.js'] = (() => {
-// Блато за сървъра-съдия: ръцете, блатото и разменените карти са тайни.
+// Blato for the referee server: the hands, the swamp and the exchanged cards are secret.
 const { makeDeck, shuffle, sortHand } = __m['js/games/cards/cards.js'];
 const { seededRng } = __m['js/net/rng.js'];
 const { RANKS, SUITS, power, next, targetOf, deal, legalCards, trickWinner, exchangePlan, returnCards, aiTrump, aiGive, aiDiscard, aiPlay } = __m['js/games/blato/engine.js'];
@@ -1284,7 +1301,7 @@ const __default = {
       const back = returnCards(h.hands[to], give);
       h.hands[to] = [...h.hands[to], ...give].filter((c) => !back.includes(c));
       h.hands[from].push(...back);
-      // всеки участник вижда какво е дал и какво е получил
+      // each participant sees what they gave and what they received
       h.exchanged[from].push({ with: to, gave: give, got: back });
       h.exchanged[to].push({ with: from, gave: back, got: give });
       h.pi++;
@@ -1384,22 +1401,23 @@ return { default: __default };
 })();
 
 __m['js/net/referee/core.js'] = (() => {
-// Сървър-съдия: изпълнява играта авторитетно. Държи тестето и всички ръце,
-// проверява всяко решение, играе вместо ботовете и стъпките на „системата“
-// (раздаване, точкуване), а на всеки играч дава изглед само с неговите карти.
+// Referee server: runs the game authoritatively. Holds the deck and all hands,
+// checks every decision, plays for the bots and the "system" steps
+// (dealing, scoring), and gives each player a view with only their own cards.
 //
-// Един и същ код работи: в браузъра (игра срещу компютъра), в SharedWorker
-// (локален онлайн тест, емулира сървър) и в Supabase Edge Function (истински сървър).
-// Състоянието е чист JSON, за да може сървърът да го пази в базата данни.
+// The same code runs: in the browser (game against the computer), in a SharedWorker
+// (local online test, emulates a server) and in a Supabase Edge Function (real server).
+// The state is plain JSON so the server can keep it in the database.
 //
-// Редуктор на игра (js/games/<игра>/referee.js):
+// Game reducer (js/games/<game>/referee.js):
 //   init({ seats, opts, seed }) → S          seats: [{ bot: bool, name }]
-//   next(S) → { seat, type } | null          seat -1 = системна стъпка; null = край
+//   next(S) → { seat, type } | null          seat -1 = system step; null = end
 //   validate(S, seat, type, data) → bool
-//   apply(S, seat, type, data) → pub         публични данни за дневника
-//   view(S, seat) → изглед за играча (карти, кой е на ход, възможни решения…)
-//   ai(S, seat, type) → data                 решение на бот
-//   result(S) → { winners: [seat], ... }     при край
+//   apply(S, seat, type, data) → pub         public data for the log
+//   view(S, seat) → the player's view (cards, whose turn, possible decisions…)
+//   ai(S, seat, type) → data                 a bot's decision
+//   result(S) → { winners: [seat], ... }     at the end
+const { tk } = __m['js/i18n/tk.js'];
 
 function createMatch(reducer, { seats, opts = {}, seed }) {
   return wrap(reducer, { S: reducer.init({ seats, opts, seed }), seats, log: [] });
@@ -1416,13 +1434,13 @@ function wrap(reducer, M) {
     const pub = reducer.apply(M.S, seat, type, data);
     const e = { n: M.log.length, seat, type, pub: pub ?? null };
     M.log.push(e);
-    // изгледите се правят веднага – всеки играч вижда състоянието след тази стъпка
+    // the views are made right away – every player sees the state after this step
     const views = {};
     for (const h of humans()) views[h] = reducer.view(M.S, h);
     return { ...e, views };
   }
 
-  // Изпълнява системните стъпки и ходовете на ботовете до решение на човек или край.
+  // Runs the system steps and bot moves until a human decision or the end.
   function advance() {
     const out = [];
     for (let guard = 0; guard < 2000; guard++) {
@@ -1444,11 +1462,11 @@ function wrap(reducer, M) {
     start: () => (M.log.length ? [] : advance()),
     submit(seat, type, data) {
       const nx = reducer.next(M.S);
-      if (!nx || nx.seat !== seat || nx.type !== type) throw new Error('Не е ваш ред.');
-      if (!reducer.validate(M.S, seat, type, data)) throw new Error('Невалиден ход.');
+      if (!nx || nx.seat !== seat || nx.type !== type) throw new Error(tk('It\'s not your turn.'));
+      if (!reducer.validate(M.S, seat, type, data)) throw new Error(tk('Invalid move.'));
       return [step(seat, type, data), ...advance()];
     },
-    // прекъснал играч → бот (решенията му се вземат автоматично)
+    // disconnected player → bot (their decisions are made automatically)
     takeover(seat) {
       if (!M.seats[seat] || M.seats[seat].bot) return [];
       M.seats[seat] = { ...M.seats[seat], bot: true };
@@ -1460,7 +1478,7 @@ function wrap(reducer, M) {
   };
 }
 
-// Стъпките за конкретен играч: публичната част + неговият изглед.
+// The steps for a specific player: the public part + their view.
 const forSeat = (entries, seat) => entries.map(({ views, ...e }) => ({ ...e, view: views[seat] }));
 
 return { createMatch, restoreMatch, forSeat };
@@ -1469,16 +1487,16 @@ return { createMatch, restoreMatch, forSeat };
 const { createMatch, restoreMatch, forSeat } = __m['js/net/referee/core.js'];
 const REDUCERS = {belot: __m['js/games/belot/referee.js'].default, santase: __m['js/games/santase/referee.js'].default, blato: __m['js/games/blato/referee.js'].default};
 
-// Supabase Edge Function „referee“ – сървърът-съдия за игрите със скрити карти.
-// Логиката на игрите е в bundle.js (генерира се от js/ с tools/build-referee.py).
+// Supabase Edge Function "referee" – the referee server for hidden-card games.
+// The game logic is in bundle.js (generated from js/ with tools/build-referee.py).
 //
-// Заявки (POST JSON, с токена на влезлия потребител):
-//   create   { key, gameId, seats, opts }  – създава мача (ако още го няма)
-//   join     { key }                       – изгледът ми; мачът тръгва, когато всички хора влязат
-//   submit   { key, type, data }           – моето решение
-//   pull     { key, from }                 – стъпките от n = from нататък (с моя изглед)
-//   takeover { key, target }               – прекъснал играч → бот
-// След всяка промяна се праща сигнал по Realtime канал „ref-<key>“: { n }.
+// Requests (POST JSON, with the logged-in user's token):
+//   create   { key, gameId, seats, opts }  – creates the match (if it doesn't exist yet)
+//   join     { key }                       – my view; the match starts when all humans have joined
+//   submit   { key, type, data }           – my decision
+//   pull     { key, from }                 – the steps from n = from onwards (with my view)
+//   takeover { key, target }               – disconnected player → bot
+// After every change a signal is sent on the Realtime channel "ref-<key>": { n }.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
@@ -1498,7 +1516,7 @@ Deno.serve(async (req: Request) => {
     const auth = req.headers.get('Authorization') || '';
     const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Не сте влезли.' }, 401);
+    if (!user) return json({ error: 'You are not logged in.' }, 401);
     const db = createClient(URL_, SERVICE, { auth: { persistSession: false } });
     return json(await handle(db, user.id, await req.json()));
   } catch (e) {
@@ -1512,11 +1530,11 @@ type Db = any;
 async function load(db: Db, key: string) {
   const { data, error } = await db.from('referee_matches').select('*').eq('key', key).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('Мачът не е намерен.');
+  if (!data) throw new Error('Match not found.');
   return data;
 }
 
-// Записва новото състояние само ако никой друг не го е променил междувременно.
+// Saves the new state only if nobody else has changed it in the meantime.
 // deno-lint-ignore no-explicit-any
 async function persist(db: Db, row: any, match: any, entries: any[], patch: Record<string, unknown> = {}) {
   const n = match.log.length;
@@ -1524,7 +1542,7 @@ async function persist(db: Db, row: any, match: any, entries: any[], patch: Reco
     .update({ state: match.save(), n, updated_at: new Date().toISOString(), ...patch })
     .eq('key', row.key).eq('n', row.n).select('key');
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error('Мачът беше променен междувременно – опитайте отново.');
+  if (!data?.length) throw new Error('The match was changed in the meantime – try again.');
   if (entries.length) {
     const rows = entries.map((e) => ({ key: row.key, n: e.n, seat: e.seat, type: e.type, pub: e.pub, views: e.views }));
     const ins = await db.from('referee_log').insert(rows);
@@ -1533,7 +1551,7 @@ async function persist(db: Db, row: any, match: any, entries: any[], patch: Reco
   }
 }
 
-// Сигнал „има нови стъпки“ (без съдържание – всеки си взема своя изглед с pull).
+// A "new steps" signal (no content – everyone fetches their own view with pull).
 async function signal(key: string, n: number) {
   await fetch(`${URL_}/realtime/v1/api/broadcast`, {
     method: 'POST',
@@ -1548,14 +1566,14 @@ const seatOf = (seats: any[], uid: string) => seats.findIndex((s) => s.uid === u
 // deno-lint-ignore no-explicit-any
 async function handle(db: Db, uid: string, body: any) {
   const { op, key } = body;
-  if (typeof key !== 'string' || key.length > 80) throw new Error('Невалиден мач.');
+  if (typeof key !== 'string' || key.length > 80) throw new Error('Invalid match.');
 
   if (op === 'create') {
     const reducer = REDUCERS[body.gameId];
-    if (!reducer) throw new Error('Тази игра няма съдия.');
+    if (!reducer) throw new Error('This game has no referee.');
     // deno-lint-ignore no-explicit-any
-    const seats = (body.seats || []).map((s: any) => ({ uid: s.uid || null, bot: !!s.bot || !s.uid, name: String(s.name || 'Бот').slice(0, 40) }));
-    if (seatOf(seats, uid) < 0) throw new Error('Не сте на масата.');
+    const seats = (body.seats || []).map((s: any) => ({ uid: s.uid || null, bot: !!s.bot || !s.uid, name: String(s.name || 'Bot').slice(0, 40) }));
+    if (seatOf(seats, uid) < 0) throw new Error('You are not at the table.');
     const exists = await db.from('referee_matches').select('key').eq('key', key).maybeSingle();
     if (exists.data) return true;
     const seed = crypto.randomUUID() + crypto.randomUUID();
@@ -1568,13 +1586,13 @@ async function handle(db: Db, uid: string, body: any) {
   const row = await load(db, key);
   const reducer = REDUCERS[row.game_id];
   const seat = seatOf(row.seats, uid);
-  if (seat < 0) throw new Error('Не сте на масата.');
+  if (seat < 0) throw new Error('You are not at the table.');
   const match = restoreMatch(reducer, row.state);
 
   if (op === 'join') {
     const snap = match.snapshot(seat);
     const joined = [...new Set([...(row.joined || []), seat])];
-    // мачът тръгва, когато всички хора са влезли
+    // the match starts when all humans have joined
     // deno-lint-ignore no-explicit-any
     const all = match.seats.every((s: any, i: number) => s.bot || joined.includes(i));
     if (!row.started && all) await persist(db, row, match, match.start(), { joined, started: true });
@@ -1606,5 +1624,5 @@ async function handle(db: Db, uid: string, body: any) {
     return { entries: forSeat(data, seat).map((e: any) => ({ n: e.n, seat: e.seat, type: e.type, pub: e.pub, view: e.view })) };
   }
 
-  throw new Error('Непозната заявка.');
+  throw new Error('Unknown request.');
 }

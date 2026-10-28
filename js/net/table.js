@@ -1,15 +1,16 @@
-// „Маса“: връзката на играта със сървъра-съдия. Играта получава поредица стъпки
-// { n, seat, type, pub, view } (публичното + собствения си изглед) и праща своите решения.
+// "Table": the game's connection to the referee server. The game receives a series of steps
+// { n, seat, type, pub, view } (the public part + its own view) and sends its decisions.
 //
-// Транспорти:
-//   local  – съдията работи в същия раздел (игра срещу компютъра);
-//   worker – SharedWorker, общ за разделите на браузъра (локален онлайн тест, емулира сървър);
-//   server – Supabase Edge Function „referee“ (истинска онлайн игра).
+// Transports:
+//   local  – the referee runs in the same tab (game against the computer);
+//   worker – a SharedWorker shared by the browser's tabs (local online test, emulates a server);
+//   server – Supabase Edge Function "referee" (real online game).
 import { createMatch, forSeat } from './referee/core.js';
 import { reducerFor } from './referee/games.js';
 import { randomHex } from '../store/hash.js';
 import { store } from '../store/index.js';
 import { CONFIG } from '../../config.js';
+import { txt } from '../i18n.js';
 
 export function createTable({ mode, gameId, key, seat, seats, opts }) {
   const listeners = new Set();
@@ -22,7 +23,7 @@ export function createTable({ mode, gameId, key, seat, seats, opts }) {
       ...base,
       async connect() {
         match = createMatch(await reducerFor(gameId), { seats, opts, seed: randomHex(16) });
-        const view = match.view(seat); // изгледът отпреди първото раздаване
+        const view = match.view(seat); // the view from before the first deal
         const first = forSeat(match.start(), seat);
         setTimeout(() => emit(first), 0);
         return { n: 0, view, log: [] };
@@ -71,19 +72,19 @@ export function createTable({ mode, gameId, key, seat, seats, opts }) {
     };
   }
 
-  // server: Supabase Edge Function + Realtime канал със сигнал „има нови стъпки“
+  // server: Supabase Edge Function + Realtime channel with a "new steps" signal
   const sb = store.client();
   let ch = null;
   let have = 0;
-  let latest = 0; // най-новият сигнал от сървъра
+  let latest = 0; // the latest signal from the server
   let pulling = null;
   const invoke = async (body) => {
     const { data, error } = await sb.functions.invoke(CONFIG.supabase.refereeFunction || 'referee', { body: { ...body, key } });
-    if (error) throw new Error(error.message || 'Грешка от сървъра.');
+    if (error) throw new Error(error.message || txt('Server error.'));
     if (data?.error) throw new Error(data.error);
     return data;
   };
-  // взема новите стъпки (със собствения изглед) от сървъра
+  // fetches the new steps (with its own view) from the server
   const pull = () => (pulling ||= (async () => {
     try {
       const res = await invoke({ op: 'pull', from: have });
@@ -106,7 +107,7 @@ export function createTable({ mode, gameId, key, seat, seats, opts }) {
       await new Promise((r) => ch.subscribe((s) => s === 'SUBSCRIBED' && r()));
       const snap = await invoke({ op: 'join' });
       have = snap.n;
-      setTimeout(() => pull().catch(() => {}), 0); // ако мачът е тръгнал току-що
+      setTimeout(() => pull().catch(() => {}), 0); // if the match has just started
       return snap;
     },
     async submit(type, data) {

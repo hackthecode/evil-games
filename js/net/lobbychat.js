@@ -1,6 +1,7 @@
-// Общ чат в лобито: Supabase (таблица lobby_messages + Realtime) или локално
-// (localStorage + BroadcastChannel – само между разделите на този браузър).
+// Shared lobby chat: Supabase (lobby_messages table + Realtime) or locally
+// (localStorage + BroadcastChannel – only between the tabs of this browser).
 import { store } from '../store/index.js';
+import { txt } from '../i18n.js';
 
 const LOCAL_KEY = 'eg.lobby.v1';
 
@@ -39,7 +40,7 @@ function openSupabase(onMessages) {
   sb.from('lobby_messages').select('id, user_id, name, color, body, created_at').order('id', { ascending: false }).limit(60)
     .then(({ data, error }) => {
       if (closed) return;
-      if (error) onMessages(list, error.message.includes('lobby_messages') ? 'Чатът още не е включен на сървъра.' : error.message);
+      if (error) onMessages(list, error.message.includes('lobby_messages') ? txt('The chat is not enabled on the server yet.') : error.message);
       else push((data || []).reverse());
     });
   const ch = sb.channel('lobby-chat')
@@ -48,7 +49,7 @@ function openSupabase(onMessages) {
   return {
     async send(body) {
       const { error } = await sb.from('lobby_messages').insert({ body: body.slice(0, 300) });
-      if (error) throw new Error(error.message.includes('Твърде') ? 'Твърде бързо – изчакайте малко.' : error.message);
+      if (error) throw new Error(/Too fast/.test(error.message) ? txt('Too fast – wait a moment.') : error.message);
     },
     close() { closed = true; sb.removeChannel(ch); },
   };

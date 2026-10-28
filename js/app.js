@@ -15,7 +15,8 @@ import { renderAdmin } from './pages/admin.js';
 import { admin } from './net/admin.js';
 import { social } from './net/social.js';
 import { modal } from './ui.js';
-import './pwa.js'; // улавя предложението за инсталиране още при зареждането
+import './pwa.js'; // captures the install prompt right at load time
+import { txt, lang, LANGS, setLang } from './i18n.js';
 
 export const session = {
   user: null,
@@ -83,7 +84,7 @@ async function route() {
   };
 
   if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches && !document.hidden) {
-    // Преходът може да се прекъсне (напр. скрит раздел) – съдържанието пак се сменя.
+    // The transition can be interrupted (e.g. hidden tab) – the content still changes.
     const t = document.startViewTransition(swap);
     t.ready.catch(() => {});
     t.finished.catch(() => {});
@@ -97,7 +98,7 @@ function navLink(id, href, label, ico, badge = 0) {
     badge > 0 && h('i', { class: 'nav-badge' }, badge));
 }
 
-// Брой нови заявки за приятелство (значка в менюто).
+// Number of new friend requests (badge in the menu).
 let friendBadge = 0;
 async function refreshBadge() {
   try {
@@ -116,34 +117,45 @@ function renderChrome() {
       brandName(CONFIG.appName),
     ),
     h('nav', { class: 'top-nav' },
-      navLink('home', '/', 'Игри', 'grid'),
-      navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
-      u && navLink('lobby', '/lobby', 'Лоби', 'chat'),
-      u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
-      u && session.isAdmin && navLink('admin', '/admin', 'Админ', 'settings'),
+      navLink('home', '/', txt('Games'), 'grid'),
+      navLink('leaderboard', '/leaderboard', txt('Ranking'), 'trophy'),
+      u && navLink('lobby', '/lobby', txt('Lobby'), 'chat'),
+      u && navLink('friends', '/friends', txt('Friends'), 'users', friendBadge),
+      u && session.isAdmin && navLink('admin', '/admin', txt('Admin'), 'settings'),
     ),
     h('div', { class: 'header-right' },
+      langSwitch(),
       u
         ? [
             h('a', { href: '#/profile', class: 'user-chip' }, avatar(u, 30), h('span', null, u.displayName)),
-            h('button', { class: 'icon-btn', title: 'Изход', 'aria-label': 'Изход', onclick: logout }, icon('logout')),
+            h('button', { class: 'icon-btn', title: txt('Log out'), 'aria-label': txt('Log out'), onclick: logout }, icon('logout')),
           ]
         : [
-            h('a', { href: '#/login', class: 'btn btn-ghost btn-sm' }, 'Вход'),
-            h('a', { href: '#/register', class: 'btn btn-primary btn-sm' }, 'Регистрация'),
+            h('a', { href: '#/login', class: 'btn btn-ghost btn-sm' }, txt('Log in')),
+            h('a', { href: '#/register', class: 'btn btn-primary btn-sm' }, txt('Sign up')),
           ],
     ),
   );
   tabbarEl.replaceChildren(...[
-    navLink('home', '/', 'Игри', 'grid'),
-    navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
-    u && navLink('lobby', '/lobby', 'Лоби', 'chat'),
-    u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
-    navLink('profile', u ? '/profile' : '/login', u ? 'Профил' : 'Вход', 'user'),
+    navLink('home', '/', txt('Games'), 'grid'),
+    navLink('leaderboard', '/leaderboard', txt('Ranking'), 'trophy'),
+    u && navLink('lobby', '/lobby', txt('Lobby'), 'chat'),
+    u && navLink('friends', '/friends', txt('Friends'), 'users', friendBadge),
+    navLink('profile', u ? '/profile' : '/login', u ? txt('Profile') : txt('Log in'), 'user'),
   ].filter(Boolean));
 }
 
-// Връзката „Админ“ се показва само на администраторите (правата се проверяват на сървъра).
+// Language switch (flags); the choice is remembered and the page reloads in that language.
+function langSwitch() {
+  return h('div', { class: 'lang-switch', role: 'group', 'aria-label': txt('Language') },
+    LANGS.map((l) => h('button', {
+      type: 'button', class: l.id === lang ? 'on' : '', title: l.name, 'aria-label': l.name, 'aria-pressed': l.id === lang ? 'true' : 'false',
+      onclick: () => { if (l.id !== lang) setLang(l.id); },
+      html: l.flag,
+    })));
+}
+
+// The "Admin" link is shown only to administrators (the rights are checked on the server).
 async function checkAdmin() {
   const u = session.user;
   const ok = !!u && (await admin.isAdmin());
@@ -156,17 +168,17 @@ async function checkAdmin() {
 async function logout() {
   await store.logout();
   session.setUser(null);
-  toast('Излязохте от профила си.');
+  toast(txt('You have logged out.'));
   navigate('/');
 }
 
-// Първата дума от името е оцветена в акцентния цвят („Evil“ Games).
+// The first word of the name is in the accent colour ("Evil" Games).
 function brandName(name) {
   const [first, ...rest] = name.split(' ');
   return h('span', { class: 'brand-name' }, rest.length ? [h('b', null, first), ' ' + rest.join(' ')] : name);
 }
 
-// Логото: зар с рога.
+// The logo: a die with horns.
 const BRAND_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
   <defs>
     <linearGradient id="bm-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a78"/><stop offset="1" stop-color="#b00020"/></linearGradient>
@@ -193,7 +205,7 @@ async function boot() {
     session.user = await store.getUser();
   } catch (e) {
     console.error(e);
-    toast('Неуспешна връзка със сървъра: ' + e.message, 'error', 6000);
+    toast(txt('Could not connect to the server: ') + e.message, 'error', 6000);
   }
   renderChrome();
   checkAdmin();
@@ -202,24 +214,24 @@ async function boot() {
   refreshBadge();
   await route();
   checkAbandoned(store, session.user);
-  // покани и заявки от приятели – където и да сте в портала
+  // invitations and friend requests – wherever you are on the portal
   social.on(async (e) => {
     if (e.type === 'friend-request') {
-      toast(`${e.fromName} иска да сте приятели.`, 'info', 4000);
+      toast(txt('{0} wants to be friends.', e.fromName), 'info', 4000);
       refreshBadge();
     }
-    if (e.type === 'friend-accept') toast(`${e.fromName} прие поканата за приятелство.`, 'success', 4000);
+    if (e.type === 'friend-accept') toast(txt('{0} accepted the friend request.', e.fromName), 'success', 4000);
     if (e.type === 'match') {
-      // намерен противник в лобито – влизаме направо в стаята
-      toast(`Намерен противник: ${e.fromName}!`, 'success', 4000);
+      // opponent found in the lobby – go straight into the room
+      toast(txt('Opponent found: {0}!', e.fromName), 'success', 4000);
       social.setSeek(null);
       navigate(`/play/${e.game}?room=${e.room}`);
     }
     if (e.type === 'invite') {
       const ok = await modal({
-        title: 'Покана за игра',
-        body: h('p', null, `${e.fromName} ви кани да играете ${e.gameName} онлайн.`),
-        actions: [{ label: 'Откажи', value: false }, { label: 'Приеми', value: true, primary: true }],
+        title: txt('Game invitation'),
+        body: h('p', null, txt('{0} invites you to play {1} online.', e.fromName, e.gameName)),
+        actions: [{ label: txt('Decline'), value: false }, { label: txt('Accept'), value: true, primary: true }],
       });
       if (ok) navigate(`/play/${e.game}?room=${e.room}`);
     }

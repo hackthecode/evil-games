@@ -1,7 +1,7 @@
-// Evil Empires – тактическа битка на ходове върху шестоъгълна карта.
-// Детерминирана: една и съща битка + същите ходове дават един и същ резултат,
-// затова сървърът може да провери битката, като повтори ходовете на играча.
-// Нападателят е страна 'A' (играчът), защитникът – 'D' (компютърът).
+// Evil Empires – turn-based tactical battle on a hex map.
+// Deterministic: the same battle + the same moves give the same result,
+// so the server can verify the battle by replaying the player's moves.
+// The attacker is side 'A' (the player), the defender is 'D' (the computer).
 import { TACTIC, TERRAIN, MOVES, COUNTER, FORMATION } from './data.js';
 import { rng, hashStr } from './battle.js';
 
@@ -25,8 +25,8 @@ const unitAt = (st, q, r) => st.units.find((u) => u.n > 0 && u.q === q && u.r ==
 export const rangeOf = (st, u) => (u.cls === 'ranged' ? 3 + (TERRAIN[terrainAt(st, u.q, u.r)].range || 0) : 1);
 
 /**
- * Нова битка. att/def: групи { key, cls, n, hp, atk, def }; opts: { defMult, defHp, formA, formD }
- * (formA/formD – бойна формация: клас → 'front' | 'back' | 'flank').
+ * A new battle. att/def: groups { key, cls, n, hp, atk, def }; opts: { defMult, defHp, formA, formD }
+ * (formA/formD – battle formation: class → 'front' | 'back' | 'flank').
  */
 export function createBattle(seed, att, def, { defMult = 1, defHp = 1, formA = null, formD = null } = {}) {
   const cols = TACTIC.cols, rows = TACTIC.rows;
@@ -60,7 +60,7 @@ export function createBattle(seed, att, def, { defMult = 1, defHp = 1, formA = n
     const put = (u, pos) => {
       const plan = pos === 'flank' ? [[back, FLANK], [front, FLANK]] : pos === 'back' ? [[back, CENTER], [front, CENTER]] : [[front, CENTER], [back, CENTER]];
       for (const [c, order] of [...plan, [extra, CENTER]]) if (tryCol(u, c, order)) return true;
-      // ако няма място – където и да е в своята половина
+      // if there is no room – anywhere in its own half
       for (let c = 0; c < cols; c++) if ((side === 'A' ? c < cols / 2 : c >= cols / 2) && tryCol(u, c, CENTER)) return true;
       return false;
     };
@@ -77,7 +77,7 @@ export function createBattle(seed, att, def, { defMult = 1, defHp = 1, formA = n
   return st;
 }
 
-// Полета, до които единицата може да стигне този ход: { "q,r": цена }.
+// Tiles the unit can reach this turn: { "q,r": cost }.
 export function reachable(st, u) {
   const out = new Map();
   if (u.moved || u.acted || u.n <= 0) return out;
@@ -89,7 +89,7 @@ export function reachable(st, u) {
     queue.sort((a, b) => a[2] - b[2]);
     const [q, r, c] = queue.shift();
     if (c > (best.get(`${q},${r}`) ?? Infinity)) continue;
-    if ((q !== u.q || r !== u.r) && enemyNear(q, r)) continue; // зона на контрол: спира тук
+    if ((q !== u.q || r !== u.r) && enemyNear(q, r)) continue; // zone of control: stops here
     for (const [a, b] of neighbors(st, q, r)) {
       const cost = c + TERRAIN[terrainAt(st, a, b)].cost;
       if (cost > mp || unitAt(st, a, b)) continue;
@@ -112,7 +112,7 @@ export function targets(st, u) {
 
 const mult = (a, b) => COUNTER[a]?.[b] ?? 1;
 
-// Очакваната сила на удар (без случайност) – за изкуствения интелект и подсказките.
+// The expected strength of a strike (without randomness) – for the AI and the hints.
 export function strike(st, a, t, roll = 1) {
   const ranged = a.cls === 'ranged';
   let power = a.n * a.atk * roll * mult(a.cls, t.cls);
@@ -172,7 +172,7 @@ export function attack(st, id, tid) {
   return true;
 }
 
-// Изкуственият интелект играе всички единици на страната.
+// The AI plays all units of the side.
 export function ai(st, side) {
   const mine = alive(st, side).sort((a, b) => (a.cls === 'ranged' ? -1 : 0) - (b.cls === 'ranged' ? -1 : 0) || (MOVES[b.cls] || 2) - (MOVES[a.cls] || 2) || a.id - b.id);
   for (const u of mine) {
@@ -183,7 +183,7 @@ export function ai(st, side) {
     let tg = targets(st, u);
     if (u.cls === 'ranged' && tg.length) { attack(st, u.id, best(tg).id); continue; }
     if (!(u.cls !== 'ranged' && tg.length)) {
-      // избор на цел: близка и слаба срещу нас, с бонус за контра
+      // choosing a target: close and weak against us, with a bonus for counters
       const goal = foes.slice().sort((x, y) => hexDist(u, x) - 2 * (mult(u.cls, x.cls) > 1) - (hexDist(u, y) - 2 * (mult(u.cls, y.cls) > 1)) || x.id - y.id)[0];
       const reach = reachable(st, u);
       let pick = null, score = Infinity;
@@ -223,7 +223,7 @@ export function autoFinish(st) {
   }
 }
 
-// Ходовете на играча: { m: [id, q, r] }, { a: [id, targetId] }, { end: 1 }, { auto: 1 }.
+// The player's moves: { m: [id, q, r] }, { a: [id, targetId] }, { end: 1 }, { auto: 1 }.
 export function applyMove(st, mv) {
   if (st.over || !mv) return false;
   if (mv.m) return move(st, mv.m[0], mv.m[1], mv.m[2]);
@@ -239,7 +239,7 @@ export function result(st) {
   return { win: st.win || 'def', rounds: st.turn, att: sideOut('A'), def: sideOut('D'), tactical: true };
 }
 
-// Проверка на сървъра: повтаря ходовете; недовършената битка се довършва автоматично.
+// Server-side check: replays the moves; an unfinished battle is finished automatically.
 export function replay(b, moves) {
   const st = createBattle(b.seed, b.att, b.def, b.opts);
   for (const mv of (moves || []).slice(0, 2000)) { if (st.over) break; applyMove(st, mv); }

@@ -1,6 +1,7 @@
-// Администрация: Supabase (функциите от supabase/admin.sql – всяка проверява правата)
-// или локален режим за разработка (localStorage; на localhost всеки е администратор).
+// Administration: Supabase (the functions from supabase/admin.sql – each checks the rights)
+// or local mode for development (localStorage; on localhost everyone is an administrator).
 import { store } from '../store/index.js';
+import { txt } from '../i18n.js';
 
 const ONLINE = store.kind === 'supabase';
 const BANS = 'eg.admin.bans', REPORTS = 'eg.reports', LOBBY = 'eg.lobby.v1', WORLD = 'ee.world.v1';
@@ -9,8 +10,8 @@ const keep = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
 async function rpc(name, args) {
   const { data, error } = await store.client().rpc(name, args);
-  if (error) throw new Error(/admin_|is_admin|reports/.test(error.message) && /not exist|не съществува|schema cache/i.test(error.message)
-    ? 'Таблото още не е включено на сървъра (изпълнете supabase/admin.sql).' : error.message);
+  if (error) throw new Error(/admin_|is_admin|reports/.test(error.message) && /not exist|schema cache/i.test(error.message)
+    ? txt('The dashboard is not enabled on the server yet (run supabase/admin.sql).') : error.message);
   return data;
 }
 
@@ -76,17 +77,17 @@ export const admin = {
 
   async resetWorld(confirm) {
     if (ONLINE) return rpc('admin_reset_world', { p_confirm: confirm });
-    if (confirm !== 'РЕСТАРТ') throw new Error('Напишете РЕСТАРТ за потвърждение.');
+    if (confirm !== 'RESET') throw new Error(txt('Type RESET to confirm.'));
     for (const k of Object.keys(localStorage)) if (k === WORLD || k.startsWith('ee.save.')) localStorage.removeItem(k);
   },
 
-  /** Жалба от играч за съобщение в лобито. */
+  /** A player's report about a lobby message. */
   async report({ messageId, reason, user, body = '', target = null }) {
     reason = String(reason || '').trim().slice(0, 300);
-    if (!reason) throw new Error('Опишете причината.');
+    if (!reason) throw new Error(txt('Describe the reason.'));
     if (ONLINE) {
       const { error } = await store.client().from('reports').insert({ message_id: messageId, reason });
-      if (error) throw new Error(/does not exist|schema cache/i.test(error.message) ? 'Жалбите още не са включени на сървъра.' : error.message);
+      if (error) throw new Error(/does not exist|schema cache/i.test(error.message) ? txt('Reports are not enabled on the server yet.') : error.message);
       return;
     }
     const list = load(REPORTS, []);

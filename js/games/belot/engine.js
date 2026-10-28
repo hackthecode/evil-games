@@ -1,10 +1,11 @@
-// Български белот: правила, анонси, точкуване и AI.
-// Играчи: 0 = Юг (вие), 1 = Изток, 2 = Север (партньор), 3 = Запад. Ход обратно на часовниковата стрелка: 0→1→2→3.
-// Отбори: 0 = играчи 0 и 2, 1 = играчи 1 и 3.
+// Bulgarian belot: rules, declarations, scoring and AI.
+// Players: 0 = South (you), 1 = East, 2 = North (partner), 3 = West. Turns go counter-clockwise: 0→1→2→3.
+// Teams: 0 = players 0 and 2, 1 = players 1 and 3.
+import { tk } from '../../i18n/tk.js';
 
 export const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 export const CONTRACTS = ['C', 'D', 'H', 'S', 'NT', 'AT'];
-export const CONTRACT_NAMES = { C: 'Спатия', D: 'Каро', H: 'Купа', S: 'Пика', NT: 'Без коз', AT: 'Всичко коз' };
+export const CONTRACT_NAMES = { C: tk('Clubs'), D: tk('Diamonds'), H: tk('Hearts'), S: tk('Spades'), NT: tk('No trumps'), AT: tk('All trumps') };
 
 const NT_ORDER = { 7: 0, 8: 1, 9: 2, J: 3, Q: 4, K: 5, 10: 6, A: 7 };
 const TR_ORDER = { 7: 0, 8: 1, Q: 2, K: 3, 10: 4, A: 5, 9: 6, J: 7 };
@@ -21,7 +22,7 @@ export const order = (card, contract) => (isTrump(card, contract) ? TR_ORDER : N
 export const cardPoints = (card, contract) => (contract === 'NT' ? NT_PTS : isTrump(card, contract) ? TR_PTS : NT_PTS)[card.r];
 export const handOrder = (contract) => (c) => order(c, contract) + (isTrump(c, contract) && contract !== 'AT' ? 100 : 0);
 
-// ---------- ръка (взятка) ----------
+// ---------- trick ----------
 export function trickWinner(trick, contract) {
   const led = trick[0].card.s;
   let best = trick[0];
@@ -65,7 +66,7 @@ export function legalCards(hand, trick, contract, me) {
   return hand.slice();
 }
 
-// ---------- анонси ----------
+// ---------- declarations ----------
 export function findDeclarations(hand, contract) {
   if (contract === 'NT') return [];
   const res = [];
@@ -73,7 +74,7 @@ export function findDeclarations(hand, contract) {
   for (const r of ['J', '9', 'A', '10', 'K', 'Q']) {
     const cards = hand.filter((c) => c.r === r);
     if (cards.length === 4) {
-      res.push({ type: 'carre', rank: r, points: r === 'J' ? 200 : r === '9' ? 150 : 100, name: `Каре ${r}` });
+      res.push({ type: 'carre', rank: r, points: r === 'J' ? 200 : r === '9' ? 150 : 100, name: tk('Four of a kind {0}', r) });
       cards.forEach((c) => used.add(c.id));
     }
   }
@@ -88,7 +89,7 @@ export function findDeclarations(hand, contract) {
         res.push({
           type: 'seq', len: take, high: top, suit: s,
           points: take === 3 ? 20 : take === 4 ? 50 : 100,
-          name: take === 3 ? 'Терца' : take === 4 ? 'Кварта' : 'Квинта',
+          name: take === 3 ? tk('Tierce') : take === 4 ? tk('Quarte') : tk('Quint'),
         });
         len -= take;
         top -= take;
@@ -108,7 +109,7 @@ export function findDeclarations(hand, contract) {
 
 const seqKey = (d) => d.len * 10 + d.high;
 
-// Кои анонси се зачитат: последователностите само за отбора с най-високата.
+// Which declarations count: sequences only for the team with the highest one.
 export function resolveDeclarations(declsByPlayer) {
   const pts = [0, 0];
   const bestSeq = [-1, -1];
@@ -125,7 +126,7 @@ export function resolveDeclarations(declsByPlayer) {
   return { pts, seqTeam };
 }
 
-// Белот: при изиграване на дама/поп коз, когато другата карта е в ръката.
+// Belot: when playing the queen/king of trumps while the other card is in the hand.
 export function isBelot(card, hand, trick, contract) {
   if (contract === 'NT' || (card.r !== 'K' && card.r !== 'Q')) return false;
   if (!isTrump(card, contract)) return false;
@@ -134,7 +135,7 @@ export function isBelot(card, hand, trick, contract) {
   return hand.some((c) => c.s === card.s && c.r === other);
 }
 
-// ---------- точкуване ----------
+// ---------- scoring ----------
 const roundGP = (x, contract) => {
   const th = isSuitContract(contract) ? 7 : 5;
   return Math.floor(x / 10) + (x % 10 >= th ? 1 : 0);
@@ -175,7 +176,7 @@ export function scoreDeal({ contract, bidTeam, mult, tricks, declPts, belotPts, 
   }
   const gp = raw.map((x) => roundGP(x, contract));
   if (outcome === 'hanging') newHanging = roundGP(total[bidTeam], contract);
-  // висящи точки от предишното раздаване отиват при победителя в това
+  // hanging points from the previous deal go to the winner of this one
   if (hanging > 0 && outcome !== 'hanging') {
     const w = gp[0] > gp[1] ? 0 : gp[1] > gp[0] ? 1 : -1;
     if (w >= 0) gp[w] += hanging;
@@ -184,7 +185,7 @@ export function scoreDeal({ contract, bidTeam, mult, tricks, declPts, belotPts, 
   return { cardPts, total, gp, outcome, capot, hanging: newHanging };
 }
 
-// ---------- обявяване ----------
+// ---------- bidding ----------
 export function legalBids(bidding, player) {
   const cur = bidding.current; // {contract, player, mult}
   const res = ['pass'];
@@ -197,7 +198,7 @@ export function legalBids(bidding, player) {
   return res;
 }
 
-// Връща true ако обявяването е приключило.
+// Returns true if the bidding is over.
 export function applyBid(bidding, player, bid) {
   bidding.history.push({ player, bid });
   if (bid === 'pass') bidding.passes++;
@@ -280,7 +281,7 @@ export function aiBid(hand, bidding, player, aggression = 1) {
   return 'pass';
 }
 
-// Изчислява дали картата е „най-силната останала“ в боята си.
+// Computes whether the card is the "highest remaining" in its suit.
 function isMaster(card, contract, seen) {
   for (const r of RANKS) {
     const id = r + card.s;
@@ -303,7 +304,7 @@ export function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
   const high = (cards) => cards.slice().sort((a, b) => pts(b) - pts(a) || order(b, contract) - order(a, contract))[0];
 
   if (!trick.length) {
-    // извеждане
+    // leading
     if (isSuitContract(contract) && teamOf(me) === bidTeam) {
       const myTrumps = legal.filter((c) => c.s === contract);
       const outstanding = RANKS.filter((r) => !seen.has(r + contract)).length;
@@ -314,7 +315,7 @@ export function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
     }
     const masters = legal.filter((c) => isMaster(c, contract, seen) && !(trumpLike(c) && teamOf(me) !== bidTeam));
     if (masters.length) return high(masters);
-    // ниска карта от най-дългата некозова боя, без да се извеждат десетки/аса
+    // a low card from the longest non-trump suit, without leading tens/aces
     const nonTrump = legal.filter((c) => !trumpLike(c));
     const pool = nonTrump.length ? nonTrump : legal;
     const bySuit = {};

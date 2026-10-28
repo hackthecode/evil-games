@@ -1,4 +1,4 @@
-// Анимации на карти: полет с дъга и обръщане, събиране на взятка, FLIP на ръката.
+// Card animations: flight along an arc and flipping, collecting a trick, FLIP of the hand.
 import { cardEl } from './cards.js';
 import { motion } from '../../ui.js';
 
@@ -8,7 +8,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-// Сумарен ъгъл на завъртане на елемента и родителите му (ветрило, слотове на масата).
+// The total rotation angle of the element and its parents (fan, table slots).
 export function angleOf(el) {
   let a = 0;
   for (let e = el, i = 0; e && i < 3; e = e.parentElement, i++) {
@@ -21,7 +21,7 @@ export function angleOf(el) {
   return a;
 }
 
-// Позиция (център), размер и ъгъл на карта на екрана.
+// Position (centre), size and angle of a card on the screen.
 export function snap(el) {
   const r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: el.offsetWidth, a: angleOf(el) };
@@ -44,10 +44,10 @@ function ghost(card) {
 }
 
 /**
- * Полет на карта от `from` (snap) до `to` (функция, връщаща целевия елемент, или snap).
- * Целевият елемент е скрит, докато картата лети, и се показва при кацане.
- * card: обект карта или елемент за клониране; faceFrom/faceTo: лице нагоре в началото/края.
- * via: междинна точка (snap) – картата първо отива там, после към целта.
+ * Flight of a card from `from` (snap) to `to` (a function returning the target element, or a snap).
+ * The target element is hidden while the card flies and shown on landing.
+ * card: a card object or an element to clone; faceFrom/faceTo: face up at the start/end.
+ * via: an intermediate point (snap) – the card goes there first, then to the target.
  */
 export function fly({
   card = null, from, to, faceFrom = !!card, faceTo = !!card, duration = 420, delay = 0,
@@ -118,15 +118,15 @@ export function fly({
   });
 }
 
-// Леко „тупване“ при кацане на карта на масата.
+// A light "thud" when a card lands on the table.
 export function land(el) {
   if (reduced()) return;
   el.animate([{ transform: 'scale(1.07)' }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.3,.7,.4,1)' });
 }
 
 /**
- * Събира картите от масата: първо се подреждат върху печелившата, после
- * отлитат към спечелилия, като се обръщат с гръб.
+ * Collects the cards from the table: first they stack on the winning card, then
+ * fly to the winner, turning face down.
  */
 export function collectTrick(cardEls, winnerEl, targetEl, { duration = 680 } = {}) {
   if (!cardEls.length) return Promise.resolve();
@@ -142,7 +142,7 @@ export function collectTrick(cardEls, winnerEl, targetEl, { duration = 680 } = {
   })));
 }
 
-// Плавно пренареждане на ръката (FLIP): render() прерисува съдържанието на container.
+// Smooth rearranging of the hand (FLIP): render() redraws the contents of container.
 export function flipHand(container, render) {
   const before = new Map();
   for (const e of container.children) {
@@ -164,7 +164,7 @@ export function flipHand(container, render) {
   }
 }
 
-// Тесте на масата, от което се раздава (с анимация за разбъркване).
+// The deck on the table that is dealt from (with a shuffle animation).
 export function deckEl(n) {
   const d = document.createElement('div');
   d.className = 'deal-deck';

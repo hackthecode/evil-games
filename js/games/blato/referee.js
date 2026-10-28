@@ -1,4 +1,4 @@
-// Блато за сървъра-съдия: ръцете, блатото и разменените карти са тайни.
+// Blato for the referee server: the hands, the swamp and the exchanged cards are secret.
 import { makeDeck, shuffle, sortHand } from '../cards/cards.js';
 import { seededRng } from '../../net/rng.js';
 import {
@@ -60,7 +60,7 @@ export default {
       const back = returnCards(h.hands[to], give);
       h.hands[to] = [...h.hands[to], ...give].filter((c) => !back.includes(c));
       h.hands[from].push(...back);
-      // всеки участник вижда какво е дал и какво е получил
+      // each participant sees what they gave and what they received
       h.exchanged[from].push({ with: to, gave: give, got: back });
       h.exchanged[to].push({ with: from, gave: back, got: give });
       h.pi++;

@@ -1,4 +1,4 @@
-// Всички тестове – редът е от по-бързите към по-бавните.
+// All tests – ordered from the faster to the slower ones.
 import './empires-data.test.js';
 import './empires-engine.test.js';
 import './empires-tactics.test.js';

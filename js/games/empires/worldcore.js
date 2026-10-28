@@ -1,13 +1,14 @@
-// Evil Empires – общият свят като документ: играчи, съюзи, чат, подкрепления, оазиси,
-// нападения между играчи. Едни и същи функции работят в браузъра (localStorage)
-// и на сървъра (Supabase); тук няма достъп до хранилище – само до документа.
+// Evil Empires – the shared world as a document: players, alliances, chat, reinforcements, oases,
+// attacks between players. The same functions run in the browser (localStorage)
+// and on the server (Supabase); there is no storage access here – only the document.
 import { npcList, homeStart, findSpot, dist } from './worldgen.js';
+import { tk } from '../../i18n/tk.js';
 
 export function freshWorld(seed = (Math.random() * 2 ** 31) >>> 0, created = Date.now()) {
   return { v: 1, seed, created, players: {}, alliances: {}, incoming: {}, results: {}, stationed: [], oases: {}, npc: {} };
 }
 
-// Място за столицата на нов играч.
+// A spot for a new player's capital.
 export function allocateHomeIn(w, uid) {
   if (w.players[uid]?.cities?.[0]) return { x: w.players[uid].cities[0].x, y: w.players[uid].cities[0].y, seed: w.seed };
   const npcs = npcList(w.seed);
@@ -18,7 +19,7 @@ export function allocateHomeIn(w, uid) {
   return { ...spot, seed: w.seed };
 }
 
-// Какво вижда играчът от света: без ресурсите и войската на другите (те се научават с разузнаване).
+// What a player sees of the world: without the resources and troops of others (those are learned by scouting).
 export function buildView(w, uid) {
   const me = w.players[uid];
   const myAlliance = me?.alliance;
@@ -35,7 +36,7 @@ export function buildView(w, uid) {
   }
   const results = {};
   for (const [id, r] of Object.entries(w.results)) if (id.startsWith(`${uid}:`)) results[id] = r;
-  // лични съобщения: само разговорите на играча
+  // private messages: only the player's own conversations
   const dms = {};
   for (const [k, list] of Object.entries(w.dms || {})) if (k.split('|').includes(uid)) dms[k] = list;
   return {
@@ -46,8 +47,8 @@ export function buildView(w, uid) {
 }
 
 /**
- * Интерфейсът към света, който ползва логиката (env.world) и интерфейсът.
- * store: { get() → документ, mutate(fn) → резултатът на fn(документ) }.
+ * The world interface used by the game logic (env.world) and the UI.
+ * store: { get() → document, mutate(fn) → the result of fn(document) }.
  */
 export function makeWorld(store, uid) {
   const W = () => store.get();
@@ -58,7 +59,7 @@ export function makeWorld(store, uid) {
     get created() { return W().created; },
     raw: W,
 
-    // ----- играчи -----
+    // ----- players -----
     player: (id) => W().players[id] || null,
     players: () => Object.values(W().players),
     publish(snap) {
@@ -88,20 +89,20 @@ export function makeWorld(store, uid) {
       return null;
     },
 
-    // ----- нападения между играчи -----
+    // ----- attacks between players -----
     incomingFor: (id) => W().incoming[id] || [],
     sendIncoming(rec) { mut((w) => { (w.incoming[rec.toUid] ||= []).push(rec); }); },
     removeIncoming(id, recId) { mut((w) => { w.incoming[id] = (w.incoming[id] || []).filter((x) => x.id !== recId); }); },
     putResult(id, res) { mut((w) => { w.results[id] = res; }); },
     result: (id) => W().results[id] || null,
     clearResult(id) { mut((w) => { delete w.results[id]; }); },
-    // изходът на тактическа битка срещу играч (нападателят го праща, защитникът го прилага)
+    // the outcome of a tactical battle against a player (the attacker sends it, the defender applies it)
     putOutcome(id, r) { mut((w) => { w.results[`o:${id}`] = r; }); },
     outcome: (id) => W().results[`o:${id}`] || null,
     clearOutcome(id) { mut((w) => { delete w.results[`o:${id}`]; }); },
     resolveOffline: null,
 
-    // ----- подкрепления -----
+    // ----- reinforcements -----
     stationedAt: (toUid, cityId) => W().stationed.filter((x) => x.toUid === toUid && x.toCity === cityId),
     stationedFrom: (fromUid) => W().stationed.filter((x) => x.fromUid === fromUid),
     stationedById: (id) => W().stationed.find((x) => x.id === id) || null,
@@ -123,12 +124,12 @@ export function makeWorld(store, uid) {
     sendBackStationed(id) {
       mut((w) => {
         const st = w.stationed.find((x) => x.id === id);
-        if (!st || (st.toUid !== uid && st.fromUid !== uid)) fail('Няма такива подкрепления.');
+        if (!st || (st.toUid !== uid && st.fromUid !== uid)) fail(tk('No such reinforcements.'));
         st.sendBack = true;
       });
     },
 
-    // ----- империи на компютъра -----
+    // ----- computer empires -----
     npcState: (id) => W().npc[id] || null,
     hitNpc(id, { lost = 0, plunder = 0, t, wallDmg = 0, loyalty, owner }) {
       mut((w) => {
@@ -142,11 +143,11 @@ export function makeWorld(store, uid) {
       });
     },
 
-    // ----- оазиси -----
+    // ----- oases -----
     oasisOwner: (key) => W().oases[key] || null,
     setOasisOwner(key, ownerUid, name) { mut((w) => { if (ownerUid) w.oases[key] = { uid: ownerUid, name }; else delete w.oases[key]; }); },
 
-    // ----- съюзи -----
+    // ----- alliances -----
     allianceOf: (id) => { const a = W().players[id]?.alliance; return a ? W().alliances[a] || null : null; },
     alliances: () => Object.values(W().alliances),
     relation(a, b) {
@@ -161,12 +162,12 @@ export function makeWorld(store, uid) {
     createAlliance(name, tag, embassy) {
       name = String(name || '').trim().slice(0, 28);
       tag = String(tag || '').trim().toUpperCase().slice(0, 4);
-      if (name.length < 3 || tag.length < 2) fail('Име (3+ букви) и таг (2–4 знака).');
-      if (embassy != null && embassy < 3) fail('Нужно е Посолство ниво 3.');
+      if (name.length < 3 || tag.length < 2) fail(tk('Name (3+ letters) and tag (2–4 characters).'));
+      if (embassy != null && embassy < 3) fail(tk('Embassy level 3 required.'));
       return mut((w) => {
-        if (!w.players[uid]) fail('Империята ви още не е в света.');
-        if (w.players[uid].alliance) fail('Вече сте в съюз.');
-        if (Object.values(w.alliances).some((a) => a.tag.toLowerCase() === tag.toLowerCase())) fail('Този таг е зает.');
+        if (!w.players[uid]) fail(tk('Your empire is not in the world yet.'));
+        if (w.players[uid].alliance) fail(tk('You are already in an alliance.'));
+        if (Object.values(w.alliances).some((a) => a.tag.toLowerCase() === tag.toLowerCase())) fail(tk('This tag is taken.'));
         const id = 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1000);
         w.alliances[id] = { id, name, tag, leader: uid, members: [uid], invites: [], chat: [], diplomacy: {}, created: Date.now() };
         w.players[uid].alliance = id;
@@ -176,22 +177,22 @@ export function makeWorld(store, uid) {
     invite(targetUid) {
       mut((w) => {
         const a = w.alliances[w.players[uid]?.alliance];
-        if (!a) fail('Не сте в съюз.');
-        if (!w.players[targetUid]) fail('Няма такъв играч.');
-        if (w.players[targetUid].alliance) fail('Играчът вече е в съюз.');
+        if (!a) fail(tk('You are not in an alliance.'));
+        if (!w.players[targetUid]) fail(tk('No such player.'));
+        if (w.players[targetUid].alliance) fail(tk('The player is already in an alliance.'));
         if (!a.invites.includes(targetUid)) a.invites.push(targetUid);
       });
     },
     acceptInvite(aid, maxMembers) {
       mut((w) => {
         const a = w.alliances[aid];
-        if (!a || !a.invites.includes(uid)) fail('Поканата вече не е валидна.');
-        if (w.players[uid]?.alliance) fail('Вече сте в съюз.');
-        if (a.members.length >= maxMembers) fail('Съюзът е пълен.');
+        if (!a || !a.invites.includes(uid)) fail(tk('The invitation is no longer valid.'));
+        if (w.players[uid]?.alliance) fail(tk('You are already in an alliance.'));
+        if (a.members.length >= maxMembers) fail(tk('The alliance is full.'));
         a.invites = a.invites.filter((x) => x !== uid);
         a.members.push(uid);
         w.players[uid].alliance = aid;
-        a.chat.push({ sys: true, text: `${w.players[uid].name} се присъедини към съюза.`, t: Date.now() });
+        a.chat.push({ sys: true, text: tk('{0} joined the alliance.', w.players[uid].name), t: Date.now() });
       });
     },
     declineInvite(aid) { mut((w) => { const a = w.alliances[aid]; if (a) a.invites = a.invites.filter((x) => x !== uid); }); },
@@ -202,7 +203,7 @@ export function makeWorld(store, uid) {
         if (!a) return;
         a.members = a.members.filter((x) => x !== uid);
         w.players[uid].alliance = null;
-        a.chat.push({ sys: true, text: `${w.players[uid].name} напусна съюза.`, t: Date.now() });
+        a.chat.push({ sys: true, text: tk('{0} left the alliance.', w.players[uid].name), t: Date.now() });
         for (const st of w.stationed) if ((st.fromUid === uid && a.members.includes(st.toUid)) || (st.toUid === uid && a.members.includes(st.fromUid))) st.sendBack = true;
         if (!a.members.length) delete w.alliances[aid];
         else if (a.leader === uid) a.leader = a.members[0];
@@ -211,39 +212,39 @@ export function makeWorld(store, uid) {
     kick(targetUid) {
       mut((w) => {
         const a = w.alliances[w.players[uid]?.alliance];
-        if (!a || a.leader !== uid) fail('Само водачът може да изключва.');
-        if (targetUid === uid || !a.members.includes(targetUid)) fail('Няма такъв член.');
+        if (!a || a.leader !== uid) fail(tk('Only the leader can kick members.'));
+        if (targetUid === uid || !a.members.includes(targetUid)) fail(tk('No such member.'));
         a.members = a.members.filter((x) => x !== targetUid);
         if (w.players[targetUid]) w.players[targetUid].alliance = null;
-        a.chat.push({ sys: true, text: `${w.players[targetUid]?.name || 'Играч'} беше изключен.`, t: Date.now() });
+        a.chat.push({ sys: true, text: tk('{0} was kicked.', w.players[targetUid]?.name || tk('Player')), t: Date.now() });
         for (const st of w.stationed) if ((st.fromUid === targetUid && a.members.includes(st.toUid)) || (st.toUid === targetUid && a.members.includes(st.fromUid))) st.sendBack = true;
       });
     },
     setRelation(otherId, rel) {
-      if (rel && !['ally', 'pact', 'war'].includes(rel)) fail('Невалидно отношение.');
+      if (rel && !['ally', 'pact', 'war'].includes(rel)) fail(tk('Invalid relation.'));
       mut((w) => {
         const a = w.alliances[w.players[uid]?.alliance];
-        if (!a || a.leader !== uid) fail('Само водачът определя дипломацията.');
+        if (!a || a.leader !== uid) fail(tk('Only the leader sets the diplomacy.'));
         const o = w.alliances[otherId];
-        if (!o || o.id === a.id) fail('Няма такъв съюз.');
+        if (!o || o.id === a.id) fail(tk('No such alliance.'));
         if (rel) a.diplomacy[otherId] = rel; else delete a.diplomacy[otherId];
-        // съюз и пакт са взаимни; войната е едностранна
+        // alliance and pact are mutual; war is one-sided
         if (rel === 'ally' || rel === 'pact') o.diplomacy[a.id] = rel;
         else if (o.diplomacy[a.id] === 'ally' || o.diplomacy[a.id] === 'pact') delete o.diplomacy[a.id];
-        a.chat.push({ sys: true, text: `Дипломация с [${o.tag}]: ${{ ally: 'съюзници', pact: 'пакт за ненападение', war: 'война' }[rel] || 'неутрални'}.`, t: Date.now() });
+        a.chat.push({ sys: true, text: tk('Diplomacy with [{0}]: {1}.', o.tag, { ally: tk('allies'), pact: tk('non-aggression pact'), war: tk('war') }[rel] || tk('neutral')), t: Date.now() });
       });
     },
-    // Лично съобщение до друг владетел (пазят се последните 60 във всеки разговор).
+    // A private message to another ruler (the last 60 in each conversation are kept).
     dm(toUid, text) {
       text = String(text || '').trim().slice(0, 400);
       toUid = String(toUid || '');
       if (!text) return;
       mut((w) => {
-        if (!w.players[toUid] || toUid === uid) fail('Няма такъв владетел.');
+        if (!w.players[toUid] || toUid === uid) fail(tk('No such ruler.'));
         const k = dmKey(uid, toUid);
         w.dms ||= {};
         const list = (w.dms[k] ||= []);
-        list.push({ uid, name: w.players[uid]?.name || 'Владетел', text, t: Date.now() });
+        list.push({ uid, name: w.players[uid]?.name || tk('Ruler'), text, t: Date.now() });
         if (list.length > 60) list.splice(0, list.length - 60);
       });
     },
@@ -253,7 +254,7 @@ export function makeWorld(store, uid) {
       if (!text) return;
       mut((w) => {
         const a = w.alliances[w.players[uid]?.alliance];
-        if (!a) fail('Не сте в съюз.');
+        if (!a) fail(tk('You are not in an alliance.'));
         a.chat.push({ uid, name: w.players[uid].name, text, t: Date.now() });
         if (a.chat.length > 200) a.chat.splice(0, a.chat.length - 200);
       });
@@ -261,7 +262,7 @@ export function makeWorld(store, uid) {
   };
 }
 
-// Действията със съюзи, които играчът може да поиска (и през сървъра).
+// Alliance actions the player may request (also through the server).
 export const WORLD_OPS = ['createAlliance', 'invite', 'acceptInvite', 'declineInvite', 'leave', 'kick', 'setRelation', 'say', 'dm', 'sendBackStationed'];
 
 export const dmKey = (a, b) => [a, b].sort().join('|');

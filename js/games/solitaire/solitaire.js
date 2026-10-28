@@ -7,8 +7,9 @@ import {
   RANKS, newGame, applyMove, drawCards, canMove, picked, smartTarget, hints, isWon,
   canAutoFinish, autoStep, foundCount, top,
 } from './engine.js';
+import { txt } from '../../i18n.js';
 
-const DRAW_NAMES = { 1: 'По 1 карта', 3: 'По 3 карти' };
+const DRAW_NAMES = { 1: txt('1 card'), 3: txt('3 cards') };
 
 export async function mount(root, ctx) {
   const online = ctx.online || null;
@@ -21,9 +22,9 @@ export async function mount(root, ctx) {
     if (online) return (game = play(online, Number(online.opts.draw) || 1));
     const opts = await setupScreen(root, {
       gameId: 'solitaire',
-      title: 'Пасианс „Клондайк“',
-      subtitle: 'Подредете всички карти по бои от асо до поп.',
-      groups: [{ key: 'draw', label: 'Теглене от тестето', value: 1, options: Object.entries(DRAW_NAMES) }],
+      title: txt('Klondike Solitaire'),
+      subtitle: txt('Sort all the cards by suit from ace to king.'),
+      groups: [{ key: 'draw', label: txt('Drawing from the stock'), value: 1, options: Object.entries(DRAW_NAMES) }],
     });
     if (!destroyed) game = play(offlineNet([ctx.user.displayName]), Number(opts.draw));
   };
@@ -35,20 +36,20 @@ export async function mount(root, ctx) {
     let history = [];
     let over = false;
     let startedAt = st.moves ? Date.now() - (st.elapsed || 0) : 0;
-    const rivals = new Map(); // онлайн: място → { n, out }
+    const rivals = new Map(); // online: seat → { n, out }
     let lastSent = -1;
 
     // ---------- DOM ----------
     const board = h('div', { class: 'sol-board' });
-    const movesEl = h('span', null, '0 хода');
+    const movesEl = h('span', null, txt('0 moves'));
     const timeEl = h('span', null, '00:00');
     const rivalsEl = h('div', { class: 'sol-rivals' });
-    const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), 'Върни');
-    const hintBtn = h('button', { class: 'btn', onclick: showHint }, '💡', 'Подсказка');
-    const autoBtn = h('button', { class: 'btn btn-primary', onclick: autoFinish, style: { display: 'none' } }, icon('bolt', 16), 'Довърши');
+    const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), txt('Undo'));
+    const hintBtn = h('button', { class: 'btn', onclick: showHint }, '💡', txt('Hint'));
+    const autoBtn = h('button', { class: 'btn btn-primary', onclick: autoFinish, style: { display: 'none' } }, icon('bolt', 16), txt('Finish'));
     const endBtn = online
-      ? h('button', { class: 'btn btn-danger', onclick: giveUp }, icon('flag', 16), 'Откажи се')
-      : h('button', { class: 'btn', onclick: newDeal }, icon('refresh', 16), 'Нова игра');
+      ? h('button', { class: 'btn btn-danger', onclick: giveUp }, icon('flag', 16), txt('Give up'))
+      : h('button', { class: 'btn', onclick: newDeal }, icon('refresh', 16), txt('New game'));
     root.replaceChildren(h('div', { class: 'sol-layout' },
       board,
       online && rivalsEl,
@@ -59,7 +60,7 @@ export async function mount(root, ctx) {
       ),
     ));
 
-    // Празни места: тесте, основи, колони.
+    // Empty places: stock, foundations, columns.
     const slots = {
       stock: h('div', { class: 'sol-slot stock' }, h('span', null, '↻')),
       found: [0, 1, 2, 3].map(() => h('div', { class: 'sol-slot found' }, h('span', null, 'A'))),
@@ -67,9 +68,9 @@ export async function mount(root, ctx) {
     };
     board.append(slots.stock, ...slots.found, ...slots.tab);
 
-    // Всяка карта е постоянен елемент с лице и гръб – местенето и обръщането са плавни.
+    // Every card is a permanent element with a face and a back – moving and flipping are smooth.
     const els = new Map();
-    const where = new Map(); // id → място { t, i, k }
+    const where = new Map(); // id → place { t, i, k }
     for (const c of allCards()) {
       const inner = h('div', { class: 'sc-in' }, cardEl(c), cardEl(null, { faceDown: true }));
       const el = h('div', { class: 'sc', 'data-id': c.id }, inner);
@@ -81,7 +82,7 @@ export async function mount(root, ctx) {
       return [...st.stock, ...st.waste, ...st.found.flat(), ...st.tab.flat()];
     }
 
-    // ---------- геометрия ----------
+    // ---------- geometry ----------
     let G = {};
     function measure() {
       const W = board.clientWidth, H = board.clientHeight;
@@ -104,13 +105,13 @@ export async function mount(root, ctx) {
       st.stock.forEach((c, k) => put(c, colX(0) - Math.min(k, 20) * 0.15, G.pad - Math.min(k, 20) * 0.15, 1 + k, { t: 'stock' }));
       const fan = st.waste.length;
       st.waste.forEach((c, k) => {
-        const j = Math.max(0, k - (fan - Math.min(draw, 3))); // видими са последните 1–3 карти
+        const j = Math.max(0, k - (fan - Math.min(draw, 3))); // the last 1–3 cards are visible
         const x = colX(1) + (draw > 1 ? j * G.cw * 0.24 : 0);
         put(c, x, G.pad, 100 + k, { t: 'waste' });
       });
       st.found.forEach((f, i) => f.forEach((c, k) => put(c, colX(3 + i), G.pad, 200 + k, { t: 'found', i })));
       st.tab.forEach((p, i) => {
-        // разстоянията се свиват, ако колоната е твърде дълга за екрана
+        // the spacing shrinks if the column is too long for the screen
         const down = p.filter((c) => !c.up).length;
         const upN = p.length - down;
         const avail = G.H - G.tabY - G.ch - G.pad;
@@ -146,7 +147,7 @@ export async function mount(root, ctx) {
         el.classList.toggle('down', !p.up);
         el.classList.toggle('no-anim', !animate);
         el.style.transform = `translate(${p.x}px, ${p.y}px)`;
-        // преместената карта лети над останалите и после заема мястото си
+        // the moved card flies above the others and then takes its place
         if (animate && old && (Math.abs(old.x - p.x) > 1 || Math.abs(old.y - p.y) > 1)) {
           el.style.zIndex = 1000 + p.z;
           clearTimeout(el._z);
@@ -155,14 +156,14 @@ export async function mount(root, ctx) {
       }
       prev = pos;
       if (!animate) requestAnimationFrame(() => els.forEach((el) => el.classList.remove('no-anim')));
-      movesEl.textContent = `${st.moves} ${st.moves === 1 ? 'ход' : 'хода'}`;
+      movesEl.textContent = `${st.moves} ${st.moves === 1 ? txt('move') : txt('moves')}`;
       undoBtn.disabled = over || !history.length;
       hintBtn.disabled = over;
       autoBtn.style.display = over || !canAutoFinish(st) ? 'none' : '';
       endBtn.disabled = over && !!online;
     }
 
-    // ---------- ходове ----------
+    // ---------- moves ----------
     function commit(next, snd = 'card') {
       history.push(st);
       if (history.length > 300) history.shift();
@@ -201,8 +202,8 @@ export async function mount(root, ctx) {
         mark(dest ? els.get(dest.id) : to.t === 'found' ? slots.found[to.i] : slots.tab[to.i]);
       } else if (st.stock.length || st.waste.length) {
         mark(st.stock.length ? els.get(top(st.stock).id) : slots.stock);
-        toast('Теглете от тестето.');
-      } else toast('Няма повече полезни ходове.');
+        toast(txt('Draw from the stock.'));
+      } else toast(txt('No more useful moves.'));
     }
 
     async function autoFinish() {
@@ -217,7 +218,7 @@ export async function mount(root, ctx) {
       }
     }
 
-    // ---------- докосване и влачене ----------
+    // ---------- tap and drag ----------
     let drag = null;
     board.addEventListener('pointerdown', (e) => {
       if (over || e.button > 0) return;
@@ -279,7 +280,7 @@ export async function mount(root, ctx) {
       return { t: 'tab', i: col };
     }
 
-    // ---------- край ----------
+    // ---------- end ----------
     async function win() {
       over = true;
       clearInterval(timer);
@@ -288,19 +289,19 @@ export async function mount(root, ctx) {
       const time = fmtClock(Date.now() - startedAt);
       cascade();
       if (online) {
-        net.claim('solved'); // събитието завършва състезанието за всички
+        net.claim('solved'); // the event ends the race for everyone
         return;
       }
       clearSave();
-      await ctx.report('win', { summary: `Наредена за ${time} · ${st.moves} хода · ${DRAW_NAMES[draw]}` });
+      await ctx.report('win', { summary: txt('Solved in {0} · {1} moves · {2}', time, st.moves, DRAW_NAMES[draw]) });
       await new Promise((r) => setTimeout(r, 1600));
       if (destroyed) return;
-      const c = await showResult({ outcome: 'win', title: 'Наредено!', text: `Време ${time}, ${st.moves} хода.` });
+      const c = await showResult({ outcome: 'win', title: txt('Solved!'), text: txt('Time {0}, {1} moves.', time, st.moves) });
       if (c === 'again') start();
       else if (c === 'exit') location.hash = '#/';
     }
 
-    // Победна анимация: картите падат от основите с отскок.
+    // Victory animation: the cards fall from the foundations with a bounce.
     function cascade() {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const cards = st.found.flatMap((f) => [...f].reverse());
@@ -322,7 +323,7 @@ export async function mount(root, ctx) {
 
     let reported = false;
     async function endMatch(outcome, text) {
-      if (reported) return; // напр. отказах се, а после друг нареди пръв
+      if (reported) return; // e.g. I gave up, and then someone else finished first
       reported = true;
       over = true;
       clearInterval(timer);
@@ -330,21 +331,21 @@ export async function mount(root, ctx) {
       clearSave();
       net.finish();
       await ctx.report(outcome, online
-        ? { summary: `Онлайн състезание · ${foundCount(st)}/52 карти · ${DRAW_NAMES[draw]}`, online: true }
-        : { summary: `Отказан · ${foundCount(st)}/52 карти · ${DRAW_NAMES[draw]}` });
+        ? { summary: txt('Online race · {0}/52 cards · {1}', foundCount(st), DRAW_NAMES[draw]), online: true }
+        : { summary: txt('Gave up · {0}/52 cards · {1}', foundCount(st), DRAW_NAMES[draw]) });
       if (destroyed || !text) return;
       if (outcome === 'win') await new Promise((r) => setTimeout(r, 1600));
-      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text, again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? net.rematch() : start();
       else if (c === 'exit') location.hash = online ? '#/online/solitaire' : '#/';
     }
 
     async function newDeal() {
       if (st.moves > 0 && !over) {
-        if (!(await confirmDialog('Нова игра', 'Текущата игра ще се отчете като загуба. Продължаване?'))) return;
+        if (!(await confirmDialog(txt('New game'), txt('The current game will count as a loss. Continue?')))) return;
         over = true;
         clearSave();
-        await ctx.report('loss', { summary: `Отказан · ${foundCount(st)}/52 карти · ${DRAW_NAMES[draw]}` });
+        await ctx.report('loss', { summary: txt('Gave up · {0}/52 cards · {1}', foundCount(st), DRAW_NAMES[draw]) });
       }
       clearSave();
       start();
@@ -352,11 +353,11 @@ export async function mount(root, ctx) {
 
     async function giveUp() {
       if (over) return;
-      if (!(await confirmDialog('Отказване', 'Ще загубите състезанието. Продължаване?', 'Откажи се', true))) return;
+      if (!(await confirmDialog(txt('Giving up'), txt('You will lose the race. Continue?'), txt('Give up'), true))) return;
       net.resign();
     }
 
-    // ---------- онлайн състезание ----------
+    // ---------- online race ----------
     function progress() {
       const n = foundCount(st);
       if (!online || n === lastSent) return;
@@ -369,7 +370,7 @@ export async function mount(root, ctx) {
         return h('div', { class: `sol-rival ${r.out ? 'out' : ''}` },
           h('b', null, net.name(i)),
           h('div', { class: 'sol-prog' }, h('i', { style: { width: `${(r.n / 52) * 100}%` } })),
-          h('span', null, r.out ? 'отказа се' : `${r.n}/52`));
+          h('span', null, r.out ? txt('gave up') : `${r.n}/52`));
       }));
     }
     const offSignal = net.onSignal((e) => {
@@ -379,22 +380,22 @@ export async function mount(root, ctx) {
       if (e.data?.kind === 'gaveup') r.out = true;
       rivals.set(e.seat, r);
       renderRivals();
-      // всички останали се отказаха → печелите
+      // all the others gave up → you win
       const others = net.humanSeats().filter((i) => i !== net.seat);
       if (!over && others.length && others.every((i) => rivals.get(i)?.out)) net.claim('last');
     });
     const offEvents = net.onEvent((e) => {
       if (destroyed) return;
-      if (e.kind === 'resign' && e.seat === net.seat) endMatch('loss', 'Отказахте се от състезанието.');
+      if (e.kind === 'resign' && e.seat === net.seat) endMatch('loss', txt('You gave up the race.'));
       else if (e.kind === 'forfeit') {
         const me = e.winner === net.seat;
         endMatch(me ? 'win' : 'loss', me
-          ? (e.reason === 'last' ? 'Всички други се отказаха – печелите!' : `Наредихте пръв! Време ${fmtClock(Date.now() - startedAt)}.`)
-          : `${net.name(e.winner)} нареди пасианса пръв.`);
+          ? (e.reason === 'last' ? txt('All the others gave up – you win!') : txt('You finished first! Time {0}.', fmtClock(Date.now() - startedAt)))
+          : txt('{0} solved the solitaire first.', net.name(e.winner)));
       }
     });
 
-    // ---------- запазване (оцелява презареждане) ----------
+    // ---------- saving (survives a reload) ----------
     function save() {
       try { sessionStorage.setItem(saveKey, JSON.stringify({ ...st, elapsed: startedAt ? Date.now() - startedAt : 0 })); } catch {}
     }

@@ -1,12 +1,13 @@
-// Канали за реално време: съобщения (broadcast) и кой е на линия (presence).
-// - Supabase Realtime, когато порталът е с онлайн акаунти.
-// - BroadcastChannel в локален режим: работи само между раздели на същия браузър
-//   (за тестове на компютъра, без сървър).
+// Real-time channels: messages (broadcast) and who is online (presence).
+// - Supabase Realtime when the portal uses online accounts.
+// - BroadcastChannel in local mode: works only between tabs of the same browser
+//   (for tests on the computer, without a server).
 import { store } from '../store/index.js';
+import { txt } from '../i18n.js';
 
 /**
- * Отваря канал. onMessage(msg) за всяко чуждо съобщение, onPresence(Map uid → state)
- * при промяна на присъстващите. Връща { send(msg), track(state), leave() }.
+ * Opens a channel. onMessage(msg) for every foreign message, onPresence(Map uid → state)
+ * when those present change. Returns { send(msg), track(state), leave() }.
  */
 export async function openChannel(name, { uid, state, onMessage, onPresence }) {
   return store.kind === 'supabase'
@@ -27,14 +28,14 @@ async function openSupabase(name, { uid, state, onMessage, onPresence }) {
   ch.on('broadcast', { event: 'm' }, ({ payload }) => onMessage(payload));
   ch.on('presence', { event: 'sync' }, () => onPresence(presence()));
   await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Няма връзка със сървъра.')), 15000);
+    const timer = setTimeout(() => reject(new Error(txt('No connection to the server.'))), 15000);
     ch.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         clearTimeout(timer);
         resolve();
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         clearTimeout(timer);
-        reject(new Error('Връзката със сървъра прекъсна.'));
+        reject(new Error(txt('The connection to the server was lost.')));
       }
     });
   });
@@ -46,8 +47,8 @@ async function openSupabase(name, { uid, state, onMessage, onPresence }) {
   };
 }
 
-// Локален вариант: присъствието се поддържа с периодичен „пулс“.
-// (фоновите раздели забавят таймерите, затова изтичането е с голям запас)
+// Local variant: presence is maintained with a periodic "heartbeat".
+// (background tabs slow down timers, so the expiry has a large margin)
 const BEAT_MS = 3000, EXPIRE_MS = 20000;
 
 async function openLocal(name, { uid, state, onMessage, onPresence }) {

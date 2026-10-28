@@ -1,12 +1,13 @@
-// Evil Empires – екранът на тактическата битка. Играчът води нападателите ('A'),
-// компютърът – защитниците. Връща списъка с ходовете (сървърът ги проверява).
+// Evil Empires – the tactical battle screen. The player leads the attackers ('A'),
+// the computer the defenders. Returns the list of moves (the server verifies them).
 import { h } from '../../ui.js';
 import * as T from './tactics.js';
 import { unitIcon } from './art.js';
 import { TERRAIN, TACTIC, CLS_NAMES } from './data.js';
 import { battleSound } from './audio.js';
+import { txt } from '../../i18n.js';
 
-const S = 30; // радиус на шестоъгълника
+const S = 30; // hexagon radius
 const W = S * Math.sqrt(3);
 const PAD = 8;
 const pos = (q, r) => [PAD + W / 2 + W * (q + 0.5 * (r & 1)), PAD + S + 1.5 * S * r];
@@ -25,8 +26,8 @@ function terrainDeco(kind, x, y) {
 }
 
 /**
- * battle: { seed, att, def, opts } (от похода); names: (side, key) → име; colors: { A, D }.
- * saved: вече изиграни ходове (за продължение). Връща Promise<moves | null> (null – „по-късно“).
+ * battle: { seed, att, def, opts } (from the march); names: (side, key) → name; colors: { A, D }.
+ * saved: moves already played (to continue). Returns Promise<moves | null> (null – "later").
  */
 export function openTactical({ battle, title, names, colors, saved = [], onProgress }) {
   return new Promise((resolve) => {
@@ -38,9 +39,9 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
     const info = h('div', { class: 'ee-tac-info' });
     const logEl = h('div', { class: 'ee-tac-log' });
     const turnEl = h('b');
-    const endBtn = h('button', { class: 'btn btn-primary btn-sm', onclick: () => record({ end: 1 }) }, 'Край на хода');
-    const autoBtn = h('button', { class: 'btn btn-sm', onclick: () => record({ auto: 1 }) }, 'Автоматично');
-    const later = h('button', { class: 'btn btn-sm btn-ghost', onclick: () => close(null) }, 'По-късно');
+    const endBtn = h('button', { class: 'btn btn-primary btn-sm', onclick: () => record({ end: 1 }) }, txt('End turn'));
+    const autoBtn = h('button', { class: 'btn btn-sm', onclick: () => record({ auto: 1 }) }, txt('Automatic'));
+    const later = h('button', { class: 'btn btn-sm btn-ghost', onclick: () => close(null) }, txt('Later'));
     const root = h('div', { class: 'ee-tac', role: 'dialog', 'aria-label': title },
       h('div', { class: 'ee-tac-top' }, h('div', null, h('div', { class: 'ee-tac-title' }, title), h('small', { class: 'muted' }, turnEl)), h('div', { class: 'ee-tac-btns' }, later, autoBtn, endBtn)),
       board,
@@ -67,14 +68,14 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
       animate(from, st.log.slice(logLen));
     }
 
-    // Анимация на хода: придвижване, после ударите един след друг (стрели летят, пехотата
-    // напада, загиналите падат), със звук за всеки удар. При „Автоматично“ – само първите удари.
+    // Turn animation: movement, then the strikes one after another (arrows fly, infantry
+    // charges, the fallen drop), with a sound for each strike. With "Automatic" – only the first strikes.
     const MOVE_MS = 380, HIT_MS = 300, MAX_ANIM = 10;
     function animate(from, fresh) {
       const shown = fresh.slice(0, MAX_ANIM);
       const moved = st.units.filter((u) => { const f = from.get(u.id); return f[0] !== u.q || f[1] !== u.r; });
       const t0 = moved.length ? MOVE_MS : 0;
-      // кога пада всяка унищожена единица
+      // when each destroyed unit falls
       const dieAt = new Map();
       shown.forEach((e, i) => { const t = st.units.find((u) => u.id === e.t), a = st.units.find((u) => u.id === e.a); if (t.n <= 0) dieAt.set(t.id, t0 + i * HIT_MS + 200); if (e.back && a.n <= 0) dieAt.set(a.id, t0 + i * HIT_MS + 260); });
       draw({ from, dieAt });
@@ -82,11 +83,11 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
       busy = true;
       const svg = board.querySelector('svg');
       const gOf = (id) => board.querySelector(`.ee-unit[data-id="${id}"] .ee-ub`);
-      // 1) придвижване – единиците тръгват от старото си място
+      // 1) movement – the units start from their old position
       requestAnimationFrame(() => requestAnimationFrame(() => {
         for (const u of moved) board.querySelector(`.ee-unit[data-id="${u.id}"]`)?.style.removeProperty('transform');
       }));
-      // 2) ударите
+      // 2) the strikes
       shown.forEach((e, i) => {
         const at = t0 + i * HIT_MS;
         const a = st.units.find((u) => u.id === e.a), t = st.units.find((u) => u.id === e.t);
@@ -96,7 +97,7 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
         setTimeout(() => {
           if (!svg.isConnected) return;
           if (ranged) {
-            // стрела по дъга
+            // an arrow along an arc
             const ang = (Math.atan2(ty - ay, tx - ax) * 180) / Math.PI;
             const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             arrow.innerHTML = `<g transform="rotate(${ang.toFixed(1)})"><line x1="-9" y1="0" x2="7" y2="0" stroke="#d9cbb0" stroke-width="1.6"/><path d="M7 -3 L12 0 L7 3Z" fill="#e8e2d4"/><path d="M-9 0 l-3 -3 M-9 0 l-3 3" stroke="#c84" stroke-width="1.2"/></g>`;
@@ -170,26 +171,26 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
         </g></g>`;
       }
       board.innerHTML = `<svg viewBox="0 0 ${bw + PAD + W / 2} ${bh + S + PAD}" class="ee-tac-svg">${svg}</svg>`;
-      turnEl.textContent = st.over ? (st.win === 'att' ? 'Победа!' : 'Поражение') : `Ход ${st.turn} от ${TACTIC.maxTurns}`;
+      turnEl.textContent = st.over ? (st.win === 'att' ? txt('Victory!') : txt('Defeat')) : txt('Turn {0} of {1}', st.turn, TACTIC.maxTurns);
       endBtn.disabled = autoBtn.disabled = st.over;
       if (sel) {
         info.replaceChildren(
-          h('b', null, unitName(sel)), h('small', { class: 'muted' }, ` · ${CLS_NAMES[sel.cls] || ''} · ${sel.n} бр.`),
-          h('div', { class: 'ee-tac-stats' }, `⚔ ${sel.atk.toFixed(1)} · 🛡 ${sel.def.toFixed(1)} · ❤ ${Math.round(sel.hp)} · ход ${sel.moved ? '—' : (sel.cls === 'cav' ? 4 : sel.cls === 'hero' ? 3 : 2)} · обсег ${T.rangeOf(st, sel)}`),
-          h('small', { class: 'muted' }, sel.acted ? 'Действа вече този ход.' : tg.length ? 'Изберете враг (червено), за да атакувате.' : 'Изберете зелено поле, за да се придвижите.'),
-          h('small', { class: 'muted' }, `Терен: ${TERRAIN[T.terrainAt(st, sel.q, sel.r)].name}`));
+          h('b', null, unitName(sel)), h('small', { class: 'muted' }, txt(' · {0} · {1} pcs.', CLS_NAMES[sel.cls] || '', sel.n)),
+          h('div', { class: 'ee-tac-stats' }, txt('⚔ {0} · 🛡 {1} · ❤ {2} · move {3} · range {4}', sel.atk.toFixed(1), sel.def.toFixed(1), Math.round(sel.hp), sel.moved ? '—' : (sel.cls === 'cav' ? 4 : sel.cls === 'hero' ? 3 : 2), T.rangeOf(st, sel))),
+          h('small', { class: 'muted' }, sel.acted ? txt('Already acted this turn.') : tg.length ? txt('Select an enemy (red) to attack.') : txt('Select a green tile to move.')),
+          h('small', { class: 'muted' }, txt('Terrain: {0}', TERRAIN[T.terrainAt(st, sel.q, sel.r)].name)));
       } else if (st.over) {
         const lost = st.units.filter((u) => u.side === 'A').reduce((a, u) => a + u.start - u.n, 0);
         const killed = st.units.filter((u) => u.side === 'D').reduce((a, u) => a + u.start - u.n, 0);
-        info.replaceChildren(h('b', { class: st.win === 'att' ? 'good' : 'bad' }, st.win === 'att' ? 'Победа!' : 'Поражение'),
-          h('div', null, `Загуби: ${lost} · Избити врагове: ${killed}`),
-          h('button', { class: 'btn btn-primary btn-sm', onclick: () => close(moves) }, 'Приключи битката'));
+        info.replaceChildren(h('b', { class: st.win === 'att' ? 'good' : 'bad' }, st.win === 'att' ? txt('Victory!') : txt('Defeat')),
+          h('div', null, txt('Losses: {0} · Enemies killed: {1}', lost, killed)),
+          h('button', { class: 'btn btn-primary btn-sm', onclick: () => close(moves) }, txt('Finish the battle')));
       } else {
-        info.replaceChildren(h('small', { class: 'muted' }, 'Изберете своя единица. Гората пази от стрели, хълмът дава обсег и защита, руините – прикритие. Стрелците стрелят на 3 полета; конницата се движи на 4. Героят вдъхновява съседите (+10%).'));
+        info.replaceChildren(h('small', { class: 'muted' }, txt('Select one of your units. The forest protects from arrows, the hill gives range and defense, the ruins – cover. Archers shoot 3 tiles; cavalry moves 4. The hero inspires neighbours (+10%).')));
       }
       logEl.replaceChildren(...st.log.slice(-6).reverse().map((e) => {
         const a = st.units.find((u) => u.id === e.a), t = st.units.find((u) => u.id === e.t);
-        return h('div', { class: a.side === 'A' ? 'good' : 'bad' }, `${unitName(a)} → ${unitName(t)}: −${e.kills}${e.back ? ` (ответно −${e.back})` : ''}`);
+        return h('div', { class: a.side === 'A' ? 'good' : 'bad' }, `${unitName(a)} → ${unitName(t)}: −${e.kills}${e.back ? txt(' (counter −{0})', e.back) : ''}`);
       }));
     }
 

@@ -1,42 +1,42 @@
-// Evil Empires: данните са свързани правилно (технологии, единици, сгради, раси).
+// Evil Empires: the data is linked correctly (technologies, units, buildings, races).
 import { test, ok, eq } from './harness.js';
 import { BUILDINGS, UNITS, TECHS, FIGHTERS, UNIT_ORDER, RACES, PLOTS, FORMATION, MOVES, CLS_NAMES, EPOCHS } from '../js/games/empires/data.js';
 
-test('данни: всяка технология изисква съществуващи технологии от същата или по-ранна епоха', () => {
+test('data: every technology requires existing technologies from the same or an earlier age', () => {
   for (const [id, t] of Object.entries(TECHS)) {
     for (const r of t.req || []) {
-      ok(TECHS[r], `${id} изисква непознатата ${r}`);
-      ok(TECHS[r].epoch <= t.epoch, `${id} изисква ${r} от по-късна епоха`);
+      ok(TECHS[r], `${id} requires the unknown ${r}`);
+      ok(TECHS[r].epoch <= t.epoch, `${id} requires ${r} from a later age`);
     }
   }
 });
 
-test('данни: единиците имат валидни технология, клас и цена', () => {
+test('data: units have a valid technology, class and cost', () => {
   for (const [id, u] of Object.entries(UNITS)) {
-    if (u.tech) ok(TECHS[u.tech], `${id}: непозната технология ${u.tech}`);
-    ok(CLS_NAMES[u.cls], `${id}: непознат клас ${u.cls}`);
+    if (u.tech) ok(TECHS[u.tech], `${id}: unknown technology ${u.tech}`);
+    ok(CLS_NAMES[u.cls], `${id}: unknown class ${u.cls}`);
     ok(u.hp > 0 && u.speed > 0 && u.time > 0, `${id}: hp/speed/time`);
-    ok(Object.values(u.cost).every((v) => v > 0), `${id}: цена`);
-    ok(u.epoch >= 1 && u.epoch <= EPOCHS.length, `${id}: епоха`);
+    ok(Object.values(u.cost).every((v) => v > 0), `${id}: cost`);
+    ok(u.epoch >= 1 && u.epoch <= EPOCHS.length, `${id}: age`);
   }
-  for (const id of [...UNIT_ORDER, ...FIGHTERS]) ok(UNITS[id], `${id} липсва в UNITS`);
+  for (const id of [...UNIT_ORDER, ...FIGHTERS]) ok(UNITS[id], `${id} is missing from UNITS`);
 });
 
-test('данни: обсадните единици и благородниците съществуват', () => {
+test('data: siege units and noblemen exist', () => {
   eq(UNITS.catapult.cls, 'siege');
   eq(UNITS.noble.cls, 'noble');
   ok(FIGHTERS.includes('catapult') && FIGHTERS.includes('noble'));
   for (const cls of ['siege', 'noble']) { ok(FORMATION[cls]); ok(MOVES[cls] >= 1); }
 });
 
-test('данни: всяка раса има имена за всички единици', () => {
+test('data: every race has names for all units', () => {
   for (const [race, r] of Object.entries(RACES)) {
-    ok(r.name && r.perks?.length, `${race}: име/предимства`);
+    ok(r.name && r.perks?.length, `${race}: name/perks`);
     for (const u of UNIT_ORDER) ok(r.units?.[u] || UNITS[u], `${race}: ${u}`);
   }
 });
 
-test('данни: парцелите сочат към съществуващи сгради', () => {
-  for (const id of Object.keys(PLOTS)) ok(BUILDINGS[id], `парцел за непозната сграда ${id}`);
-  for (const [id, b] of Object.entries(BUILDINGS)) ok(Object.values(b.cost).every((v) => v > 0), `${id}: цена`);
+test('data: plots point to existing buildings', () => {
+  for (const id of Object.keys(PLOTS)) ok(BUILDINGS[id], `plot for an unknown building ${id}`);
+  for (const [id, b] of Object.entries(BUILDINGS)) ok(Object.values(b.cost).every((v) => v > 0), `${id}: cost`);
 });

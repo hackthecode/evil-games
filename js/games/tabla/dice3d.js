@@ -1,11 +1,12 @@
-// 3D зарове. Основно: истински 3D (Three.js) с физика (cannon-es) – заровете се
-// хвърлят, подскачат, търкалят и въртят, а накрая кацат точно на мястото и със
-// стойността от играта. Резерва (без интернет/WebGL): CSS кубчета.
+// 3D dice. Primary: real 3D (Three.js) with physics (cannon-es) – the dice
+// are thrown, bounce, roll and spin, and finally land exactly in place and with
+// the value from the game. Fallback (no internet/WebGL): CSS cubes.
 import { sound } from '../common.js';
 import { loadDiceSounds, diceShake, diceRollAudio } from '../dicesound.js';
 import { motion } from '../../ui.js';
+import { txt } from '../../i18n.js';
 
-// Точки върху стена (в единици от кутия 58) – същите като SVG заровете.
+// Pips on a face (in units of a 58 box) – the same as the SVG dice.
 const PIPS = {
   1: [[29, 29]],
   2: [[16, 16], [42, 42]],
@@ -19,14 +20,14 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 /**
- * Хвърля заровете. items: [{ value, dark, from: {x,y}, to: {x,y} }] в екранни координати,
- * size – размер на зара в px, rotZ – завъртане на дъската (0 или 90).
- * Връща Promise, който се изпълнява при кацане; заровете изчезват в следващия кадър,
- * след като SVG заровете са нарисувани на същото място.
+ * Throws the dice. items: [{ value, dark, from: {x,y}, to: {x,y} }] in screen coordinates,
+ * size – die size in px, rotZ – board rotation (0 or 90).
+ * Returns a Promise resolved on landing; the dice disappear in the next frame,
+ * after the SVG dice have been drawn in the same place.
  */
 export async function rollDice3d(opts) {
   if (motion.fast) return;
-  // разклащане в ръката (истински запис; ако не стане – синтезиран звук)
+  // shaking in the hand (real recording; if that fails – a synthesized sound)
   diceShake().then((ok) => { if (!ok) sound('dice'); });
   if (reduced()) return;
   const libs = await preloadDice();
@@ -34,31 +35,31 @@ export async function rollDice3d(opts) {
     try {
       return await rollGL(libs, opts);
     } catch (e) {
-      console.warn('3D зарове', e);
+      console.warn(txt('3D dice'), e);
     }
   }
   return rollCss(opts);
 }
 
-// ===================== истински 3D =====================
+// ===================== real 3D =====================
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';
 const CANNON_URL = 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/+esm';
 let libsP = null;
 
-// Зарежда библиотеките предварително (при отваряне на играта), за да няма забавяне.
+// Preloads the libraries (when the game opens) so there is no delay.
 export function preloadDice() {
   loadDiceSounds();
   if (!libsP) {
     libsP = Promise.all([import(THREE_URL), import(CANNON_URL)])
       .then(([THREE, CANNON]) => ({ THREE, CANNON }))
-      .catch((e) => { console.warn('3D библиотеките не се заредиха', e); return null; });
+      .catch((e) => { console.warn(txt('The 3D libraries did not load'), e); return null; });
   }
   return libsP;
 }
 
-let G3 = null; // общата 3D сцена (една за всички хвърляния)
+let G3 = null; // the shared 3D scene (one for all throws)
 
-// Стойността на всяка стена на кубa: [+x, -x, +y, -y, +z, -z] – срещуположните са със сбор 7.
+// The value of each face of the cube: [+x, -x, +y, -y, +z, -z] – opposite faces sum to 7.
 const FACE_VALUES = [2, 5, 3, 4, 1, 6];
 
 function faceCanvas(v, dark, bump) {
@@ -75,7 +76,7 @@ function faceCanvas(v, dark, bump) {
     else { grd.addColorStop(0, '#fffdf7'); grd.addColorStop(0.55, '#f7f0e0'); grd.addColorStop(1, '#e6d9bc'); }
     g.fillStyle = grd;
     g.fillRect(0, 0, N, N);
-    // ситна зърнистост на материала
+    // fine grain of the material
     const img = g.getImageData(0, 0, N, N);
     for (let i = 0; i < img.data.length; i += 4) {
       const d = (Math.random() - 0.5) * (dark ? 10 : 7);
@@ -97,7 +98,7 @@ function faceCanvas(v, dark, bump) {
       g.fill();
       continue;
     }
-    // издълбана точка: тъмна вдлъбнатина + светъл ръб долу вдясно
+    // an engraved pip: a dark hollow + a light edge at the bottom right
     const hole = g.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.1, x, y, r);
     if (dark) { hole.addColorStop(0, '#fffaf0'); hole.addColorStop(0.7, '#efe3c6'); hole.addColorStop(1, '#bfae88'); }
     else { hole.addColorStop(0, '#0e0a08'); hole.addColorStop(0.7, '#2a1f18'); hole.addColorStop(1, '#4a3a2c'); }
@@ -114,7 +115,7 @@ function faceCanvas(v, dark, bump) {
   return c;
 }
 
-// Куб със заоблени ръбове: върховете на сегментирания куб се „издуват“ към ъглите.
+// A cube with rounded edges: the vertices of the segmented cube "bulge" towards the corners.
 function roundedBox(THREE, radius = 0.12, seg = 6) {
   const geo = new THREE.BoxGeometry(1, 1, 1, seg, seg, seg);
   const pos = geo.attributes.position, nor = geo.attributes.normal;
@@ -177,7 +178,7 @@ function setup({ THREE }) {
   return { renderer, scene, camera, key, fill, plane, geo, mats, canvas };
 }
 
-// Всички 24 завъртания на куба (като кватерниони).
+// All 24 rotations of the cube (as quaternions).
 function cubeRotations(THREE) {
   const out = [];
   const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
@@ -194,13 +195,13 @@ function cubeRotations(THREE) {
   return out;
 }
 
-// Нормалата и посоката „нагоре“ на текстурата за всяка стойност (в координатите на куба).
+// The normal and the texture "up" direction for each value (in cube coordinates).
 const NORMAL = { 2: [1, 0, 0], 5: [-1, 0, 0], 3: [0, 1, 0], 4: [0, -1, 0], 1: [0, 0, 1], 6: [0, 0, -1] };
 const TEX_UP = { 2: [0, 1, 0], 5: [0, 1, 0], 3: [0, 0, -1], 4: [0, 0, 1], 1: [0, 1, 0], 6: [0, 1, 0] };
 
-const GRAV = 260; // в „заровe“ за секунда на квадрат (ребро = 1)
+const GRAV = 260; // in "dice" per second squared (edge = 1)
 
-// Физиката на едно хвърляне: кадри по 60 в секунда и моментите на удар.
+// The physics of one throw: frames at 60 per second and the moments of impact.
 function simulate({ CANNON }, start, target, power = 1) {
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, 0, -GRAV) });
   const mDie = new CANNON.Material(), mFloor = new CANNON.Material();
@@ -239,14 +240,14 @@ function simulate({ CANNON }, start, target, power = 1) {
   return { frames, hits };
 }
 
-// Поправя траекторията, така че зарът да кацне точно на мястото, със стойността
-// и със същото завъртане като SVG зара (плавно, в края на търкалянето).
+// Corrects the trajectory so the die lands exactly in place, with the value
+// and the same rotation as the SVG die (smoothly, at the end of the roll).
 function plan(L, sim, value, rotZ) {
   const { THREE } = L;
   const ROT = G3.rot || (G3.rot = cubeRotations(THREE));
   const last = sim.frames[sim.frames.length - 1];
   const qn = new THREE.Quaternion(last[3], last[4], last[5], last[6]);
-  // коя стена на тялото е нагоре
+  // which face of the body is up
   const up = new THREE.Vector3(0, 0, 1);
   let best = null, bestDot = -2;
   for (const n of Object.values(NORMAL)) {
@@ -264,7 +265,7 @@ function plan(L, sim, value, rotZ) {
     const a = Math.abs(uw.angleTo(want));
     if (a < res) { res = a; Q = r; }
   }
-  // крайното положение: стойността нагоре, текстурата – както на SVG зара
+  // the final pose: the value up, the texture – as on the SVG die
   const bl = new THREE.Matrix4().makeBasis(Uv, Nv, Uv.clone().cross(Nv));
   const bw = new THREE.Matrix4().makeBasis(want, up, want.clone().cross(up));
   const qt = new THREE.Quaternion().setFromRotationMatrix(bw.multiply(bl.transpose()));
@@ -301,7 +302,7 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
   const dice = items.map((it, i) => {
     const to = toWorld(it.to), from = toWorld(it.from);
     const start = [(from[0] - to[0]) / edge, (from[1] - to[1]) / edge];
-    // прицелване: няколко опита, като силата се коригира според това къде е спрял зарът
+    // aiming: several tries, adjusting the force by where the die stopped
     let sim = null, bestD = Infinity, power = 0.75;
     const want = Math.hypot(start[0], start[1]) || 1;
     for (let a = 0; a < 6; a++) {
@@ -347,7 +348,7 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
   };
 
   const total = Math.max(...dice.map((d) => d.delay + (d.sim.frames.length - 1) / 60));
-  // звук: ударите от физиката (сила и посока) и търкалянето по дъската
+  // sound: the impacts from the physics (force and direction) and rolling on the board
   const audio = dice.map((d) => {
     const fr = d.sim.frames;
     const at = (t) => fr[Math.min(fr.length - 1, Math.round(t * 60))];
@@ -363,7 +364,7 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
   await new Promise((resolve) => {
     const t0 = performance.now();
     const frame = () => {
-      const t = (performance.now() - t0) / 1000 / (window.__diceSlow || 1); // __diceSlow – за проверка
+      const t = (performance.now() - t0) / 1000 / (window.__diceSlow || 1); // __diceSlow – for debugging
       let done = true;
       for (const d of dice) done = show(d, t) && done;
       renderer.render(scene, camera);
@@ -372,7 +373,7 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
     };
     requestAnimationFrame(frame);
   });
-  // заровете остават още кадър, докато играта нарисува своите на същото място
+  // the dice stay one more frame until the game draws its own in the same place
   if (window.__diceHold) await new Promise((r) => setTimeout(r, window.__diceHold));
   requestAnimationFrame(() => requestAnimationFrame(() => {
     for (const d of dice) scene.remove(d.holder);
@@ -381,7 +382,7 @@ async function rollGL(L, { items, size, rotZ = 0 }) {
   }));
 }
 
-// ===================== резерва: CSS кубчета =====================
+// ===================== fallback: CSS cubes =====================
 const FACES = { 1: 'rotateY(0deg)', 6: 'rotateY(180deg)', 2: 'rotateY(90deg)', 5: 'rotateY(-90deg)', 3: 'rotateX(90deg)', 4: 'rotateX(-90deg)' };
 const SHOW = { 1: [0, 0], 6: [0, -180], 2: [0, -90], 5: [0, 90], 3: [-90, 0], 4: [90, 0] };
 
@@ -441,7 +442,7 @@ function rollCss({ items, size, rotZ = 0, duration = 1100 }) {
       d.cube.animate(spin, { ...opt, duration: duration * 0.84, easing: 'cubic-bezier(.2,.6,.3,1)' }).finished,
     ]).catch(() => {});
   });
-  // удари при кацане и отскоците
+  // impacts on landing and bounces
   diceRollAudio(items.map((it, i) => ({
     hits: [1, 3, 5].map((k, j) => ({ t: (i * 90 + O[k] * duration) / 1000, v: [18, 9, 5][j], pan: (it.to.x / innerWidth) * 1.4 - 0.7 })),
     roll: [],

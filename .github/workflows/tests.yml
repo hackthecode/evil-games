@@ -1,4 +1,4 @@
-# Автоматични тестове на правилата на игрите при всяко качване.
+# Automatic tests of the game rules on every push.
 name: Tests
 
 on:
@@ -15,5 +15,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Тестове
+      - name: Run tests
         run: node tests/run.mjs

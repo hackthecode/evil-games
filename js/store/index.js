@@ -2,8 +2,8 @@ import { CONFIG } from '../../config.js';
 import { createLocalStore } from './local.js';
 import { createSupabaseStore } from './supabase.js';
 
-// При разработка на компютъра: localStorage „eg.devLocal“ = '1' на localhost → локален режим,
-// за да не се създават тестови акаунти в истинската база.
+// During development: localStorage "eg.devLocal" = '1' on localhost → local mode,
+// so that no test accounts are created in the real database.
 const devLocal = ['localhost', '127.0.0.1'].includes(location.hostname) && (() => {
   try { return localStorage.getItem('eg.devLocal') === '1'; } catch { return false; }
 })();

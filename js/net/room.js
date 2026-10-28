@@ -1,19 +1,20 @@
-// Онлайн стая: места, старт на мач и lockstep синхронизация на ходовете.
+// Online room: seats, match start and lockstep synchronization of moves.
 //
-// Всеки клиент изпълнява играта сам. По мрежата се пращат само решенията на
-// играчите (ход, обява, карта…) с пореден номер n, а заровете и разбъркванията
-// идват от общ seed, който всички договарят чрез commit-reveal – така никой
-// не може да нагласи случайността. Решенията от другите се проверяват за
-// валидност с правилата на играта. При повторно влизане клиентът получава
-// дневника с решенията от другите и превърта играта до текущия момент.
+// Every client runs the game itself. Only the players' decisions are sent over the network
+// (move, bid, card…) with a sequence number n, while dice and shuffles
+// come from a shared seed that everyone agrees on via commit-reveal – so nobody
+// can rig the randomness. Decisions from others are checked for
+// validity with the game rules. When rejoining, the client gets
+// the log of others' decisions and fast-forwards the game to the current moment.
 import { openChannel, isLocalNet } from './channel.js';
 import { randomHex, sha256 } from '../store/hash.js';
 import { seededRng, cryptoRng } from './rng.js';
 import { motion } from '../ui.js';
 import { teamOfSeat } from '../store/elo.js';
+import { txt } from '../i18n.js';
 
-const GRACE_MS = 75000; // толкова чакаме прекъснал играч, преди служебна победа / бот
-const STALL_MS = { chess: 10 * 60000, default: 3 * 60000 }; // дълго бездействие на ход
+const GRACE_MS = 75000; // how long we wait for a disconnected player before a forfeit win / bot
+const STALL_MS = { chess: 10 * 60000, default: 3 * 60000 }; // long inactivity on a turn
 const START_TIMEOUT_MS = 20000;
 export const ACTIVE_KEY = 'eg.active';
 
@@ -44,8 +45,8 @@ export class Room {
     if (!create) this.restore();
   }
 
-  // Състоянието на стаята се пази за раздела, за да оцелее презареждане
-  // (дори ако всички играчи презаредят едновременно).
+  // The room state is kept per tab to survive a reload
+  // (even if all players reload at the same time).
   save() {
     try {
       const m = this.match;
@@ -72,7 +73,7 @@ export class Room {
     }
   }
 
-  // ---------- събития ----------
+  // ---------- events ----------
   on(fn) {
     this.handlers.add(fn);
     return () => this.handlers.delete(fn);
@@ -86,7 +87,7 @@ export class Room {
     this.ch?.send({ t, from: this.me.uid, ...data });
   }
 
-  // ---------- състояние ----------
+  // ---------- state ----------
   isHost() { return this.info?.host === this.me.uid; }
   mySeat() { return this.info ? this.info.seats.findIndex((s) => s?.uid === this.me.uid) : -1; }
   humanSeats() { return this.info.seats.map((s, i) => (s ? i : -1)).filter((i) => i >= 0); }
@@ -95,11 +96,11 @@ export class Room {
   inMatch() { return !!(this.match?.seed && !this.match.ended); }
   seatName(i) {
     const s = this.info.seats[i];
-    return s ? s.name : (this.cfg.botNames?.[i] || 'Бот');
+    return s ? s.name : (this.cfg.botNames?.[i] || txt('Bot'));
   }
   isBot(i) { return !this.info.seats[i] || this.takeover.has(i); }
 
-  // Кой клиент взема решенията на ботовете: първият присъстващ човек по ред на местата.
+  // Which client makes the bots' decisions: the first present human by seat order.
   runner() {
     for (const i of this.humanSeats()) {
       const uid = this.info.seats[i].uid;
@@ -113,7 +114,7 @@ export class Room {
     return this.runner() === this.me.uid;
   }
 
-  // ---------- връзка ----------
+  // ---------- connection ----------
   async connect() {
     this.ch = await openChannel(`room-${this.game.id}-${this.id}`, {
       uid: this.me.uid,
@@ -150,11 +151,11 @@ export class Room {
     this.wake();
   }
 
-  // Периодична проверка: прекъснали играчи, смяна на домакин, бездействие.
+  // Periodic check: disconnected players, host change, inactivity.
   tick() {
     if (!this.info || this.closed) return;
     const now = Date.now();
-    // домакинът напуснал стаята преди старта → нов домакин
+    // the host left the room before the start → new host
     if (this.info.status === 'open' && !this.isPresent(this.info.host)) {
       const since = this.absentSince.get('host') ?? now;
       this.absentSince.set('host', since);
@@ -178,7 +179,7 @@ export class Room {
       }
       const since = this.absentSince.get(uid) ?? now;
       this.absentSince.set(uid, since);
-      if (this.cfg.race) continue; // в състезание всеки играе сам – прекъсналият просто изостава
+      if (this.cfg.race) continue; // in a race everyone plays alone – a disconnected player simply falls behind
       const left = GRACE_MS - (now - since);
       this.emit('absent', { seat: i, left: Math.max(0, left) });
       if (left > 0) continue;
@@ -204,7 +205,7 @@ export class Room {
     this.wake();
   }
 
-  // ---------- стаята преди мача ----------
+  // ---------- the room before the match ----------
   broadcastRoom() {
     this.save();
     this.send('room', { info: this.info });
@@ -278,7 +279,7 @@ export class Room {
     }
   }
 
-  // ---------- старт на мач: общ seed (commit-reveal) ----------
+  // ---------- match start: shared seed (commit-reveal) ----------
   beginMatch() {
     const no = this.info.no;
     this.raceOut = false;
@@ -292,7 +293,7 @@ export class Room {
     };
     this.emit('starting');
     if (this.cfg.referee) {
-      // игрите със скрити карти се водят от сървъра-съдия: seed-ът е тайна на сървъра
+      // hidden-card games are run by the referee server: the seed is the server's secret
       this.match.seed = 'referee';
       this.match.revealed = true;
       this.save();
@@ -311,7 +312,7 @@ export class Room {
     this.tryReveal();
     clearTimeout(this.startTimer);
     this.startTimer = setTimeout(() => {
-      if (this.match?.no === no && !this.match.seed) this.emit('error', { message: 'Мачът не можа да започне – някой от играчите не отговори.' });
+      if (this.match?.no === no && !this.match.seed) this.emit('error', { message: txt('The match could not start – one of the players did not respond.') });
     }, START_TIMEOUT_MS);
   }
 
@@ -332,7 +333,7 @@ export class Room {
     if (!uids.every((u) => m.reveals.has(u))) return;
     for (const u of uids) {
       if (sha256(m.reveals.get(u)) !== m.commits.get(u)) {
-        this.emit('error', { message: 'Неуспешна проверка на общия seed.' });
+        this.emit('error', { message: txt('The shared seed check failed.') });
         return;
       }
     }
@@ -342,7 +343,7 @@ export class Room {
     this.emit('match', { resumed: false });
   }
 
-  // ---------- ходове ----------
+  // ---------- moves ----------
   wake() {
     const m = this.match;
     if (!m) return;
@@ -365,10 +366,10 @@ export class Room {
   }
 
   /**
-   * Следващото решение в мача. Ако мястото е мое (или е бот, а аз го управлявам),
-   * изпълнява local() и го праща на другите; иначе чака решението от мрежата.
-   * validate(data) проверява чуждите решения по правилата на играта.
-   * При край на мача висящите извиквания просто не завършват.
+   * The next decision in the match. If the seat is mine (or a bot that I control),
+   * runs local() and sends it to the others; otherwise waits for the decision from the network.
+   * validate(data) checks others' decisions against the game rules.
+   * When the match ends, pending calls simply never complete.
    */
   async decide(seat, type, local, validate = () => true) {
     const m = this.match;
@@ -408,7 +409,7 @@ export class Room {
     }
   }
 
-  // Състав за рейтинга (хората без ботове), за да се отчете и изоставен мач.
+  // Line-up for the rating (humans without bots), so an abandoned match also counts.
   ratedInfo() {
     if (!this.match || !this.info) return null;
     const players = this.info.seats
@@ -424,7 +425,7 @@ export class Room {
     return this.match?.seed ? seededRng(this.match.seed, label) : cryptoRng;
   }
 
-  // ---------- край на мача ----------
+  // ---------- end of the match ----------
   endMatch(ev) {
     const m = this.match;
     if (!m || m.ended) return;
@@ -438,7 +439,7 @@ export class Room {
     this.wake();
   }
 
-  // Играта завърши нормално (по правилата) – вече не е „активна“.
+  // The game ended normally (by the rules) – it is no longer "active".
   finish() {
     this.endMatch(this.match?.endEvent || { kind: 'normal' });
   }
@@ -446,7 +447,7 @@ export class Room {
   resign() {
     if (!this.inMatch()) return;
     if (this.cfg.race) {
-      // в състезание отказалият се отпада, а другите продължават
+      // in a race the one who gives up drops out, and the others continue
       if (this.raceOut) return;
       this.raceOut = true;
       localStorage.removeItem(ACTIVE_KEY);
@@ -481,7 +482,7 @@ export class Room {
     }
   }
 
-  // Свободни съобщения за играта (напр. напредък в състезание) – извън реда на ходовете.
+  // Free-form game messages (e.g. progress in a race) – outside the move order.
   signal(data) {
     if (!this.match) return;
     this.send('sig', { no: this.match.no, seat: this.mySeat(), data });
@@ -492,7 +493,7 @@ export class Room {
     this.emit('emote', { seat: this.mySeat(), text });
   }
 
-  // Реванш: когато всички присъстващи играчи се съгласят, домакинът стартира нов мач.
+  // Rematch: when all present players agree, the host starts a new match.
   rematch() {
     this.votes.add(this.me.uid);
     this.send('rematch', { no: this.info.no });
@@ -510,7 +511,7 @@ export class Room {
     this.beginMatch();
   }
 
-  // ---------- входящи съобщения ----------
+  // ---------- incoming messages ----------
   onMessage(m) {
     if (!m || m.from === this.me.uid || this.closed) return;
     const fromHost = this.info && m.from === this.info.host;
@@ -620,7 +621,7 @@ export class Room {
     }
   }
 
-  // Повторно влизане: приемаме състоянието на мача от другите и го превъртаме.
+  // Rejoining: we accept the match state from others and fast-forward it.
   adopt(m) {
     this.info = m.info;
     this.takeover = new Set(m.takeover || []);
@@ -634,7 +635,7 @@ export class Room {
     this.emit('match', { resumed: true });
   }
 
-  // Интерфейс, който играта получава като ctx.online.
+  // The interface the game receives as ctx.online.
   api() {
     const room = this;
     return {
@@ -657,7 +658,7 @@ export class Room {
       signal: (data) => room.signal(data),
       onSignal: (fn) => room.on((e) => e.type === 'signal' && fn(e)),
       humanSeats: () => room.humanSeats(),
-      // игри със съдия: къде е съдията, ключ на мача и местата (празните са ботове)
+      // refereed games: where the referee is, the match key and the seats (empty ones are bots)
       referee: room.cfg.referee ? {
         mode: isLocalNet() ? 'worker' : 'server',
         key: `${room.game.id}:${room.id}:${room.match?.no || 0}`,
@@ -671,7 +672,7 @@ export class Room {
 
 const never = () => new Promise(() => {});
 
-// Мрежов интерфейс за игра срещу компютъра: всички решения са локални.
+// Network interface for a game against the computer: all decisions are local.
 export function offlineNet(names = []) {
   return {
     online: false,

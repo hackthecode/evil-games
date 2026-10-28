@@ -1,6 +1,6 @@
-// „Не се сърди, човече“: дъска 11×11, 40 полета в кръг, 4 пула на играч.
-// Позиция на пул (в стъпки от собственото начало): -1 = в кошарата, 0..39 = по пътя,
-// 40..43 = в домашната редица.
+// Ludo: an 11×11 board, 40 squares in a ring, 4 pieces per player.
+// Piece position (in steps from its own start): -1 = in the yard, 0..39 = on the track,
+// 40..43 = in the home row.
 
 export const START = [0, 10, 20, 30];
 export const TRACK = [
@@ -15,14 +15,14 @@ export const LANES = [
   [[9, 5], [8, 5], [7, 5], [6, 5]],
   [[5, 9], [5, 8], [5, 7], [5, 6]],
 ];
-// Кошарите са в средата на ъгловите зони 4×4 (дробни координати – само за рисуване).
+// The yards are in the middle of the 4×4 corner zones (fractional coordinates – for drawing only).
 export const ZONES = [[0, 0], [7, 0], [7, 7], [0, 7]];
 export const YARDS = ZONES.map(([x, y]) => [[x + 0.9, y + 0.9], [x + 2.1, y + 0.9], [x + 0.9, y + 2.1], [x + 2.1, y + 2.1]]);
 
 export const newGame = (active) => ({ pos: [0, 1, 2, 3].map(() => [-1, -1, -1, -1]), active });
 export const clone = (st) => ({ pos: st.pos.map((a) => a.slice()), active: st.active.slice() });
 
-// Поле на дъската за пул t на играч p.
+// The board square for piece t of player p.
 export const cell = (st, p, t) => cellAt(p, st.pos[p][t], t);
 export function cellAt(p, s, t = 0) {
   if (s < 0) return YARDS[p][t];
@@ -31,7 +31,7 @@ export function cellAt(p, s, t = 0) {
 }
 const trackIndex = (p, s) => (START[p] + s) % 40;
 
-// Кой пул стои на полето от пътя (абсолютен индекс): [играч, пул] или null.
+// Which piece stands on the track square (absolute index): [player, piece] or null.
 function occupant(st, idx) {
   for (const p of st.active) {
     for (let t = 0; t < 4; t++) {
@@ -60,7 +60,7 @@ export function moves(st, p, d) {
     const to = s + d;
     if (to > 43) continue;
     if (to >= 40) {
-      // в домашната редица не се прескачат собствени пулове
+      // in the home row you can't jump over your own pieces
       let blocked = false;
       for (let x = Math.max(40, s + 1); x <= to; x++) if (mine.includes(x)) blocked = true;
       if (!blocked) res.push({ t, from: s, to, capture: null });
@@ -70,10 +70,10 @@ export function moves(st, p, d) {
     if (occ && occ[0] === p) continue;
     res.push({ t, from: s, to, capture: occ });
   }
-  // при шестица изкарването на пул е задължително, ако е възможно
+  // with a six bringing out a piece is mandatory if possible
   const enter = res.filter((m) => m.from === -1);
   if (enter.length) return enter.slice(0, 1);
-  // стартовото поле трябва да се освободи, докато има пулове в кошарата
+  // the start square must be cleared while there are pieces in the yard
   if (mine.includes(-1)) {
     const fromStart = res.filter((m) => m.from === 0);
     if (fromStart.length) return fromStart;
@@ -88,7 +88,7 @@ export function apply(st, p, m) {
   return n;
 }
 
-// Колко стъпки е най-близкият противников пул зад полето (за риск от „изяждане“).
+// How many steps the nearest opposing piece is behind the square (for the risk of being captured).
 function threat(st, p, idx) {
   let best = 0;
   for (const q of st.active) {

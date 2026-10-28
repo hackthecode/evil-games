@@ -1,4 +1,4 @@
-/* ===== Пасианс ===== */
+/* ===== Solitaire ===== */
 .game-solitaire { container-type: size; }
 .sol-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .sol-board {
@@ -11,7 +11,7 @@
   box-shadow: inset 0 0 140px rgba(0,0,0,.75);
 }
 
-/* карта: постоянен елемент с лице и гръб (обръщане в 3D) */
+/* card: a permanent element with a face and a back (3D flip) */
 .sc {
   position: absolute; left: 0; top: 0; width: var(--cw); height: calc(var(--cw) * 1.4);
   transition: transform .26s cubic-bezier(.2,.8,.2,1); perspective: 900px; cursor: grab;

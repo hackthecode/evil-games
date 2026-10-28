@@ -1,24 +1,27 @@
-// Evil Empires – сървърът: всяко действие на играча минава оттук и се проверява от
-// логиката на играта (engine.js). Не зависи от Supabase – получава „база“ (db):
+// Evil Empires – the server: every player action goes through here and is checked by
+// the game logic (engine.js). It does not depend on Supabase – it receives a "database" (db):
 //   getWorld() → { doc, version } | null
 //   getSave(uid) → { state, version } | null
-//   commit({ world: { doc, version } | null, saves: [{ uid, state | null, version }] }) → true | false (конфликт)
+//   commit({ world: { doc, version } | null, saves: [{ uid, state | null, version }] }) → true | false (conflict)
 //   listSaves() → [uid], savePush(uid, sub), deletePush(endpoint), pushSubs(uid) → [sub]
 import * as E from './engine.js';
 import { RACES } from './data.js';
 import { freshWorld, allocateHomeIn, makeWorld, buildView, WORLD_OPS } from './worldcore.js';
+import { tk } from '../../i18n/tk.js';
+import { render } from '../../i18n/render.js';
+import { BG } from '../../i18n/bg.js';
 
 const fail = (msg) => { throw new Error(msg); };
 const PUSH_KINDS = ['loss', 'win', 'epoch', 'alarm'];
 
-// Една транзакция: зарежда света и нужните империи, изпълнява и записва (или връща null при конфликт).
+// One transaction: loads the world and the needed empires, runs and saves (or returns null on conflict).
 async function session(db, uid, t, work) {
   const wrow = (await db.getWorld()) || { doc: freshWorld(), version: -1 };
   const doc = wrow.doc;
   const saves = new Map();
   const mine = await db.getSave(uid);
   if (mine) saves.set(uid, { ...mine, dirty: false });
-  // империите, които защитават срещу мои походи, пристигнали вече – битките се решават тук
+  // the empires defending against my marches that have already arrived – the battles are resolved here
   if (mine) {
     for (const m of mine.state.marches || []) {
       const d = m.target?.uid;
@@ -38,18 +41,18 @@ async function session(db, uid, t, work) {
       d.dirty = true;
       return;
     }
-    // изоставен град (играчът вече го няма): нападателят минава без плячка
+    // abandoned city (the player is gone): the attacker passes without loot
     if (doc.players[defUid]) return;
     const inc = (doc.incoming[defUid] || []).find((x) => x.id === id);
     if (inc) {
       worldDirty = true;
-      doc.results[id] = { win: true, loot: {}, trapped: 0, att: inc.groups.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [], defName: 'Изоставен град', city: '', rounds: 0 };
+      doc.results[id] = { win: true, loot: {}, trapped: 0, att: inc.groups.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [], defName: tk('Abandoned city'), city: '', rounds: 0 };
       doc.incoming[defUid] = doc.incoming[defUid].filter((x) => x.id !== id);
     }
   };
   const ctx = { doc, saves, store, env: envFor(uid, resolver), envFor, resolver, mine: saves.get(uid) || null, t };
   const out = await work(ctx);
-  // снимките на империите в света (само ако нещо се е променило)
+  // the empire snapshots in the world (only if something changed)
   for (const [u, d] of saves) {
     if (!d.state) continue;
     const snap = E.snapshot(d.state);
@@ -68,17 +71,17 @@ async function retry(fn) {
     const r = await fn();
     if (r) return r;
   }
-  fail('Сървърът е зает – опитайте отново.');
+  fail(tk('The server is busy – try again.'));
 }
 
 const touch = (ctx) => { const me = ctx.saves.get(ctx.uidSelf); if (me) me.dirty = true; };
 
-/** Заявка от играч. body.op: sync | new | act | world | reset | push | unpush */
+/** A request from a player. body.op: sync | new | act | world | reset | push | unpush */
 export async function handle(db, uid, body, now = Date.now()) {
   const op = body?.op;
   if (op === 'push') {
-    if (!body.sub?.endpoint) fail('Невалиден абонамент.');
-    await db.savePush(uid, body.sub);
+    if (!body.sub?.endpoint) fail(tk('Invalid subscription.'));
+    await db.savePush(uid, { ...body.sub, lang: body.sub.lang === 'bg' ? 'bg' : 'en' });
     return { ok: true };
   }
   if (op === 'unpush') {
@@ -94,15 +97,15 @@ export async function handle(db, uid, body, now = Date.now()) {
       return;
     }
     if (op === 'new') {
-      if (s) fail('Вече имате империя.');
-      if (!Object.prototype.hasOwnProperty.call(RACES, body.race)) fail('Непозната раса.');
-      const name = String(body.name || '').replace(/\s+/g, ' ').trim().slice(0, 32) || 'Империя';
+      if (s) fail(tk('You already have an empire.'));
+      if (!Object.prototype.hasOwnProperty.call(RACES, body.race)) fail(tk('Unknown race.'));
+      const name = String(body.name || '').replace(/\s+/g, ' ').trim().slice(0, 32) || tk('Empire');
       const home = allocateHomeIn(ctx.doc, uid);
       const ns = E.newGame(body.race, name, now, undefined, { uid, home, worldSeed: home.seed });
       ctx.saves.set(uid, { state: ns, version: -1, dirty: true });
       return;
     }
-    if (!s) fail('Нямате империя.');
+    if (!s) fail(tk('You don\'t have an empire.'));
     if (op === 'act') {
       E.syncAbroad(s, now, ctx.env);
       E.perform(s, now, ctx.env, String(body.name || ''), body.args || []);
@@ -111,7 +114,7 @@ export async function handle(db, uid, body, now = Date.now()) {
     }
     if (op === 'world') {
       const name = String(body.name || '');
-      if (!WORLD_OPS.includes(name)) fail('Непознато действие.');
+      if (!WORLD_OPS.includes(name)) fail(tk('Unknown action.'));
       E.advance(s, now, ctx.env);
       touch(ctx);
       makeWorld(ctx.store, uid).publish(E.snapshot(s));
@@ -119,8 +122,8 @@ export async function handle(db, uid, body, now = Date.now()) {
       const args = Array.isArray(body.args) ? body.args.slice(0, 4) : [];
       const emb = E.maxLv(s, 'embassy');
       if (name === 'createAlliance') W.createAlliance(args[0], args[1], emb);
-      else if (name === 'acceptInvite') { if (!emb) fail('Нужно е Посолство.'); W.acceptInvite(String(args[0]), Math.max(3, 3 * emb)); }
-      else if (name === 'invite') { if (emb < 1) fail('Нужно е Посолство.'); W.invite(String(args[0])); }
+      else if (name === 'acceptInvite') { if (!emb) fail(tk('Embassy required.')); W.acceptInvite(String(args[0]), Math.max(3, 3 * emb)); }
+      else if (name === 'invite') { if (emb < 1) fail(tk('Embassy required.')); W.invite(String(args[0])); }
       else W[name](...args.map((a) => (typeof a === 'string' ? a.slice(0, 400) : a)));
       return;
     }
@@ -129,13 +132,13 @@ export async function handle(db, uid, body, now = Date.now()) {
       ctx.saves.set(uid, { ...me, state: null, dirty: true });
       return { state: null, view: null, now };
     }
-    fail('Непозната заявка.');
+    fail(tk('Unknown request.'));
   }));
 }
 
 /**
- * На всеки няколко минути (pg_cron): придвижва всички империи във времето и изпраща
- * известия за новите събития и за нападенията, които вече се виждат от стражевата кула.
+ * Every few minutes (pg_cron): moves all empires forward in time and sends
+ * notifications about new events and about attacks already visible from the watchtower.
  */
 export async function cron(db, now = Date.now(), push = null, limit = 300) {
   const uids = (await db.listSaves()).slice(0, limit);
@@ -150,11 +153,11 @@ export async function cron(db, now = Date.now(), push = null, limit = 300) {
         E.syncAbroad(s, now, ctx.env);
         E.advance(s, now, ctx.env);
         ctx.saves.get(uid).dirty = true;
-        // първия път не пращаме стари събития
+        // the first time we don't send old events
         const since = s.pushed ?? (s.log.length ? s.log[s.log.length - 1].id : 0);
         for (const l of s.log) if (l.id > since && PUSH_KINDS.includes(l.kind)) notes.push(l.text);
         s.pushed = s.log.length ? s.log[s.log.length - 1].id : since;
-        // нападения, които вече се виждат
+        // attacks that are already visible
         s.warned ||= [];
         const inc = [
           ...s.incoming.map((x) => ({ id: `n${x.id}`, city: x.city, name: x.name, arrive: x.arrive })),
@@ -164,7 +167,7 @@ export async function cron(db, now = Date.now(), push = null, limit = 300) {
           const c = E.cityOf(s, x.city);
           if (!s.warned.includes(x.id) && x.arrive - now <= E.warnWindow(s, c)) {
             s.warned.push(x.id);
-            notes.push(`⚠ ${x.name} напада ${c.name} след ${Math.max(1, Math.round((x.arrive - now) / 60000))} мин!`);
+            notes.push(tk('⚠ {0} attacks {1} in {2} min!', x.name, c.name, Math.max(1, Math.round((x.arrive - now) / 60000))));
           }
         }
         s.warned = s.warned.slice(-50);
@@ -175,9 +178,10 @@ export async function cron(db, now = Date.now(), push = null, limit = 300) {
     }
     if (notes.length && push) {
       const subs = await db.pushSubs(uid);
-      const body = notes.length > 3 ? `${notes.slice(-2).join('\n')}\n…и още ${notes.length - 2}` : notes.join('\n');
+      const body = notes.length > 3 ? tk('{0}\n…and {1} more', notes.slice(-2).join('\n'), notes.length - 2) : notes.join('\n');
       for (const sub of subs) {
-        try { await push(sub, { title: 'Evil Empires', body, url: './#/play/empires' }); sent++; } catch (e) { if (e?.gone) await db.deletePush(sub.endpoint); }
+        // notifications in the player's language (saved with the subscription)
+        try { await push(sub, { title: 'Evil Empires', body: render(body, sub.lang === 'bg' ? BG : null), url: './#/play/empires' }); sent++; } catch (e) { if (e?.gone) await db.deletePush(sub.endpoint); }
       }
     }
   }

@@ -1,11 +1,11 @@
-// Табла (обикновена / backgammon): правила, генериране на ходове и AI.
+// Backgammon (regular): rules, move generation and AI.
 //
-// Състояние: pts[0..23] – положително = пулове на играча (0), отрицателно = на компютъра (1).
-// Играчът се движи от 23 към 0 и изнася от 0..5. Компютърът – огледално (от 0 към 23).
-// bar[p], off[p] – пулове на бара и изнесени, p = 0 играч, 1 компютър.
+// State: pts[0..23] – positive = the player's checkers (0), negative = the computer's (1).
+// The player moves from 23 to 0 and bears off from 0..5. The computer – mirrored (from 0 to 23).
+// bar[p], off[p] – checkers on the bar and borne off, p = 0 player, 1 computer.
 
-export const OFF = -1; // цел „изнасяне“
-export const BAR = 24; // източник „бар“
+export const OFF = -1; // target "bear off"
+export const BAR = 24; // source "bar"
 
 export function initialState() {
   const pts = new Array(24).fill(0);
@@ -16,7 +16,7 @@ export function initialState() {
 
 export const cloneState = (s) => ({ pts: s.pts.slice(), bar: s.bar.slice(), off: s.off.slice() });
 
-// Индекс в перспективата на играч p (0..23, домът е 0..5) -> реален индекс.
+// Index in player p's perspective (0..23, home is 0..5) -> real index.
 const real = (p, i) => (p === 0 ? i : 23 - i);
 const mine = (s, p, i) => (p === 0 ? Math.max(s.pts[real(p, i)], 0) : Math.max(-s.pts[real(p, i)], 0));
 const theirs = (s, p, i) => (p === 0 ? Math.max(-s.pts[real(p, i)], 0) : Math.max(s.pts[real(p, i)], 0));
@@ -27,7 +27,7 @@ function allHome(s, p) {
   return true;
 }
 
-// Единични ходове с даден зар. from/to са в перспектива (BAR = 24, OFF = -1).
+// Single moves with a given die. from/to are in perspective (BAR = 24, OFF = -1).
 function singleMoves(s, p, die) {
   const res = [];
   if (s.bar[p]) {
@@ -50,7 +50,7 @@ function singleMoves(s, p, die) {
   return res;
 }
 
-// Прилага единичен ход (в перспектива) върху копие на състоянието.
+// Applies a single move (in perspective) to a copy of the state.
 export function applySingle(s, p, m) {
   const n = cloneState(s);
   const sign = p === 0 ? 1 : -1;
@@ -70,7 +70,7 @@ export function applySingle(s, p, m) {
   return { state: n, hit };
 }
 
-// Всички легални пълни последователности за хвърлянето (с правилото за максимално използване).
+// All legal full sequences for the roll (with the maximum-use rule).
 export function legalSequences(s, p, dice) {
   const seqs = [];
   const dieOrders = dice[0] === dice[1] ? [[dice[0], dice[0], dice[0], dice[0]]] : [[dice[0], dice[1]], [dice[1], dice[0]]];
@@ -98,7 +98,7 @@ export function legalSequences(s, p, dice) {
     const big = Math.max(...dice);
     if (valid.some((q) => q.moves[0].die === big)) valid = valid.filter((q) => q.moves[0].die === big);
   }
-  // премахване на дублиращи се крайни позиции
+  // removing duplicate end positions
   const seen = new Set();
   return valid.filter((q) => {
     const k = q.state.pts.join(',') + '|' + q.state.bar + '|' + q.state.off + '|' + q.moves.map((m) => m.from + '>' + m.to).join(' ');
@@ -108,7 +108,7 @@ export function legalSequences(s, p, dice) {
   });
 }
 
-// Преобразува ход от перспектива в реални координати (за рендиране).
+// Converts a move from perspective to real coordinates (for rendering).
 export function toReal(p, m) {
   return {
     from: m.from === BAR ? 'bar' : real(p, m.from),
@@ -130,7 +130,7 @@ export function winner(s) {
   return -1;
 }
 
-// 1 = обикновена, 2 = марс (губещият не е изнесъл), 3 = бекгемон (губещият има пул на бара/в дома на победителя).
+// 1 = single, 2 = gammon (the loser has not borne off), 3 = backgammon (the loser has a checker on the bar/in the winner's home).
 export function winPoints(s, w) {
   const l = 1 - w;
   if (s.off[l] > 0) return 1;
@@ -140,7 +140,7 @@ export function winPoints(s, w) {
 }
 
 // ---------- AI ----------
-// Вероятност пул да бъде ударен от разстояние d (грубо приближение по брой комбинации от 36).
+// Probability of a checker being hit from distance d (a rough approximation by combinations out of 36).
 const HIT_ODDS = [0, 11, 12, 14, 15, 15, 17, 6, 6, 5, 3, 2, 3, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1];
 
 function evaluate(s, p) {
@@ -152,7 +152,7 @@ function evaluate(s, p) {
   score -= s.bar[p] * 18;
   score += s.bar[o] * 14;
 
-  // противникови пулове в перспектива на p: отпред са по-високи индекси? Противникът идва от 0 към 23 в нашата перспектива.
+  // opposing checkers in p's perspective: are the ones in front at higher indexes? The opponent comes from 0 to 23 in our perspective.
   const oppPositions = [];
   for (let i = 0; i < 24; i++) if (theirs(s, p, i)) oppPositions.push(i);
   const oppBar = s.bar[o] > 0;
@@ -167,16 +167,16 @@ function evaluate(s, p) {
       madePoints++;
       run++;
       prime = Math.max(prime, run);
-      if (i < 6) score += 5; // точка в дома
+      if (i < 6) score += 5; // a point in the home
       else if (i < 12) score += 2.5;
       if (c > 4) score -= (c - 4) * 1.2;
     } else run = 0;
     if (c === 1 && contact) {
-      // колко противникови пула могат да ударят (идват отдолу в нашата перспектива = индекс < i)
+      // how many opposing checkers can hit (they come from below in our perspective = index < i)
       let odds = 0;
       for (const oi of oppPositions) if (oi < i) odds = Math.max(odds, HIT_ODDS[Math.min(24, i - oi)] || 0);
       if (oppBar) odds = Math.max(odds, HIT_ODDS[Math.min(24, i + 1)] || 0);
-      const danger = (24 - i) / 24 + 0.5; // по-опасно е близо до дома на противника
+      const danger = (24 - i) / 24 + 0.5; // it's more dangerous close to the opponent's home
       blots += odds * danger;
     }
   }

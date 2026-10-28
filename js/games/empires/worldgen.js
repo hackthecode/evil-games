@@ -1,5 +1,5 @@
-// Evil Empires – светът: детерминирано генериране от зърното на света (терен, оазиси,
-// империи на компютъра, места за градовете на играчите). Само чисти функции.
+// Evil Empires – the world: deterministic generation from the world seed (terrain, oases,
+// computer empires, spots for player cities). Pure functions only.
 import { WORLD_R, OASIS_RES, NPC_NAMES, NPC_CLANS, CAMP_SLOTS } from './data.js';
 import { hashStr } from './battle.js';
 
@@ -15,11 +15,11 @@ export const inWorld = (x, y) => Math.abs(x) <= WORLD_R && Math.abs(y) <= WORLD_
 export const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const tileKey = (x, y) => `${x}|${y}`;
 
-// Терен: трева (може да се строи), гора, хълмове, езеро, оазис.
+// Terrain: grass (buildable), forest, hills, lake, oasis.
 export function tileAt(seed, x, y) {
   if (!inWorld(x, y)) return { kind: 'void' };
   const v = hash2(seed, x, y);
-  // „петна“ – съседните полета си приличат
+  // "patches" – neighbouring tiles are similar
   const near = (hash2(seed, x >> 2, y >> 2, 1) + hash2(seed, (x + 2) >> 2, (y + 1) >> 2, 1)) / 2;
   if (Math.abs(x) + Math.abs(y) > 2) {
     if (v < 0.055) {
@@ -34,7 +34,7 @@ export function tileAt(seed, x, y) {
   return { kind: 'grass' };
 }
 
-// Империите на компютъра: позиции, раса, клан и „преднина“ в развитието.
+// Computer empires: positions, race, clan and a development "head start".
 const npcCache = new Map();
 export function npcList(seed) {
   if (npcCache.has(seed)) return npcCache.get(seed);
@@ -47,14 +47,14 @@ export function npcList(seed) {
       id: `n${i}`, name, x, y,
       race: RACES[Math.floor(hash2(seed, i, 2, 9) * 4)],
       clan: NPC_CLANS[i % NPC_CLANS.length].id,
-      head: (i % 5) * 0.6, // дни преднина
+      head: (i % 5) * 0.6, // days of head start
     };
   });
   npcCache.set(seed, list);
   return list;
 }
 
-// Свободно място за нов град (търси по спирала от начална точка).
+// A free spot for a new city (searches in a spiral from a starting point).
 export function findSpot(seed, start, taken, minGap = 2) {
   const ok = (x, y) => tileAt(seed, x, y).kind === 'grass' && !taken(x, y, minGap);
   for (let r = 0; r <= WORLD_R; r++) {
@@ -75,7 +75,7 @@ export function homeStart(seed, uid) {
   return { x: Math.round(Math.cos(ang) * rad), y: Math.round(Math.sin(ang) * rad) };
 }
 
-// Варварските лагери на играча – около столицата му.
+// The player's barbarian camps – around their capital.
 export function campSpots(seed, home) {
   return CAMP_SLOTS.map((d, i) => {
     const ang = (i / CAMP_SLOTS.length) * Math.PI * 2 + hash2(seed, home.x, home.y, 20 + i) * 0.8;

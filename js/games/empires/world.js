@@ -1,5 +1,5 @@
-// Evil Empires – общият свят в локален режим: всички акаунти в този браузър споделят
-// един свят в localStorage. Логиката на света е в worldcore.js; онлайн тя работи на сървъра.
+// Evil Empires – the shared world in local mode: all accounts in this browser share
+// one world in localStorage. The world logic is in worldcore.js; online it runs on the server.
 import { freshWorld, allocateHomeIn, makeWorld } from './worldcore.js';
 
 const KEY = 'ee.world.v1';
@@ -26,7 +26,7 @@ export const leaseFresh = (uid) => Date.now() - Number(localStorage.getItem(LEAS
 
 export const allocateHome = (uid) => allocateHomeIn(loadWorld(), uid);
 
-// Всяка промяна чете най-новото състояние – другите раздели също пишат.
+// Every change reads the latest state – other tabs write too.
 export function worldApi(uid) {
   let cache = loadWorld();
   const api = makeWorld({
@@ -43,7 +43,7 @@ export function worldApi(uid) {
   return api;
 }
 
-// Онлайн: изгледът от сървъра (само за четене и предвиждане – промените не се записват).
+// Online: the view from the server (read-only and for prediction – changes are not saved).
 export function viewApi(uid, view) {
   let doc = view;
   const api = makeWorld({ get: () => doc, mutate: (fn) => fn(doc) }, uid);

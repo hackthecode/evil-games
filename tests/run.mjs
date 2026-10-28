@@ -1,11 +1,11 @@
-// Пускане: node tests/run.mjs   (или на Mac без Node: jsc -m tests/run.mjs)
-// В браузъра: отворете tests/index.html през локалния сървър.
+// Run: node tests/run.mjs   (or on a Mac without Node: jsc -m tests/run.mjs)
+// In the browser: open tests/index.html via the local server.
 if (!globalThis.crypto?.getRandomValues) {
-  // JavaScriptCore няма Web Crypto – за тестовете стига и обикновен генератор
+  // JavaScriptCore has no Web Crypto – a plain generator is enough for the tests
   globalThis.crypto = { getRandomValues(a) { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 2 ** 32); return a; } };
 }
 if (!globalThis.TextEncoder) {
-  // и TextEncoder (само UTF-8, колкото е нужно за хеширането)
+  // and TextEncoder (UTF-8 only, as much as hashing needs)
   globalThis.TextEncoder = class { encode(str) { const b = unescape(encodeURIComponent(str)); return Uint8Array.from(b, (ch) => ch.charCodeAt(0)); } };
 }
 const print = globalThis.print || ((s) => console.log(s));

@@ -1,13 +1,13 @@
-// Supabase Edge Function „referee“ – сървърът-съдия за игрите със скрити карти.
-// Логиката на игрите е в bundle.js (генерира се от js/ с tools/build-referee.py).
+// Supabase Edge Function "referee" – the referee server for hidden-card games.
+// The game logic is in bundle.js (generated from js/ with tools/build-referee.py).
 //
-// Заявки (POST JSON, с токена на влезлия потребител):
-//   create   { key, gameId, seats, opts }  – създава мача (ако още го няма)
-//   join     { key }                       – изгледът ми; мачът тръгва, когато всички хора влязат
-//   submit   { key, type, data }           – моето решение
-//   pull     { key, from }                 – стъпките от n = from нататък (с моя изглед)
-//   takeover { key, target }               – прекъснал играч → бот
-// След всяка промяна се праща сигнал по Realtime канал „ref-<key>“: { n }.
+// Requests (POST JSON, with the logged-in user's token):
+//   create   { key, gameId, seats, opts }  – creates the match (if it doesn't exist yet)
+//   join     { key }                       – my view; the match starts when all humans have joined
+//   submit   { key, type, data }           – my decision
+//   pull     { key, from }                 – the steps from n = from onwards (with my view)
+//   takeover { key, target }               – disconnected player → bot
+// After every change a signal is sent on the Realtime channel "ref-<key>": { n }.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createMatch, restoreMatch, forSeat, REDUCERS } from './bundle.js';
 
@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
     const auth = req.headers.get('Authorization') || '';
     const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Не сте влезли.' }, 401);
+    if (!user) return json({ error: 'You are not logged in.' }, 401);
     const db = createClient(URL_, SERVICE, { auth: { persistSession: false } });
     return json(await handle(db, user.id, await req.json()));
   } catch (e) {
@@ -42,11 +42,11 @@ type Db = any;
 async function load(db: Db, key: string) {
   const { data, error } = await db.from('referee_matches').select('*').eq('key', key).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('Мачът не е намерен.');
+  if (!data) throw new Error('Match not found.');
   return data;
 }
 
-// Записва новото състояние само ако никой друг не го е променил междувременно.
+// Saves the new state only if nobody else has changed it in the meantime.
 // deno-lint-ignore no-explicit-any
 async function persist(db: Db, row: any, match: any, entries: any[], patch: Record<string, unknown> = {}) {
   const n = match.log.length;
@@ -54,7 +54,7 @@ async function persist(db: Db, row: any, match: any, entries: any[], patch: Reco
     .update({ state: match.save(), n, updated_at: new Date().toISOString(), ...patch })
     .eq('key', row.key).eq('n', row.n).select('key');
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error('Мачът беше променен междувременно – опитайте отново.');
+  if (!data?.length) throw new Error('The match was changed in the meantime – try again.');
   if (entries.length) {
     const rows = entries.map((e) => ({ key: row.key, n: e.n, seat: e.seat, type: e.type, pub: e.pub, views: e.views }));
     const ins = await db.from('referee_log').insert(rows);
@@ -63,7 +63,7 @@ async function persist(db: Db, row: any, match: any, entries: any[], patch: Reco
   }
 }
 
-// Сигнал „има нови стъпки“ (без съдържание – всеки си взема своя изглед с pull).
+// A "new steps" signal (no content – everyone fetches their own view with pull).
 async function signal(key: string, n: number) {
   await fetch(`${URL_}/realtime/v1/api/broadcast`, {
     method: 'POST',
@@ -78,14 +78,14 @@ const seatOf = (seats: any[], uid: string) => seats.findIndex((s) => s.uid === u
 // deno-lint-ignore no-explicit-any
 async function handle(db: Db, uid: string, body: any) {
   const { op, key } = body;
-  if (typeof key !== 'string' || key.length > 80) throw new Error('Невалиден мач.');
+  if (typeof key !== 'string' || key.length > 80) throw new Error('Invalid match.');
 
   if (op === 'create') {
     const reducer = REDUCERS[body.gameId];
-    if (!reducer) throw new Error('Тази игра няма съдия.');
+    if (!reducer) throw new Error('This game has no referee.');
     // deno-lint-ignore no-explicit-any
-    const seats = (body.seats || []).map((s: any) => ({ uid: s.uid || null, bot: !!s.bot || !s.uid, name: String(s.name || 'Бот').slice(0, 40) }));
-    if (seatOf(seats, uid) < 0) throw new Error('Не сте на масата.');
+    const seats = (body.seats || []).map((s: any) => ({ uid: s.uid || null, bot: !!s.bot || !s.uid, name: String(s.name || 'Bot').slice(0, 40) }));
+    if (seatOf(seats, uid) < 0) throw new Error('You are not at the table.');
     const exists = await db.from('referee_matches').select('key').eq('key', key).maybeSingle();
     if (exists.data) return true;
     const seed = crypto.randomUUID() + crypto.randomUUID();
@@ -98,13 +98,13 @@ async function handle(db: Db, uid: string, body: any) {
   const row = await load(db, key);
   const reducer = REDUCERS[row.game_id];
   const seat = seatOf(row.seats, uid);
-  if (seat < 0) throw new Error('Не сте на масата.');
+  if (seat < 0) throw new Error('You are not at the table.');
   const match = restoreMatch(reducer, row.state);
 
   if (op === 'join') {
     const snap = match.snapshot(seat);
     const joined = [...new Set([...(row.joined || []), seat])];
-    // мачът тръгва, когато всички хора са влезли
+    // the match starts when all humans have joined
     // deno-lint-ignore no-explicit-any
     const all = match.seats.every((s: any, i: number) => s.bot || joined.includes(i));
     if (!row.started && all) await persist(db, row, match, match.start(), { joined, started: true });
@@ -136,5 +136,5 @@ async function handle(db: Db, uid: string, body: any) {
     return { entries: forSeat(data, seat).map((e: any) => ({ n: e.n, seat: e.seat, type: e.type, pub: e.pub, view: e.view })) };
   }
 
-  throw new Error('Непозната заявка.');
+  throw new Error('Unknown request.');
 }

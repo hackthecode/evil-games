@@ -1,6 +1,6 @@
-// Белот: интерфейсът се управлява от сървъра-съдия (js/games/belot/referee.js).
-// Играта получава стъпки { seat, type, pub, view } и само ги анимира; собствените
-// карти идват от изгледа, а чуждите не се знаят.
+// Belot: the UI is driven by the referee server (js/games/belot/referee.js).
+// The game receives steps { seat, type, pub, view } and only animates them; its own
+// cards come from the view, and the others' are unknown.
 import { h, sleep, modal, toast, motion } from '../../ui.js';
 import { createTable } from '../../net/table.js';
 import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
@@ -8,9 +8,10 @@ import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed } from '../cards/suits.js';
 import { CONTRACT_NAMES, teamOf } from './engine.js';
+import { txt } from '../../i18n.js';
 
 const SEATS = ['south', 'east', 'north', 'west'];
-const BOT_NAMES = [null, 'Георги', 'Мария', 'Петър'];
+const BOT_NAMES = [null, txt('Georgi'), txt('Maria'), txt('Petar')];
 const SPEED = { slow: 1.4, normal: 1, fast: 0.6 };
 
 function contractLabel(c, withIcon = true) {
@@ -21,9 +22,9 @@ function contractLabel(c, withIcon = true) {
 }
 
 function bidLabel(bid) {
-  if (bid === 'pass') return 'Пас';
-  if (bid === 'double') return 'Контра!';
-  if (bid === 'redouble') return 'Реконтра!';
+  if (bid === 'pass') return txt('Pass');
+  if (bid === 'double') return txt('Double!');
+  if (bid === 'redouble') return txt('Redouble!');
   return contractLabel(bid);
 }
 
@@ -43,11 +44,11 @@ export async function mount(root, ctx) {
     }
     const opts = await setupScreen(root, {
       gameId: 'belot',
-      title: 'Нова игра на белот',
-      subtitle: 'Вие и Мария срещу Георги и Петър.',
+      title: txt('New game of belot'),
+      subtitle: txt('You and Maria against Georgi and Petar.'),
       groups: [
-        { key: 'target', label: 'Игра до', value: 151, options: [[51, '51'], [101, '101'], [151, '151']] },
-        { key: 'speed', label: 'Скорост на компютъра', value: 'normal', options: [['slow', 'Бавно'], ['normal', 'Нормално'], ['fast', 'Бързо']] },
+        { key: 'target', label: txt('Play to'), value: 151, options: [[51, '51'], [101, '101'], [151, '151']] },
+        { key: 'speed', label: txt('Computer speed'), value: 'normal', options: [['slow', txt('Slow')], ['normal', txt('Normal')], ['fast', txt('Fast')]] },
       ],
     });
     if (destroyed) return;
@@ -60,7 +61,7 @@ export async function mount(root, ctx) {
     const gone = () => destroyed || myId !== matchId;
     const wait = (ms) => sleep(ms * speed);
     const ME = table.seat;
-    const V = (p) => (p - ME + 4) % 4; // позиция на масата: 0 = долу (аз), 1 = дясно, 2 = горе, 3 = ляво
+    const V = (p) => (p - ME + 4) % 4; // position at the table: 0 = bottom (me), 1 = right, 2 = top, 3 = left
     const US = teamOf(ME), THEM = 1 - US;
     let v = null;
     let over = false;
@@ -86,25 +87,25 @@ export async function mount(root, ctx) {
     const hud = h('div', { class: 'ct-hud' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
     const tools = h('div', { class: 'ct-tools' },
-      h('button', { class: 'btn', onclick: resign }, 'Предай се'),
-      !online && h('button', { class: 'btn', onclick: newGame }, 'Нова'),
+      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
+      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
     );
     table$.append(center, hud, tools);
     root.replaceChildren(table$);
 
-    const p2name = (p) => (p === ME ? 'вие' : names[p]);
+    const p2name = (p) => (p === ME ? txt('you') : names[p]);
 
-    // ---------- рендиране от изгледа ----------
+    // ---------- rendering from the view ----------
     function renderHud() {
       const cur = v?.bidding?.current;
       const playing = v?.contract && v.phase !== 'bid';
       hud.replaceChildren(...[
-        h('div', { class: 'row' }, h('span', null, 'Ние'), h('b', null, v?.score[US] ?? 0)),
-        h('div', { class: 'row' }, h('span', null, 'Те'), h('b', null, v?.score[THEM] ?? 0)),
-        h('div', { class: 'goal' }, `до ${v?.target ?? ''}${v?.hanging ? ` · висят ${v.hanging}` : ''}`),
+        h('div', { class: 'row' }, h('span', null, txt('Us')), h('b', null, v?.score[US] ?? 0)),
+        h('div', { class: 'row' }, h('span', null, txt('Them')), h('b', null, v?.score[THEM] ?? 0)),
+        h('div', { class: 'goal' }, txt('to {0}{1}', v?.target ?? '', v?.hanging ? txt(' · hanging {0}', v.hanging) : '')),
         playing && cur && h('div', { class: 'contract-badge', html: `${contractLabel(cur.contract)}${cur.mult > 1 ? ` ×${cur.mult}` : ''}` }),
-        playing && cur && h('div', { class: 'goal' }, `обяви ${p2name(cur.player)} · ръце ${v.tricksWon[US]}:${v.tricksWon[THEM]}`),
+        playing && cur && h('div', { class: 'goal' }, txt('bid {0} · tricks {1}:{2}', p2name(cur.player), v.tricksWon[US], v.tricksWon[THEM])),
       ].filter(Boolean));
       seats.forEach((s, p) => s.el.classList.toggle('turn', v?.turn === p));
     }
@@ -167,7 +168,7 @@ export async function mount(root, ctx) {
       setTimeout(() => m.remove(), ms);
     }
 
-    // ---------- решения на играча ----------
+    // ---------- player decisions ----------
     let picking = false;
     let lastFrom = null;
     seats[ME].handEl.addEventListener('click', (e) => {
@@ -191,7 +192,7 @@ export async function mount(root, ctx) {
           onclick: () => { panel.remove(); send('bid', bid); },
         });
       const panel = h('div', { class: 'bid-panel' },
-        h('h3', null, cur ? `Обявено: ${CONTRACT_NAMES[cur.contract]}${cur.mult > 1 ? ' ×' + cur.mult : ''} (${p2name(cur.player)})` : 'Вие обявявате'),
+        h('h3', null, cur ? txt('Bid: {0}{1} ({2})', CONTRACT_NAMES[cur.contract], cur.mult > 1 ? ' ×' + cur.mult : '', p2name(cur.player)) : txt('Your bid')),
         h('div', { class: 'bid-grid' },
           ['C', 'D', 'H', 'S'].map((c) => btn(c)),
           btn('NT', 'wide'), btn('AT', 'wide'),
@@ -226,13 +227,13 @@ export async function mount(root, ctx) {
       }
     }
 
-    // ---------- анимации по стъпки ----------
+    // ---------- step animations ----------
     const handSnap = (p) => {
       const kids = seats[p].handEl.children;
       return snap(kids[kids.length >> 1] || seats[p].handEl);
     };
 
-    // Раздаване на пакети (3+2 или 3) от тестето пред раздаващия.
+    // Dealing packets (3+2 or 3) from the deck in front of the dealer.
     async function dealPackets(nv, counts, dealer) {
       const prev = new Set((v?.hand || []).map((c) => c.id));
       const newMine = nv.hand.filter((c) => !prev.has(c.id));
@@ -288,7 +289,7 @@ export async function mount(root, ctx) {
       deckBox.dataset.left = 32;
       deckBox.dataset.seat = V(e.pub.dealer);
       table$.append(deckBox);
-      message(`Раздава ${p2name(e.pub.dealer)}`, 1000);
+      message(txt('{0} deals', p2name(e.pub.dealer)), 1000);
       sound('dice');
       await shuffleDeck(deckBox, 900 * speed);
       if (gone()) return;
@@ -334,29 +335,29 @@ export async function mount(root, ctx) {
       const us = teamOf(pub.bidder) === US;
       const res = pub.res;
       const note = res.outcome === 'inside'
-        ? (us ? 'Вътре сте! Точките отиват при противника.' : 'Противниците са вътре!')
-        : res.outcome === 'hanging' ? 'Висящи точки – отиват при победителя в следващото раздаване.'
-        : us ? 'Изкарахте играта!' : 'Противниците изкараха играта.';
-      // колоните са „Ние“ / „Те“ спрямо моя отбор
+        ? (us ? txt('You\'re inside! The points go to the opponents.') : txt('The opponents are inside!'))
+        : res.outcome === 'hanging' ? txt('Hanging points – they go to the winner of the next deal.')
+        : us ? txt('You won the game!') : txt('The opponents won the game.');
+      // the columns are "Us" / "Them" relative to my team
       const row = (label, pair, cls = '') => h('tr', { class: cls }, h('td', null, label), h('td', null, pair[US]), h('td', null, pair[THEM]));
       const nt = pub.contract === 'NT';
       await modal({
-        title: `Раздаване ${pub.dealNo} · ${CONTRACT_NAMES[pub.contract]}${pub.mult > 1 ? ' ×' + pub.mult : ''}`,
+        title: txt('Deal {0} · {1}{2}', pub.dealNo, CONTRACT_NAMES[pub.contract], pub.mult > 1 ? ' ×' + pub.mult : ''),
         body: h('div', null,
           h('p', { class: 'summary-note' }, note),
           h('table', { class: 'summary-table' },
-            h('tr', null, h('th', null, ''), h('th', null, 'Ние'), h('th', null, 'Те')),
-            row('Взети ръце', pub.tricksWon),
-            row('Точки от карти', res.cardPts),
-            row('Анонси', nt ? [0, 0] : pub.decl),
-            row('Белот', nt ? [0, 0] : pub.belot),
-            res.capot >= 0 && row('Валат', [res.capot === 0 ? 90 : 0, res.capot === 1 ? 90 : 0]),
-            row('Общо', res.total),
-            row('Точки за играта', res.gp.map((x) => '+' + x), 'total'),
-            row('Резултат', pub.score, 'total'),
+            h('tr', null, h('th', null, ''), h('th', null, txt('Us')), h('th', null, txt('Them'))),
+            row(txt('Tricks taken'), pub.tricksWon),
+            row(txt('Card points'), res.cardPts),
+            row(txt('Declarations'), nt ? [0, 0] : pub.decl),
+            row(txt('Belot'), nt ? [0, 0] : pub.belot),
+            res.capot >= 0 && row(txt('Capot'), [res.capot === 0 ? 90 : 0, res.capot === 1 ? 90 : 0]),
+            row(txt('Overall'), res.total),
+            row(txt('Game points'), res.gp.map((x) => '+' + x), 'total'),
+            row(txt('Result'), pub.score, 'total'),
           ),
         ),
-        actions: [{ label: 'Продължи', value: true, primary: true }],
+        actions: [{ label: txt('Continue'), value: true, primary: true }],
       });
     }
 
@@ -369,11 +370,11 @@ export async function mount(root, ctx) {
         renderHud();
         if (!motion.fast && nv.phase !== 'over') await showSummary(e.pub);
         if (nv.phase === 'over') {
-          endMatch(nv.score[US] > nv.score[THEM] ? 'win' : 'loss', `Краен резултат: Ние ${nv.score[US]} – Те ${nv.score[THEM]}`);
+          endMatch(nv.score[US] > nv.score[THEM] ? 'win' : 'loss', txt('Final result: Us {0} – Them {1}', nv.score[US], nv.score[THEM]));
         }
         return;
       }
-      // ход на друг играч – кратко „мислене“
+      // another player's turn – a short "think"
       if (e.seat !== ME && !motion.fast) await wait(e.type === 'bid' ? 750 : 650);
       if (gone()) return;
       if (e.type === 'bid') {
@@ -383,7 +384,7 @@ export async function mount(root, ctx) {
         renderHud();
         if (e.pub.redeal) {
           await wait(900);
-          message('Всички пасуваха – ново раздаване', 1600);
+          message(txt('Everyone passed – a new deal'), 1600);
           await wait(1700);
         }
         return;
@@ -391,7 +392,7 @@ export async function mount(root, ctx) {
       if (e.type === 'card') return animCard(e, nv);
     }
 
-    // Стъпките се анимират една по една; след последната – решението на играча.
+    // Steps are animated one by one; after the last one – the player's decision.
     const queue = [];
     let busy = false;
     let skipBelow = 0;
@@ -414,7 +415,7 @@ export async function mount(root, ctx) {
       pump();
     });
 
-    // ---------- край ----------
+    // ---------- end ----------
     async function endMatch(outcome, text) {
       if (over) return;
       over = true;
@@ -425,23 +426,23 @@ export async function mount(root, ctx) {
       const sc = v?.score || [0, 0];
       const partner = names[(ME + 2) % 4];
       await ctx.report(outcome, online
-        ? { summary: `Онлайн · с ${partner} · ${sc[US]}:${sc[THEM]} · до ${v?.target}`, online: true, score: [sc[US], sc[THEM]] }
-        : { summary: `${sc[US]}:${sc[THEM]} · до ${v?.target}`, score: [sc[US], sc[THEM]] });
+        ? { summary: txt('Online · with {0} · {1}:{2} · to {3}', partner, sc[US], sc[THEM], v?.target), online: true, score: [sc[US], sc[THEM]] }
+        : { summary: txt('{0}:{1} · to {2}', sc[US], sc[THEM], v?.target), score: [sc[US], sc[THEM]] });
       if (destroyed) return;
-      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text, again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? online.rematch() : start();
       else if (c === 'exit') location.hash = online ? '#/online/belot' : '#/';
     }
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', online ? 'Отборът ви ще загуби играта. Продължаване?' : 'Да се отчете ли играта като загуба?', 'Предай се', true))) return;
-      if (online) online.resign(); // събитието завършва играта при всички
-      else endMatch('loss', 'Предадохте играта.');
+      if (!(await confirmDialog(txt('Resign'), online ? txt('Your team will lose the game. Continue?') : txt('Count the game as a loss?'), txt('Resign'), true))) return;
+      if (online) online.resign(); // the event ends the game for everyone
+      else endMatch('loss', txt('You resigned the game.'));
     }
 
     async function newGame() {
-      if (!(await confirmDialog('Нова игра', 'Текущата игра ще бъде прекратена без да се отчита. Продължаване?'))) return;
+      if (!(await confirmDialog(txt('New game'), txt('The current game will be stopped without being counted. Continue?')))) return;
       start();
     }
 
@@ -449,12 +450,12 @@ export async function mount(root, ctx) {
       if (over || destroyed) return;
       if (e.kind === 'resign') {
         const lost = teamOf(e.seat) === US;
-        endMatch(lost ? 'loss' : 'win', e.seat === ME ? 'Предадохте играта.' : `${names[e.seat]} предаде играта${lost ? ' от името на отбора ви' : ''}.`);
+        endMatch(lost ? 'loss' : 'win', e.seat === ME ? txt('You resigned the game.') : txt('{0} resigned the game{1}.', names[e.seat], lost ? txt(' on behalf of your team') : ''));
       } else if (e.kind === 'forfeit') {
-        endMatch(teamOf(e.winner) === US ? 'win' : 'loss', 'Служебна победа.');
+        endMatch(teamOf(e.winner) === US ? 'win' : 'loss', txt('Forfeit win.'));
       }
     }) : () => {};
-    // прекъснал играч е заменен с бот – съдията поема решенията му
+    // a disconnected player is replaced by a bot – the referee takes over their decisions
     const offTakeover = online ? online.onTakeover((seat) => table.takeover(seat).catch(() => {})) : () => {};
 
     cleanup = () => {
@@ -464,7 +465,7 @@ export async function mount(root, ctx) {
       table.close();
     };
 
-    // ---------- свързване ----------
+    // ---------- connecting ----------
     try {
       const res = await table.connect();
       if (gone()) return;
@@ -475,7 +476,7 @@ export async function mount(root, ctx) {
       renderTrick();
       pump();
     } catch (e) {
-      table$.append(h('div', { class: 'ct-msg' }, 'Няма връзка със съдията: ' + e.message));
+      table$.append(h('div', { class: 'ct-msg' }, txt('No connection to the referee: ') + e.message));
     }
   }
 

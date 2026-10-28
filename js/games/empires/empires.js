@@ -1,5 +1,5 @@
-// Evil Empires – интерфейс. Състоянието се пази локално за всеки потребител; общият
-// свят (други играчи, съюзи, оазиси) е в world.js, логиката – в engine.js.
+// Evil Empires – UI. The state is kept locally for each user; the shared
+// world (other players, alliances, oases) is in world.js, the logic – in engine.js.
 import { h, modal, toast } from '../../ui.js';
 import { sound, confirmDialog, loadPrefs, savePrefs, isMuted, setMuted } from '../common.js';
 import * as E from './engine.js';
@@ -19,29 +19,32 @@ import { createChat } from './chatui.js';
 import { cityAudio, audioPrefs, setAudioPref, preloadBattleSounds, battleMusic } from './audio.js';
 import { store } from '../../store/index.js';
 import { CONFIG } from '../../../config.js';
+import { txt, decode, LOCALE, lang } from '../../i18n.js';
+
+const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
 
 const SAVE_KEY = (uid) => `ee.save.${uid}`;
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
-const TABS = [['city', 'Град'], ['army', 'Армия'], ['map', 'Карта'], ['marches', 'Походи'], ['hero', 'Герой'], ['science', 'Наука'], ['alliance', 'Съюз'], ['missions', 'Мисии']];
-const REL_NAMES = { self: 'вие', alliance: 'вашият съюз', ally: 'съюзници', pact: 'пакт за ненападение', war: 'война', neutral: 'неутрален' };
+const TABS = [['city', txt('City')], ['army', txt('Army')], ['map', txt('Map')], ['marches', txt('Marches')], ['hero', txt('Hero')], ['science', txt('Science')], ['alliance', txt('Alliance')], ['missions', txt('Missions')]];
+const REL_NAMES = { self: txt('you'), alliance: txt('your alliance'), ally: txt('allies'), pact: txt('non-aggression pact'), war: txt('war'), neutral: txt('neutral') };
 
-// ---------- форматиране ----------
+// ---------- formatting ----------
 export function fmtN(n) {
   n = Math.floor(n);
-  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace('.', ',') + ' млн';
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace('.', ',') + txt(' M');
   if (n >= 1e5) return Math.round(n / 1000) + 'k';
-  return n.toLocaleString('bg-BG');
+  return n.toLocaleString(LOCALE);
 }
 
 export function fmtLeft(ms) {
   const t = Math.max(0, Math.ceil(ms / 1000));
   const d = Math.floor(t / 86400), hh = Math.floor((t % 86400) / 3600), mm = Math.floor((t % 3600) / 60), ss = t % 60;
-  if (d) return `${d}д ${hh}ч`;
-  if (hh) return `${hh}ч ${String(mm).padStart(2, '0')}м`;
-  if (mm) return `${mm}м ${String(ss).padStart(2, '0')}с`;
-  return `${ss}с`;
+  if (d) return txt('{0}d {1}h', d, hh);
+  if (hh) return txt('{0}h {1}m', hh, String(mm).padStart(2, '0'));
+  if (mm) return txt('{0}m {1}s', mm, String(ss).padStart(2, '0'));
+  return txt('{0}s', ss);
 }
-const clock = (t) => new Date(t).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+const clock = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 
 function loadSave(uid) {
   try {
@@ -55,7 +58,7 @@ const writeSave = (uid, s) => { try { localStorage.setItem(SAVE_KEY(uid), JSON.s
 
 export function mount(root, ctx) {
   const uid = ctx.user.id;
-  // онлайн (Supabase): всяко действие се проверява от сървъра; локално – всичко е в браузъра
+  // online (Supabase): every action is checked by the server; locally – everything is in the browser
   const ONLINE = store.kind === 'supabase';
   const FN = CONFIG.supabase?.empiresFunction || 'empires';
   const W = ONLINE ? viewApi(uid, null) : worldApi(uid);
@@ -67,7 +70,7 @@ export function mount(root, ctx) {
     if (error) {
       let msg = error.message;
       try { const j = await error.context?.json?.(); if (j?.error) msg = j.error; } catch {}
-      throw new Error(msg === 'Failed to send a request to the Edge Function' ? 'Няма връзка със сървъра на играта.' : msg);
+      throw new Error(msg === 'Failed to send a request to the Edge Function' ? txt('No connection to the game server.') : msg);
     }
     if (data?.error) throw new Error(data.error);
     return data;
@@ -83,14 +86,14 @@ export function mount(root, ctx) {
   const ui = loadPrefs('empires.ui', { tab: 'city' });
   const mapView = { center: null, sel: null };
 
-  // Нападение към играч, чийто раздел не е отворен: решаваме битката от негово име (само локално).
+  // An attack on a player whose tab is not open: we resolve the battle on their behalf (local only).
   if (!ONLINE) W.resolveOffline = (defUid, id, t) => {
     if (defUid === uid || leaseFresh(defUid)) return;
     let d = loadSave(defUid);
     if (!d) {
       const inc = W.incomingFor(defUid).find((x) => x.id === id);
       if (inc) {
-        W.putResult(id, { win: true, loot: {}, trapped: 0, att: inc.groups.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [], defName: 'Изоставен град', city: '', rounds: 0 });
+        W.putResult(id, { win: true, loot: {}, trapped: 0, att: inc.groups.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [], defName: txt('Abandoned city'), city: '', rounds: 0 });
         W.removeIncoming(defUid, id);
       }
       return;
@@ -125,7 +128,7 @@ export function mount(root, ctx) {
   const cur = () => E.cityOf(s, ui.city);
   const now = () => Date.now();
 
-  // ---------- старт ----------
+  // ---------- start ----------
   const SEEN = `ee.seen.${uid}`;
   function markSeen() {
     if (!s) return;
@@ -139,28 +142,28 @@ export function mount(root, ctx) {
     markSeen();
     if (!events.length || away < 120000) return;
     modal({
-      title: 'Докато ви нямаше',
+      title: txt('While you were away'),
       body: h('div', { class: 'ee-away' },
-        h('p', { class: 'muted' }, `Минаха ${fmtLeft(away)}. Империята не спи.`),
+        h('p', { class: 'muted' }, txt('{0} have passed. The empire never sleeps.', fmtLeft(away))),
         h('ul', { class: 'ee-log' }, events.slice(-16).map((l) => h('li', { class: `k-${l.kind}` }, l.text))),
       ),
-      actions: [{ label: 'Към империята', value: true, primary: true }],
+      actions: [{ label: txt('To the empire'), value: true, primary: true }],
     });
   }
 
   function welcome() {
     modal({
-      title: 'Добре дошли, владетелю',
+      title: txt('Welcome, ruler'),
       body: h('div', { class: 'ee-away' },
         h('div', { class: 'ee-center', html: emblem(s.race, 72) }),
-        h('p', null, `${s.name} е само пепелище и една Цитадела. Изградете ${E.bName(s, 'farm').toLowerCase()}, дъскорезница и кариера, обучете войска и разбийте варварите наоколо.`),
-        h('p', { class: 'muted' }, `Героят ви вече чака приключения. Първите ${fmtLeft(E.isProtected(s) ? s.protectedUntil - now() : 0)} сте под защита за новаци – никой няма да ви напада.`),
+        h('p', null, txt('{0} is nothing but ashes and a Citadel. Build a {1}, a sawmill and a quarry, train troops and crush the barbarians around you.', s.name, decode(E.bName(s, 'farm')).toLowerCase())),
+        h('p', { class: 'muted' }, txt('Your hero is already waiting for adventures. For the first {0} you are under beginner protection – nobody will attack you.', fmtLeft(E.isProtected(s) ? s.protectedUntil - now() : 0))),
       ),
-      actions: [{ label: 'Да започваме', value: true, primary: true }],
+      actions: [{ label: txt('Let\'s begin'), value: true, primary: true }],
     });
   }
 
-  // ---------- рамка ----------
+  // ---------- frame ----------
   let topEl, jobsEl, tabsEl, bodyEl, coachEl, color;
   function buildShell() {
     topEl = h('div', { class: 'ee-top' });
@@ -184,18 +187,18 @@ export function mount(root, ctx) {
     updateLive();
   }
 
-  // ---------- обучение за нови играчи ----------
+  // ---------- tutorial for new players ----------
   const TUT_KEY = `ee.tut.${uid}`;
   const queued = (id) => s.cities.some((c) => c.queue.some((q) => q.id === id));
   const TUT = [
-    { text: () => `Постройте ${E.bName(s, 'farm').toLowerCase()} – тя храни града. Натиснете светещия парцел.`, tab: 'city', sel: '.ee-plot[data-id="farm"]', done: () => E.maxLv(s, 'farm') >= 1 || queued('farm') },
-    { text: () => 'Постройте дъскорезница – дървото трябва за всички строежи.', tab: 'city', sel: '.ee-plot[data-id="lumber"]', done: () => E.maxLv(s, 'lumber') >= 1 || queued('lumber') },
-    { text: () => (s.adventures.length ? 'Изпратете героя на приключение – ще се върне с опит, а може би и с плячка.' : 'Героят чака първото си приключение – появява се след минута. Междувременно огледайте раздел „Герой“.'), tab: 'hero', sel: '.ee-adv-send', done: () => (s.stats.adventures || 0) >= 1 || s.marches.some((m) => m.kind === 'adventure') },
-    { text: () => 'Постройте казарма, за да обучавате войска.', tab: 'city', sel: '.ee-plot[data-id="barracks"]', done: () => E.maxLv(s, 'barracks') >= 1 || queued('barracks') },
-    { text: () => 'Обучете поне 5 войници в раздел „Армия“.', tab: 'army', sel: '.ee-card .ee-train .btn-primary', done: () => s.stats.trained + s.cities.reduce((a, c) => a + c.train.reduce((x, b) => x + b.n - b.done, 0), 0) >= 5 },
-    { text: () => 'Нападнете варварски лагер: на Картата изберете палатките и натиснете „Набег“.', tab: 'map', sel: '.ee-map', done: () => (s.stats.raids || 0) >= 1 || s.marches.some((m) => m.kind === 'raid') },
-    { text: () => 'Вземете наградите за изпълнените мисии.', tab: 'missions', sel: '.ee-mission.ready .btn-primary', done: () => s.story.claimed.length >= 3 },
-    { text: () => 'Постройте палисада – първата защита срещу нападенията на варварските владетели.', tab: 'city', sel: '.ee-brow[data-bid="wall"]', done: () => E.maxLv(s, 'wall') >= 1 || queued('wall') },
+    { text: () => txt('Build a {0} – it feeds the city. Tap the glowing plot.', decode(E.bName(s, 'farm')).toLowerCase()), tab: 'city', sel: '.ee-plot[data-id="farm"]', done: () => E.maxLv(s, 'farm') >= 1 || queued('farm') },
+    { text: () => txt('Build a sawmill – wood is needed for all construction.'), tab: 'city', sel: '.ee-plot[data-id="lumber"]', done: () => E.maxLv(s, 'lumber') >= 1 || queued('lumber') },
+    { text: () => (s.adventures.length ? txt('Send the hero on an adventure – they will return with experience and maybe with loot.') : txt('The hero is waiting for their first adventure – it appears in a minute. Meanwhile, look around the "Hero" tab.')), tab: 'hero', sel: '.ee-adv-send', done: () => (s.stats.adventures || 0) >= 1 || s.marches.some((m) => m.kind === 'adventure') },
+    { text: () => txt('Build barracks to train troops.'), tab: 'city', sel: '.ee-plot[data-id="barracks"]', done: () => E.maxLv(s, 'barracks') >= 1 || queued('barracks') },
+    { text: () => txt('Train at least 5 soldiers in the "Army" tab.'), tab: 'army', sel: '.ee-card .ee-train .btn-primary', done: () => s.stats.trained + s.cities.reduce((a, c) => a + c.train.reduce((x, b) => x + b.n - b.done, 0), 0) >= 5 },
+    { text: () => txt('Attack a barbarian camp: on the Map select the tents and press "Raid".'), tab: 'map', sel: '.ee-map', done: () => (s.stats.raids || 0) >= 1 || s.marches.some((m) => m.kind === 'raid') },
+    { text: () => txt('Claim the rewards for completed missions.'), tab: 'missions', sel: '.ee-mission.ready .btn-primary', done: () => s.story.claimed.length >= 3 },
+    { text: () => txt('Build a palisade – the first defense against attacks by the barbarian rulers.'), tab: 'city', sel: '.ee-brow[data-bid="wall"]', done: () => E.maxLv(s, 'wall') >= 1 || queued('wall') },
   ];
   function renderCoach() {
     if (!coachEl) return;
@@ -205,16 +208,16 @@ export function mount(root, ctx) {
     const i = TUT.findIndex((x) => !x.done());
     if (i < 0) {
       localStorage.setItem(TUT_KEY, 'done');
-      toast('Обучението е завършено – империята е ваша! 👑', 'success', 4000);
+      toast(txt('The tutorial is complete – the empire is yours! 👑'), 'success', 4000);
       return coachEl.replaceChildren();
     }
     const step = TUT[i];
     if (ui.tab === step.tab) document.querySelector(step.sel)?.classList.add('ee-hl');
     coachEl.replaceChildren(h('div', { class: 'ee-coach' },
       h('span', { class: 'ee-coach-ic' }, '🧭'),
-      h('div', { class: 'ee-coach-t' }, h('small', null, `Обучение · стъпка ${i + 1} от ${TUT.length}`), h('b', null, step.text())),
-      ui.tab !== step.tab && h('button', { class: 'btn btn-sm btn-primary', onclick: () => goTab(step.tab) }, 'Покажи'),
-      h('button', { class: 'icon-btn', title: 'Пропусни обучението', 'aria-label': 'Пропусни обучението', onclick: () => { localStorage.setItem(TUT_KEY, 'off'); renderCoach(); } }, '✕')));
+      h('div', { class: 'ee-coach-t' }, h('small', null, txt('Tutorial · step {0} of {1}', i + 1, TUT.length)), h('b', null, step.text())),
+      ui.tab !== step.tab && h('button', { class: 'btn btn-sm btn-primary', onclick: () => goTab(step.tab) }, txt('Show')),
+      h('button', { class: 'icon-btn', title: txt('Skip the tutorial'), 'aria-label': txt('Skip the tutorial'), onclick: () => { localStorage.setItem(TUT_KEY, 'off'); renderCoach(); } }, '✕')));
   }
 
   function renderTop() {
@@ -222,29 +225,29 @@ export function mount(root, ctx) {
     const r = E.rates(s, c);
     const show = RES.filter((k) => k !== 'mana' || s.epoch >= 2 || c.res.mana > 0).filter((k) => k !== 'souls' || c.res.souls > 0);
     const citySel = s.cities.length > 1
-      ? h('select', { class: 'ee-citysel', 'aria-label': 'Град', onchange: (e) => switchCity(e.target.value) }, s.cities.map((x) => h('option', { value: x.id, selected: x.id === c.id }, `${x.name} (${x.x}|${x.y})`)))
+      ? h('select', { class: 'ee-citysel', 'aria-label': txt('City'), onchange: (e) => switchCity(e.target.value) }, s.cities.map((x) => h('option', { value: x.id, selected: x.id === c.id }, `${x.name} (${x.x}|${x.y})`)))
       : h('small', null, `${c.name} · (${c.x}|${c.y})`);
     topEl.replaceChildren(
       h('div', { class: 'ee-crest' },
-        h('button', { class: 'ee-crest-b', title: 'Империята', onclick: settings, html: emblem(s.race, 40) }),
+        h('button', { class: 'ee-crest-b', title: txt('The empire'), onclick: settings, html: emblem(s.race, 40) }),
         h('span', { class: 'ee-crest-t' }, h('b', null, s.name), h('small', { class: 'ee-ep' }, EPOCHS[s.epoch - 1].name), citySel),
         h('span', { class: 'ee-tools' },
           chat.button,
-          h('button', { class: 'ee-tool', title: 'Настройки и звук', 'aria-label': 'Настройки и звук', onclick: settings }, '⚙'),
-          h('button', { class: 'ee-tool', title: isMuted() ? 'Включи звука' : 'Изключи звука', 'aria-label': 'Звук', onclick: () => { setMuted(!isMuted()); updateAudio(); renderTop(); } }, isMuted() ? '🔇' : '🔊')),
-        E.isProtected(s, now()) && h('span', { class: 'ee-prot', title: 'Защита за новаци – никой не може да ви напада' }, '🛡 ', h('span', { class: 'ee-timer', dataset: { end: s.protectedUntil } }))),
+          h('button', { class: 'ee-tool', title: txt('Settings and sound'), 'aria-label': txt('Settings and sound'), onclick: settings }, '⚙'),
+          h('button', { class: 'ee-tool', title: isMuted() ? txt('Turn sound on') : txt('Turn sound off'), 'aria-label': txt('Sound'), onclick: () => { setMuted(!isMuted()); updateAudio(); renderTop(); } }, isMuted() ? '🔇' : '🔊')),
+        E.isProtected(s, now()) && h('span', { class: 'ee-prot', title: txt('Beginner protection – nobody can attack you') }, '🛡 ', h('span', { class: 'ee-timer', dataset: { end: s.protectedUntil } }))),
       h('div', { class: 'ee-res' },
         show.map((k) => {
           const cap = E.capOf(c, k);
-          return h('div', { class: 'ee-res-i', title: `${resName(s.race, k)}${cap < Infinity ? ` · склад ${fmtN(cap)}` : ''}` },
+          return h('div', { class: 'ee-res-i', title: `${resName(s.race, k)}${cap < Infinity ? txt(' · storage {0}', fmtN(cap)) : ''}` },
             ri(k),
             h('span', { class: 'ee-res-v' }, h('b', { dataset: { res: k } }, fmtN(c.res[k])),
-              k !== 'souls' && h('small', { class: r[k] < 0 ? 'neg' : '' }, `${r[k] >= 0 ? '+' : ''}${fmtN(r[k])}/ч`)),
+              k !== 'souls' && h('small', { class: r[k] < 0 ? 'neg' : '' }, txt('{0}{1}/h', r[k] >= 0 ? '+' : '', fmtN(r[k])))),
             cap < Infinity && h('i', { class: 'ee-cap' }, h('i', { dataset: { capres: k, cap } })));
         }),
-        h('div', { class: 'ee-res-i', title: 'Население (място за войска)' },
+        h('div', { class: 'ee-res-i', title: txt('Population (room for troops)') },
           h('span', { class: 'ee-ri', html: RES_ICON.pop }),
-          h('span', { class: 'ee-res-v' }, h('b', null, `${E.popUsed(s, c)}/${E.popCap(s, c)}`), h('small', null, 'население')))));
+          h('span', { class: 'ee-res-v' }, h('b', null, `${E.popUsed(s, c)}/${E.popCap(s, c)}`), h('small', null, txt('population'))))));
   }
 
   function switchCity(id) {
@@ -260,7 +263,7 @@ export function mount(root, ctx) {
       h('i', { class: 'ee-bar' }, h('i', { dataset: { start, end } })));
   }
 
-  // Входящите нападения се виждат, когато влязат в обсега на стражевата кула.
+  // Incoming attacks become visible when they enter the watchtower's range.
   const allIncoming = () => [
     ...s.incoming.map((x) => ({ ...x, key: `n${x.id}`, cityId: x.city, attacker: x.name })),
     ...W.incomingFor(uid).map((x) => ({ ...x, key: `p${x.id}`, cityId: x.toCity, attacker: x.attName, pvp: true })),
@@ -274,10 +277,10 @@ export function mount(root, ctx) {
       : T.type === 'npc' ? E.npcs(s).find((n) => n.id === T.id)?.name
         : T.type === 'city' ? E.cityOf(s, T.id).name
           : T.name || `(${T.x}|${T.y})`;
-    if (m.phase === 'back') return `↩ ${m.kind === 'adventure' ? 'Героят се връща' : 'Връщане'} от ${name}`;
-    if (m.phase === 'wait') return `⚔ Битка при ${name}…`;
-    if (m.phase === 'battle') return `⚔ Поведете битката: ${name}`;
-    return { raid: '🚩 Набег', attack: '⚔ Атака', scout: '👁 Разузнаване', support: '🛡 Подкрепа', found: '🏰 Заселване', adventure: '🧭 Приключение' }[m.kind] + ` → ${name}`;
+    if (m.phase === 'back') return txt('↩ {0} from {1}', m.kind === 'adventure' ? txt('The hero is returning') : txt('Returning'), name);
+    if (m.phase === 'wait') return txt('⚔ Battle at {0}…', name);
+    if (m.phase === 'battle') return txt('⚔ Lead the battle: {0}', name);
+    return { raid: txt('🚩 Raid'), attack: txt('⚔ Attack'), scout: txt('👁 Scouting'), support: txt('🛡 Reinforcement'), found: txt('🏰 Settling'), adventure: txt('🧭 Adventure') }[m.kind] + ` → ${name}`;
   }
 
   function renderJobs() {
@@ -289,7 +292,7 @@ export function mount(root, ctx) {
       const b = c.train[0];
       const left = c.train.reduce((a, x) => a + x.n - x.done, 0);
       const last = c.train[c.train.length - 1];
-      items.push(job(`⚔ ${E.uName(s, b.u)} · ${left} в обучение`, b.start, last.start + last.each * last.n, () => goTab('army')));
+      items.push(job(txt('⚔ {0} · {1} in training', E.uName(s, b.u), left), b.start, last.start + last.each * last.n, () => goTab('army')));
     }
     if (s.research) items.push(job(`📜 ${TECHS[s.research.id].name}`, s.research.start, s.research.end, () => goTab('science')));
     if (s.epochUp) items.push(job(`✦ ${EPOCHS[s.epochUp.to - 1].name}`, s.epochUp.start, s.epochUp.end, () => goTab('science')));
@@ -298,7 +301,7 @@ export function mount(root, ctx) {
       const [a, b] = m.phase === 'back' ? [m.arrive, m.back] : [m.depart, m.arrive];
       items.push(job(marchLabel(m), a, b, () => goTab('marches')));
     }
-    if (!c.queue.length) items.splice(allIncoming().length, 0, h('button', { class: 'ee-job idle', onclick: () => goTab('city') }, '🔨 Строителите почиват'));
+    if (!c.queue.length) items.splice(allIncoming().length, 0, h('button', { class: 'ee-job idle', onclick: () => goTab('city') }, txt('🔨 The builders are resting')));
     jobsEl.replaceChildren(...items);
   }
 
@@ -327,7 +330,7 @@ export function mount(root, ctx) {
     renderCoach();
   }
 
-  // Обновява числата и таймерите без да прерисува всичко.
+  // Updates numbers and timers without redrawing everything.
   function updateLive() {
     const c = cur();
     const t = now();
@@ -344,7 +347,7 @@ export function mount(root, ctx) {
 
   let tickN = 0;
   const NOTE_KINDS = ['loss', 'win', 'epoch', 'alarm'];
-  // Проверява за нови събития и нападения: известия, звук, прерисуване.
+  // Checks for new events and attacks: notifications, sound, redraw.
   function afterChange(force = false) {
     if (!s) return false;
     const fresh = s.log.filter((l) => l.id > lastLog);
@@ -358,7 +361,7 @@ export function mount(root, ctx) {
       for (const l of fresh.filter((x) => NOTE_KINDS.includes(x.kind)).slice(-3)) notify(l.text);
     }
     for (const x of newInc) {
-      const msg = `⚠ ${x.attacker} напада ${x.cityName} след ${fmtLeft(x.arrive - now())}!`;
+      const msg = txt('⚠ {0} attacks {1} in {2}!', x.attacker, x.cityName, fmtLeft(x.arrive - now()));
       toast(msg, 'error', 5000);
       sound('check');
       notify(msg);
@@ -367,7 +370,7 @@ export function mount(root, ctx) {
     if (force || fresh.length || incKey !== lastIncoming) {
       lastIncoming = incKey;
       save();
-      // не прекъсваме писането в чата / формите
+      // we don't interrupt typing in the chat / forms
       const typing = document.activeElement?.closest?.('.ee') && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
       if (!document.querySelector('dialog[open]') && !typing) renderAll();
       else { renderTop(); renderJobs(); renderTabs(); }
@@ -385,7 +388,7 @@ export function mount(root, ctx) {
     }
     E.advance(s, t, env);
     if (afterChange()) return;
-    // светлината в града се сменя на всеки 15 минути (ден, залез, нощ)
+    // the light in the city changes every 15 minutes (day, sunset, night)
     const sk = `${Math.floor(E.localHour(t) * 4)}:${weatherNow()}`;
     if (sk !== sceneKey) updateAudio();
     if (ui.tab === 'city' && sceneKey && sk !== sceneKey && !document.querySelector('dialog[open]')) renderBody();
@@ -395,7 +398,7 @@ export function mount(root, ctx) {
     if (tickN % 10 === 0) { save(); markSeen(); }
   }
 
-  // Онлайн: състоянието от сървъра на всеки 20 секунди (6 в раздела на съюза – заради чата).
+  // Online: the state from the server every 20 seconds (6 in the alliance tab – because of the chat).
   async function syncNow() {
     if (!ONLINE || !s || destroyed || busy) return;
     try {
@@ -413,7 +416,7 @@ export function mount(root, ctx) {
     syncTimer = setTimeout(async () => { await syncNow(); scheduleSync(); }, ui.tab === 'alliance' || chat.isOpen() ? 6000 : 20000);
   }
 
-  // Действие на играча: локално – направо в логиката; онлайн – през сървъра.
+  // A player action: locally – straight into the logic; online – through the server.
   async function doAct(name, args = [], okMsg) {
     if (busy) return false;
     busy = true;
@@ -440,8 +443,8 @@ export function mount(root, ctx) {
         W.publish(E.snapshot(s));
         const emb = E.maxLv(s, 'embassy');
         if (name === 'createAlliance') W.createAlliance(args[0], args[1], emb);
-        else if (name === 'acceptInvite') { if (!emb) throw new Error('Нужно е Посолство.'); W.acceptInvite(args[0], Math.max(3, 3 * emb)); }
-        else if (name === 'invite' && !emb) throw new Error('Нужно е Посолство.');
+        else if (name === 'acceptInvite') { if (!emb) throw new Error(txt('Embassy required.')); W.acceptInvite(args[0], Math.max(3, 3 * emb)); }
+        else if (name === 'invite' && !emb) throw new Error(txt('Embassy required.'));
         else W[name](...args);
       }
       if (okMsg) toast(okMsg, 'success');
@@ -453,7 +456,7 @@ export function mount(root, ctx) {
     }
   }
 
-  // ---------- известия ----------
+  // ---------- notifications ----------
   const notifyOn = () => localStorage.getItem('ee.notify') === '1' && 'Notification' in window && Notification.permission === 'granted';
   const pushOn = () => ONLINE && localStorage.getItem('ee.push') === '1';
   function notify(text) {
@@ -464,22 +467,22 @@ export function mount(root, ctx) {
   }
   const b64u = (str) => { const b = atob(str.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (str.length % 4)) % 4)); return Uint8Array.from(b, (ch) => ch.charCodeAt(0)); };
   async function enableNotify() {
-    if (!('Notification' in window)) return toast('Браузърът не поддържа известия.', 'error');
+    if (!('Notification' in window)) return toast(txt('The browser does not support notifications.'), 'error');
     const p = await Notification.requestPermission();
-    if (p !== 'granted') return toast('Известията са забранени в браузъра.', 'error');
+    if (p !== 'granted') return toast(txt('Notifications are blocked in the browser.'), 'error');
     localStorage.setItem('ee.notify', '1');
     if (ONLINE && CONFIG.supabase?.empiresPush && 'serviceWorker' in navigator && 'PushManager' in window) {
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(CONFIG.supabase.empiresPush) }));
-        await call({ op: 'push', sub: sub.toJSON() });
+        await call({ op: 'push', sub: { ...sub.toJSON(), lang } });
         localStorage.setItem('ee.push', '1');
-        return toast('Известията са включени – ще пристигат и когато играта е затворена.', 'success');
+        return toast(txt('Notifications are on – they will arrive even when the game is closed.'), 'success');
       } catch (e) {
         console.warn('push', e);
       }
     }
-    toast('Известията са включени (докато браузърът е отворен).', 'success');
+    toast(txt('Notifications are on (while the browser is open).'), 'success');
   }
   async function disableNotify() {
     localStorage.setItem('ee.notify', '0');
@@ -491,10 +494,10 @@ export function mount(root, ctx) {
       } catch {}
       localStorage.setItem('ee.push', '0');
     }
-    toast('Известията са изключени.', 'success');
+    toast(txt('Notifications are off.'), 'success');
   }
 
-  // ---------- тактическа битка ----------
+  // ---------- tactical battle ----------
   const TAC_KEY = (id) => `ee.tac.${uid}.${id}`;
   async function openBattle(m) {
     let saved = [];
@@ -502,7 +505,7 @@ export function mount(root, ctx) {
     battleMusic(true);
     const moves = await openTactical({
       battle: m.battle,
-      title: `Битка: ${m.target.name || 'цел'}`,
+      title: txt('Battle: {0}', m.target.name || txt('target')),
       names: (side, key) => (side === 'A' ? (key === 'hero' ? s.hero.name : E.uName(s, key)) : enemyName(key)),
       colors: { A: color, D: '#ff5d6c' },
       saved,
@@ -510,10 +513,10 @@ export function mount(root, ctx) {
     });
     battleMusic(false);
     if (!moves) return;
-    if (await doAct('tactical', [m.id, moves], 'Битката приключи.')) localStorage.removeItem(TAC_KEY(m.id));
+    if (await doAct('tactical', [m.id, moves], txt('The battle is over.'))) localStorage.removeItem(TAC_KEY(m.id));
   }
 
-  // ---------- общи елементи ----------
+  // ---------- shared elements ----------
   const ri = (k) => h('span', { class: 'ee-ri', html: resIcon(s.race, k) });
   const costChips = (cost, mult = 1) => h('div', { class: 'ee-cost' },
     Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => h('span', { class: 'ee-chip', title: resName(s.race, k), dataset: { need: k, amount: v * mult } }, ri(k), fmtN(v * mult))));
@@ -521,12 +524,12 @@ export function mount(root, ctx) {
     Object.entries(rw || {}).filter(([, v]) => v > 0).map(([k, v]) => h('span', { class: 'ee-chip good', title: resName(s.race, k) }, ri(k), '+' + fmtN(v))));
   const bar = (start, end) => h('i', { class: 'ee-bar' }, h('i', { dataset: { start, end } }));
   const progress = (have, goal) => h('i', { class: 'ee-bar static' }, h('i', { style: { width: Math.min(100, (have / goal) * 100) + '%' } }));
-  const enemyName = (key) => (key === 'hero' ? 'Герой' : CLS_NAMES[UNITS[key]?.cls] ? CLS_NAMES[UNITS[key].cls][0].toUpperCase() + CLS_NAMES[UNITS[key].cls].slice(1) : key);
+  const enemyName = (key) => (key === 'hero' ? txt('Hero') : CLS_NAMES[UNITS[key]?.cls] ? cap(decode(CLS_NAMES[UNITS[key].cls])) : key);
   const clsOf = (key, mine) => (key === 'hero' ? 'hero' : mine ? unitCls(s.race, key) : UNITS[key]?.cls || 'inf');
   const enemyChips = (army) => h('div', { class: 'ee-enemy' }, army.map((g) => h('span', { class: 'ee-echip', title: enemyName(g.key) }, h('span', { html: unitIcon(UNITS[g.key]?.cls || 'inf', '#ff5d6c', 22) }), fmtN(g.n))));
   const unitsLine = (units) => Object.entries(units || {}).filter(([, n]) => n > 0).map(([u, n]) => `${n} ${E.uName(s, u)}`).join(', ');
 
-  // Времето в града: дъжд или сняг в някои часове (еднакво за всички играчи).
+  // Weather in the city: rain or snow at some hours (the same for all players).
   function weatherNow() {
     const t = now();
     const m = E.localMonth(t);
@@ -543,7 +546,7 @@ export function mount(root, ctx) {
     cityAudio({ hour: Math.floor(E.localHour(now())), weather: weatherNow(), smithy: E.lv(cur(), 'smithy') > 0, race: s.race });
   }
 
-  // ---------- Град ----------
+  // ---------- City ----------
   function viewCity() {
     const c = cur();
     const pal = PALETTE[s.race];
@@ -581,7 +584,7 @@ export function mount(root, ctx) {
       return h('button', { class: `ee-brow ${st.status}`, dataset: { bid: id }, onclick: () => openBuilding(id) },
         h('span', { class: 'ee-brow-pic', html: OFF_PLOT.includes(id) ? offPlotIcon(id) : buildingPicture(id, s.race, L || 1, s.epoch) }),
         h('span', { class: 'ee-brow-t' }, h('b', null, E.bName(s, id)),
-          h('small', { class: 'muted' }, st.status === 'building' ? 'строи се…' : st.status === 'locked' ? st.why : L ? `ниво ${L}` : 'не е построена')),
+          h('small', { class: 'muted' }, st.status === 'building' ? txt('under construction…') : st.status === 'locked' ? st.why : L ? txt('level {0}', L) : txt('not built'))),
         h('span', { class: 'ee-brow-a' }, st.status === 'building' ? h('span', { class: 'ee-timer', dataset: { end: st.q.end } }) : st.status === 'ok' ? (L ? '↑' : '+') : ''));
     }));
     return h('div', { class: 'ee-cityview' }, svg, list);
@@ -594,23 +597,23 @@ export function mount(root, ctx) {
   function effects(c, id, L) {
     const lines = [];
     const prod = E.bProd(s, id, L);
-    for (const [k, v] of Object.entries(prod)) lines.push(`${resName(s.race, k)}: +${fmtN(v * s.speed)}/ч`);
+    for (const [k, v] of Object.entries(prod)) lines.push(txt('{0}: +{1}/h', resName(s.race, k), fmtN(v * s.speed)));
     const withB = (lvl) => ({ ...c, b: { ...c.b, [id]: lvl } });
-    if (id === 'hall') lines.push(`Строежите −${Math.round(Math.min(0.5, 0.04 * (L - 1)) * 100)}%`, `Сградите до ниво ${Math.min(EPOCHS[s.epoch - 1].cap, L)}`, L >= 5 ? 'Позволява нов град' : 'Нов град от ниво 5');
-    if (id === 'houses') lines.push(`Население: ${E.popCap(s, withB(L))}`);
-    if (id === 'warehouse') lines.push(`Склад: ${fmtN(E.storageCap(withB(L)))}`);
-    if (id === 'barracks') lines.push(`Обучение −${Math.round(Math.min(0.5, 0.04 * (L - 1)) * 100)}%`);
-    if (id === 'academy') lines.push(`Изследвания −${Math.round(Math.min(0.5, 0.05 * (L - 1)) * 100)}%`);
-    if (id === 'smithy') lines.push(`Войската: +${3 * L}% атака и защита`);
-    if (id === 'unique' && s.race === 'orcs') lines.push(`Обучение −${Math.round(Math.min(0.4, 0.05 * L) * 100)}%`);
-    if (id === 'wall') { const wb = E.wallBonus(L, s.techs.fortify); lines.push(`Защита +${Math.round((wb.def - 1) * 100)}%`, `Живот +${Math.round((wb.hp - 1) * 100)}%`); }
-    if (id === 'tower') lines.push(`Вижда нападенията ${fmtLeft(E.warnWindow(s, withB(L)))} преди пристигане`, L >= 5 ? 'Разкрива точния състав' : L >= 3 ? 'Разкрива видовете войски' : L >= 1 ? 'Разкрива приблизителния брой' : '', `Защита +${2 * L}%`);
-    if (id === 'temple') lines.push(`Героят се възстановява +${3 * L}%/ч по-бързо тук`);
-    if (id === 'stable') lines.push(`Конница −${5 * L}% време за обучение`);
-    if (id === 'traps') lines.push(`Залавят до ${E.trapCap(withB(L))} нападатели`);
-    if (id === 'cranny') lines.push(`Пази по ${fmtN(E.crannyCap(withB(L)))} от ресурс`);
-    if (id === 'embassy') lines.push(`Места в съюза: ${3 * L}`, L >= 3 ? 'Може да основете съюз' : 'Основаване на съюз от ниво 3');
-    if (id === 'heroHall') lines.push(`Оазиси: ${(L >= 3) + (L >= 6) + (L >= 10)}`, 'Съживяване на героя');
+    if (id === 'hall') lines.push(txt('Construction −{0}%', Math.round(Math.min(0.5, 0.04 * (L - 1)) * 100)), txt('Buildings up to level {0}', Math.min(EPOCHS[s.epoch - 1].cap, L)), L >= 5 ? txt('Allows a new city') : txt('New city from level 5'));
+    if (id === 'houses') lines.push(txt('Population: {0}', E.popCap(s, withB(L))));
+    if (id === 'warehouse') lines.push(txt('Storage: {0}', fmtN(E.storageCap(withB(L)))));
+    if (id === 'barracks') lines.push(txt('Training −{0}%', Math.round(Math.min(0.5, 0.04 * (L - 1)) * 100)));
+    if (id === 'academy') lines.push(txt('Research −{0}%', Math.round(Math.min(0.5, 0.05 * (L - 1)) * 100)));
+    if (id === 'smithy') lines.push(txt('Troops: +{0}% attack and defense', 3 * L));
+    if (id === 'unique' && s.race === 'orcs') lines.push(txt('Training −{0}%', Math.round(Math.min(0.4, 0.05 * L) * 100)));
+    if (id === 'wall') { const wb = E.wallBonus(L, s.techs.fortify); lines.push(txt('Defense +{0}%', Math.round((wb.def - 1) * 100)), txt('Health +{0}%', Math.round((wb.hp - 1) * 100))); }
+    if (id === 'tower') lines.push(txt('Sees attacks {0} before arrival', fmtLeft(E.warnWindow(s, withB(L)))), L >= 5 ? txt('Reveals the exact makeup') : L >= 3 ? txt('Reveals the troop types') : L >= 1 ? txt('Reveals the approximate number') : '', txt('Defense +{0}%', 2 * L));
+    if (id === 'temple') lines.push(txt('The hero recovers +{0}%/h faster here', 3 * L));
+    if (id === 'stable') lines.push(txt('Cavalry −{0}% training time', 5 * L));
+    if (id === 'traps') lines.push(txt('Catch up to {0} attackers', E.trapCap(withB(L))));
+    if (id === 'cranny') lines.push(txt('Protects {0} of each resource', fmtN(E.crannyCap(withB(L)))));
+    if (id === 'embassy') lines.push(txt('Alliance slots: {0}', 3 * L), L >= 3 ? txt('You can found an alliance') : txt('Founding an alliance from level 3'));
+    if (id === 'heroHall') lines.push(txt('Oases: {0}', (L >= 3) + (L >= 6) + (L >= 10)), txt('Hero revival'));
     return lines.filter(Boolean);
   }
 
@@ -626,32 +629,32 @@ export function mount(root, ctx) {
       h('div', { class: 'ee-bhead' },
         h('div', { class: 'ee-bpic', html: OFF_PLOT.includes(id) ? offPlotIcon(id) : buildingPicture(id, s.race, L || 1, s.epoch) }),
         h('div', null,
-          h('div', { class: 'ee-lvl' }, L ? `Ниво ${L} / ${E.maxLevel(s, c, id)}` : 'Не е построена'),
+          h('div', { class: 'ee-lvl' }, L ? txt('Level {0} / {1}', L, E.maxLevel(s, c, id)) : txt('Not built')),
           h('p', { class: 'muted' }, E.bDesc(s, id)))),
       (effNow.length || effNext.length) && h('div', { class: 'ee-eff' },
-        effNow.length > 0 && h('div', null, h('small', null, 'Сега'), effNow.map((x) => h('div', null, x))),
-        st.status !== 'max' && effNext.length > 0 && h('div', null, h('small', null, `Ниво ${next}`), effNext.map((x) => h('div', { class: 'up' }, x)))),
+        effNow.length > 0 && h('div', null, h('small', null, txt('Now')), effNow.map((x) => h('div', null, x))),
+        st.status !== 'max' && effNext.length > 0 && h('div', null, h('small', null, txt('Level {0}', next)), effNext.map((x) => h('div', { class: 'up' }, x)))),
       st.status === 'building'
-        ? h('div', { class: 'ee-building' }, h('div', null, `Строи се ниво ${st.q.lvl} – остават `, h('b', { dataset: { end: st.q.end } }, fmtLeft(st.q.end - now()))), bar(st.q.start, st.q.end))
+        ? h('div', { class: 'ee-building' }, h('div', null, txt('Building level {0} – remaining ', st.q.lvl), h('b', { dataset: { end: st.q.end } }, fmtLeft(st.q.end - now()))), bar(st.q.start, st.q.end))
         : st.status === 'max' || st.status === 'locked'
           ? h('p', { class: 'ee-why' }, st.why)
           : h('div', { class: 'ee-price' }, costChips(E.bCost(id, next)), h('span', { class: 'muted' }, '⏱ ' + fmtLeft(E.bTime(s, c, id, next))),
             st.status === 'busy' && h('p', { class: 'ee-why' }, st.why)),
     );
-    const actions = [{ label: 'Затвори', value: null }];
-    if (id === 'barracks' && L) actions.unshift({ label: 'Войска', value: 'army' });
-    if (id === 'academy' && L) actions.unshift({ label: 'Наука', value: 'science' });
-    if (id === 'heroHall') actions.unshift({ label: 'Герой', value: 'hero' });
-    if (id === 'embassy' && L) actions.unshift({ label: 'Съюз', value: 'alliance' });
-    if (id === 'hall') actions.unshift({ label: 'Преименувай', value: 'rename' });
-    if (st.status === 'building') actions.push({ label: 'Откажи строежа', value: 'cancel', danger: true });
-    if (st.status === 'ok') actions.push({ label: L ? `Подобри до ${next}` : 'Построй', value: 'build', primary: true });
+    const actions = [{ label: txt('Close'), value: null }];
+    if (id === 'barracks' && L) actions.unshift({ label: txt('Troops'), value: 'army' });
+    if (id === 'academy' && L) actions.unshift({ label: txt('Science'), value: 'science' });
+    if (id === 'heroHall') actions.unshift({ label: txt('Hero'), value: 'hero' });
+    if (id === 'embassy' && L) actions.unshift({ label: txt('Alliance'), value: 'alliance' });
+    if (id === 'hall') actions.unshift({ label: txt('Rename'), value: 'rename' });
+    if (st.status === 'building') actions.push({ label: txt('Cancel construction'), value: 'cancel', danger: true });
+    if (st.status === 'ok') actions.push({ label: L ? txt('Upgrade to {0}', next) : txt('Build'), value: 'build', primary: true });
     setTimeout(updateLive, 0);
     const v = await modal({ title: E.bName(s, id), body, actions, className: 'ee-modal' });
     if (!s || destroyed) return;
     if (v === 'build') doAct('build', [c.id, id]);
     else if (v === 'cancel') {
-      if (await confirmDialog('Отказ на строежа', 'Ще получите обратно 80% от ресурсите.', 'Откажи строежа', true)) doAct('cancelBuild', [c.id, id]);
+      if (await confirmDialog(txt('Cancel construction'), txt('You will get back 80% of the resources.'), txt('Cancel construction'), true)) doAct('cancelBuild', [c.id, id]);
     } else if (v === 'rename') renameCity(c);
     else if (v) goTab(v);
   }
@@ -659,33 +662,33 @@ export function mount(root, ctx) {
   async function renameCity(c) {
     const input = h('input', { class: 'ee-input', value: c.name, maxlength: 24 });
     setTimeout(() => input.focus(), 50);
-    const v = await modal({ title: 'Име на града', body: input, actions: [{ label: 'Отказ', value: false }, { label: 'Запази', value: true, primary: true }], className: 'ee-modal' });
+    const v = await modal({ title: txt('City name'), body: input, actions: [{ label: txt('Cancel'), value: false }, { label: txt('Save'), value: true, primary: true }], className: 'ee-modal' });
     if (v && input.value.trim()) doAct('renameCity', [c.id, input.value]);
   }
 
-  // Бойната формация на града: къде застава всеки вид войска в тактическата битка.
+  // The city's battle formation: where each troop type stands in a tactical battle.
   function formationCard(c) {
     const F = { ...FORMATION, ...(c.formation || {}) };
-    const POS = [['front', 'Отпред'], ['back', 'Отзад'], ['flank', 'Фланг']];
-    const rows = [['inf', 'Пехота'], ['spear', 'Копия'], ['ranged', 'Стрелци'], ['cav', 'Конница'], ['siege', 'Обсада'], ['hero', 'Героят']];
+    const POS = [['front', txt('Front')], ['back', txt('Rear')], ['flank', txt('Flank')]];
+    const rows = [['inf', txt('Infantry')], ['spear', txt('Spears')], ['ranged', txt('Archers')], ['cav', txt('Cavalry')], ['siege', txt('Siege')], ['hero', txt('The hero')]];
     return h('details', { class: 'ee-card ee-form' },
-      h('summary', null, h('b', null, '⚔ Бойна формация'), h('small', { class: 'muted' }, ' – подредбата при отбрана и автоматични битки')),
+      h('summary', null, h('b', null, txt('⚔ Battle formation')), h('small', { class: 'muted' }, txt(' – the line-up for defense and automatic battles'))),
       rows.map(([cls, name]) => h('div', { class: 'ee-form-row' }, h('span', null, name),
         h('div', { class: 'seg' }, POS.map(([pos, label]) => h('button', { type: 'button', class: F[cls] === pos ? 'on' : '', onclick: () => doAct('setFormation', [c.id, cls, pos]) }, label))))),
-      h('small', { class: 'muted' }, 'Пехотата и копията отпред пазят стрелците; конницата по фланговете удря стрелците на врага.'));
+      h('small', { class: 'muted' }, txt('Infantry and spears in front protect the archers; cavalry on the flanks hits the enemy\'s archers.')));
   }
 
-  // ---------- Армия ----------
+  // ---------- Army ----------
   function statLine(u, c) {
     const st = E.unitStats(s, u, c);
-    if (st.cls === 'scout' || st.cls === 'settler') return h('div', { class: 'ee-stats' }, h('span', { title: 'Скорост' }, '🐎 ', `${UNITS[u].speed} пол./ч`), st.upkeep > 0 && h('span', { title: 'Издръжка' }, '🍖 ', st.upkeep));
+    if (st.cls === 'scout' || st.cls === 'settler') return h('div', { class: 'ee-stats' }, h('span', { title: txt('Speed') }, '🐎 ', txt('{0} tiles/h', UNITS[u].speed)), st.upkeep > 0 && h('span', { title: txt('Upkeep') }, '🍖 ', st.upkeep));
     return h('div', { class: 'ee-stats' },
-      h('span', { title: 'Атака' }, '⚔ ', +st.atk.toFixed(1)),
-      h('span', { title: 'Защита' }, '🛡 ', +st.def.toFixed(1)),
-      h('span', { title: 'Живот' }, '❤ ', st.hp),
-      h('span', { title: 'Носи плячка' }, '🎒 ', st.carry),
-      h('span', { title: 'Скорост (полета на час)' }, '🐎 ', UNITS[u].speed),
-      st.upkeep > 0 && h('span', { title: 'Издръжка (храна на час)' }, '🍖 ', st.upkeep));
+      h('span', { title: txt('Attack') }, '⚔ ', +st.atk.toFixed(1)),
+      h('span', { title: txt('Defense') }, '🛡 ', +st.def.toFixed(1)),
+      h('span', { title: txt('Health') }, '❤ ', st.hp),
+      h('span', { title: txt('Carries loot') }, '🎒 ', st.carry),
+      h('span', { title: txt('Speed (tiles per hour)') }, '🐎 ', UNITS[u].speed),
+      st.upkeep > 0 && h('span', { title: txt('Upkeep (food per hour)') }, '🍖 ', st.upkeep));
   }
 
   function viewArmy() {
@@ -697,10 +700,10 @@ export function mount(root, ctx) {
       const cls = unitCls(s.race, u);
       const head = h('div', { class: 'ee-uhead' },
         h('span', { html: unitIcon(cls, color, 44) }),
-        h('div', null, h('b', null, E.uName(s, u)), h('small', { class: 'muted' }, CLS_NAMES[cls] + (have ? ` · имате ${have}` : ''))));
+        h('div', null, h('b', null, E.uName(s, u)), h('small', { class: 'muted' }, CLS_NAMES[cls] + (have ? txt(' · you have {0}', have) : ''))));
       if (lock) return h('div', { class: 'ee-card locked' }, head, h('p', { class: 'ee-why' }, '🔒 ' + lock));
       const max = E.maxTrain(s, c, u);
-      const input = h('input', { type: 'number', min: 1, max: Math.max(1, max), value: Math.min(Math.max(1, max), u === 'settler' ? 1 : 5), inputmode: 'numeric', 'aria-label': 'Брой' });
+      const input = h('input', { type: 'number', min: 1, max: Math.max(1, max), value: Math.min(Math.max(1, max), u === 'settler' ? 1 : 5), inputmode: 'numeric', 'aria-label': txt('Amount') });
       const totalCost = h('div');
       const n = () => Math.max(1, Math.floor(+input.value || 1));
       const redraw = () => totalCost.replaceChildren(costChips(E.uCost(s, u), n()), h('small', { class: 'muted' }, '⏱ ' + fmtLeft(E.uTime(s, c, u) * n())));
@@ -708,43 +711,43 @@ export function mount(root, ctx) {
       redraw();
       const step = (d) => { input.value = Math.max(1, n() + d); input.oninput(); };
       return h('div', { class: 'ee-card' }, head, statLine(u, c),
-        u === 'settler' && h('p', { class: 'muted' }, `Основават нов град. Градове: ${s.cities.length} / ${E.allowedCities(s)} (още един на всеки 5 нива на Цитаделата).`),
-        h('div', { class: 'ee-each muted' }, 'за 1: ', costChips(E.uCost(s, u))),
+        u === 'settler' && h('p', { class: 'muted' }, txt('They found a new city. Cities: {0} / {1} (one more for every 5 Citadel levels).', s.cities.length, E.allowedCities(s))),
+        h('div', { class: 'ee-each muted' }, txt('for 1: '), costChips(E.uCost(s, u))),
         h('div', { class: 'ee-train' },
           h('div', { class: 'ee-step' },
-            h('button', { class: 'icon-btn', onclick: () => step(-1), 'aria-label': 'По-малко' }, '−'), input,
-            h('button', { class: 'icon-btn', onclick: () => step(1), 'aria-label': 'Повече' }, '+'),
-            h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { input.value = Math.max(1, max); input.oninput(); } }, `макс ${max}`)),
-          h('button', { class: 'btn btn-primary btn-sm', disabled: max < 1, onclick: () => doAct('train', [c.id, u, n()], 'Обучението започна.') }, 'Обучи')),
+            h('button', { class: 'icon-btn', onclick: () => step(-1), 'aria-label': txt('Fewer') }, '−'), input,
+            h('button', { class: 'icon-btn', onclick: () => step(1), 'aria-label': txt('More') }, '+'),
+            h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { input.value = Math.max(1, max); input.oninput(); } }, txt('max {0}', max))),
+          h('button', { class: 'btn btn-primary btn-sm', disabled: max < 1, onclick: () => doAct('train', [c.id, u, n()], txt('Training started.')) }, txt('Train'))),
         totalCost);
     });
     const queue = c.train.map((b, i) => h('div', { class: 'ee-qrow' },
       h('span', null, `${E.uName(s, b.u)} × ${b.n - b.done}`),
-      i === 0 ? h('span', { class: 'ee-timer', dataset: { end: b.start + b.each * b.n } }) : h('small', { class: 'muted' }, 'чака'),
+      i === 0 ? h('span', { class: 'ee-timer', dataset: { end: b.start + b.each * b.n } }) : h('small', { class: 'muted' }, txt('waiting')),
       i === 0 && bar(b.start + b.each * b.done, b.start + b.each * (b.done + 1))));
     const stationed = W.stationedAt(uid, c.id);
     return h('div', { class: 'ee-pane' },
       h('div', { class: 'ee-summary' },
-        h('div', null, h('small', null, 'Население'), h('b', null, `${used} / ${cap}`)),
-        h('div', null, h('small', null, 'Издръжка'), h('b', null, s.race === 'undead' ? 'няма' : `${fmtN(E.upkeep(s, c) * s.speed)}/ч`)),
-        h('div', null, h('small', null, 'Сила у дома'), h('b', null, fmtN(power(E.defenders(s, c, env).side, E.wallBonus(E.lv(c, 'wall')).def)))),
-        h('div', null, h('small', null, 'Лоялност'), h('b', { class: (c.loyalty ?? 100) < 50 ? 'bad' : '' }, `${Math.round(c.loyalty ?? 100)}%`))),
+        h('div', null, h('small', null, txt('Population')), h('b', null, `${used} / ${cap}`)),
+        h('div', null, h('small', null, txt('Upkeep')), h('b', null, s.race === 'undead' ? txt('none') : txt('{0}/h', fmtN(E.upkeep(s, c) * s.speed)))),
+        h('div', null, h('small', null, txt('Strength at home')), h('b', null, fmtN(power(E.defenders(s, c, env).side, E.wallBonus(E.lv(c, 'wall')).def)))),
+        h('div', null, h('small', null, txt('Loyalty')), h('b', { class: (c.loyalty ?? 100) < 50 ? 'bad' : '' }, `${Math.round(c.loyalty ?? 100)}%`))),
       formationCard(c),
-      c.train.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, 'Обучение'), queue),
-      stationed.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, 'Подкрепления от съюзници'),
+      c.train.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, txt('Training')), queue),
+      stationed.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, txt('Reinforcements from allies')),
         stationed.map((st) => h('div', { class: 'ee-qrow' }, h('span', null, `${st.fromName}: ${st.groups.filter((g) => g.n > 0).map((g) => `${g.n} ${enemyName(g.key)}`).join(', ')}`),
-          h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doWorld('sendBackStationed', [st.id], 'Подкрепленията ще се приберат.') }, 'Отпрати')))),
-      !c.b.barracks && h('p', { class: 'ee-why' }, 'Постройте казарма, за да обучавате войска.'),
+          h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doWorld('sendBackStationed', [st.id], txt('The reinforcements will go home.')) }, txt('Send away'))))),
+      !c.b.barracks && h('p', { class: 'ee-why' }, txt('Build barracks to train troops.')),
       h('div', { class: 'ee-grid' }, cards));
   }
 
-  // ---------- Карта ----------
+  // ---------- Map ----------
   function objectsMap() {
     const t = now();
     const map = new Map();
     for (const camp of s.camps) map.set(tileKey(camp.x, camp.y), { type: 'camp', lvl: camp.lvl, down: !!camp.respawn, camp });
     for (const a of s.adventures) map.set(tileKey(a.x, a.y), { type: 'adventure', hard: a.diff === 'hard', adv: a });
-    // градът гори няколко часа след обсада (стена/сгради/лоялност)
+    // the city burns for a few hours after a siege (wall/buildings/loyalty)
     const BURN = (6 * 3600000) / (s.speed || 1);
     const burning = (bt, loyalty) => (bt && t - bt < BURN) || (loyalty != null && loyalty < 99);
     for (const n of E.activeNpcs(s, env)) {
@@ -757,7 +760,7 @@ export function mount(root, ctx) {
       for (const pc of p.cities) map.set(tileKey(pc.x, pc.y), { type: 'city', rel, player: p, city: pc, capital: pc.id === 'c1', protected: p.protectedUntil > t, burning: burning(pc.burnT, pc.loyalty), conquered: pc.captured });
     }
     for (const c of s.cities) map.set(tileKey(c.x, c.y), { type: 'city', rel: 'self', own: c, capital: c.id === 'c1', protected: E.isProtected(s, t), burning: burning(c.burnT, c.loyalty), conquered: !!c.captured });
-    // катапулти пред стените: мои походи с обсадни машини, които са стигнали целта или са на път
+    // catapults before the walls: my marches with siege engines that have reached the target or are on the way
     for (const m of s.marches) {
       if (!m.units?.catapult || m.phase === 'back' || m.target?.x == null) continue;
       const o = map.get(tileKey(m.target.x, m.target.y));
@@ -805,7 +808,7 @@ export function mount(root, ctx) {
         renderBody();
       },
     });
-    // плъзгане с пръст/мишка
+    // dragging with a finger/mouse
     let drag = null;
     mapEl.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, moved: false }; });
     mapEl.addEventListener('pointermove', (e) => {
@@ -825,16 +828,16 @@ export function mount(root, ctx) {
       renderBody();
     }
     const ctrl = h('div', { class: 'ee-mapctrl' },
-      h('button', { class: 'icon-btn', onclick: () => move(0, -3), 'aria-label': 'Север' }, '↑'),
-      h('button', { class: 'icon-btn', onclick: () => move(-3, 0), 'aria-label': 'Запад' }, '←'),
-      h('button', { class: 'icon-btn', onclick: () => move(3, 0), 'aria-label': 'Изток' }, '→'),
-      h('button', { class: 'icon-btn', onclick: () => move(0, 3), 'aria-label': 'Юг' }, '↓'),
-      h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { mapView.center = { x: c.x, y: c.y }; mapView.sel = { x: c.x, y: c.y }; renderBody(); } }, '⌂ Моят град'),
+      h('button', { class: 'icon-btn', onclick: () => move(0, -3), 'aria-label': txt('North') }, '↑'),
+      h('button', { class: 'icon-btn', onclick: () => move(-3, 0), 'aria-label': txt('West') }, '←'),
+      h('button', { class: 'icon-btn', onclick: () => move(3, 0), 'aria-label': txt('East') }, '→'),
+      h('button', { class: 'icon-btn', onclick: () => move(0, 3), 'aria-label': txt('South') }, '↓'),
+      h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { mapView.center = { x: c.x, y: c.y }; mapView.sel = { x: c.x, y: c.y }; renderBody(); } }, txt('⌂ My city')),
       h('span', { class: 'muted ee-legend' },
-        h('i', { style: { background: REL_COLORS.self } }), 'вие ', h('i', { style: { background: REL_COLORS.alliance } }), 'съюз ',
-        h('i', { style: { background: REL_COLORS.pact } }), 'пакт ', h('i', { style: { background: REL_COLORS.war } }), 'война ', h('i', { style: { background: REL_COLORS.npc } }), 'компютър'));
+        h('i', { style: { background: REL_COLORS.self } }), txt('you '), h('i', { style: { background: REL_COLORS.alliance } }), txt('alliance '),
+        h('i', { style: { background: REL_COLORS.pact } }), txt('pact '), h('i', { style: { background: REL_COLORS.war } }), txt('war '), h('i', { style: { background: REL_COLORS.npc } }), txt('computer')));
     if (mapView.sel) info.append(tileInfo(mapView.sel.x, mapView.sel.y, objs));
-    else info.append(h('p', { class: 'muted' }, 'Изберете поле на картата.'));
+    else info.append(h('p', { class: 'muted' }, txt('Select a tile on the map.')));
     return h('div', { class: 'ee-pane ee-mapview' }, h('div', { class: 'ee-mapcol' }, ctrl, mapEl), info);
   }
 
@@ -843,100 +846,100 @@ export function mount(root, ctx) {
     const o = tileObj(objs, x, y);
     const tl = tileAt(s.world, x, y);
     const d = dist(c, { x, y });
-    const head = (title, sub) => h('div', { class: 'ee-mi-h' }, h('b', null, title), h('small', { class: 'muted' }, `(${x}|${y}) · ${d.toFixed(1)} полета от ${c.name}${sub ? ' · ' + sub : ''}`));
+    const head = (title, sub) => h('div', { class: 'ee-mi-h' }, h('b', null, title), h('small', { class: 'muted' }, txt('({0}|{1}) · {2} tiles from {3}{4}', x, y, d.toFixed(1), c.name, sub ? ' · ' + sub : '')));
     const btns = [];
     const homeScouts = c.units.scout || 0;
     const heroHere = E.heroHome(s, c);
-    const scoutBtn = (target, title) => btns.push(h('button', { class: 'btn btn-sm', disabled: !homeScouts, title: homeScouts ? '' : 'Нямате съгледвачи в този град', onclick: () => openSend('scout', target, `Разузнаване: ${title}`) }, '👁 Разузнай'));
+    const scoutBtn = (target, title) => btns.push(h('button', { class: 'btn btn-sm', disabled: !homeScouts, title: homeScouts ? '' : txt('You have no scouts in this city'), onclick: () => openSend('scout', target, txt('Scouting: {0}', title)) }, txt('👁 Scout')));
     const intelBox = (key) => {
       const it = s.intel[key];
-      if (!it) return h('p', { class: 'muted' }, 'Няма сведения. Изпратете съгледвачи.');
-      return h('div', { class: 'ee-intel' }, h('small', { class: 'muted' }, `Разузнато преди ${fmtLeft(now() - it.t)}`), intelView(it.data));
+      if (!it) return h('p', { class: 'muted' }, txt('No intel. Send scouts.'));
+      return h('div', { class: 'ee-intel' }, h('small', { class: 'muted' }, txt('Scouted {0} ago', fmtLeft(now() - it.t))), intelView(it.data));
     };
     let body = [];
     if (!o) {
-      const names = { grass: 'Свободна земя', forest: 'Гора', hills: 'Хълмове', lake: 'Езеро', void: 'Краят на света' };
+      const names = { grass: txt('Free land'), forest: txt('Forest'), hills: txt('Hills'), lake: txt('Lake'), void: txt('The edge of the world') };
       body.push(head(names[tl.kind] || ''));
       if (tl.kind === 'grass') {
         const can = E.foundable(s, x, y, env);
-        body.push(h('p', { class: 'muted' }, can ? 'Тук може да се основе град със заселници.' : 'Мястото е заето.'));
-        if (can) btns.push(h('button', { class: 'btn btn-sm btn-primary', disabled: !(c.units.settler > 0), title: c.units.settler ? '' : 'Нужни са заселници (Цитадела 5)', onclick: () => openSend('found', { type: 'tile', x, y }, 'Основаване на град') }, '🏰 Основи град'));
-      } else body.push(h('p', { class: 'muted' }, 'Тук не може да се строи.'));
+        body.push(h('p', { class: 'muted' }, can ? txt('A city can be founded here with settlers.') : txt('The spot is taken.')));
+        if (can) btns.push(h('button', { class: 'btn btn-sm btn-primary', disabled: !(c.units.settler > 0), title: c.units.settler ? '' : txt('Settlers required (Citadel 5)'), onclick: () => openSend('found', { type: 'tile', x, y }, txt('Founding a city')) }, txt('🏰 Found a city')));
+      } else body.push(h('p', { class: 'muted' }, txt('Nothing can be built here.')));
     } else if (o.type === 'city' && o.own) {
-      body.push(head(o.own.name, 'ваш град'));
+      body.push(head(o.own.name, txt('your city')));
       if (o.own.id !== c.id) {
-        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => { switchCity(o.own.id); goTab('city'); } }, 'Към града'));
-        btns.push(h('button', { class: 'btn btn-sm', onclick: () => openSend('support', { type: 'city', id: o.own.id, x, y, name: o.own.name }, `Подкрепа за ${o.own.name}`) }, '🛡 Изпрати войска'));
+        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => { switchCity(o.own.id); goTab('city'); } }, txt('To the city')));
+        btns.push(h('button', { class: 'btn btn-sm', onclick: () => openSend('support', { type: 'city', id: o.own.id, x, y, name: o.own.name }, txt('Reinforcement for {0}', o.own.name)) }, txt('🛡 Send troops')));
       }
     } else if (o.type === 'city') {
       const p = o.player;
       const al = W.allianceOf(p.uid);
       body.push(head(`${p.name} – ${o.city.name}`, RACES[p.race]?.name));
       body.push(h('div', { class: 'ee-kv' },
-        h('span', null, 'Съюз'), h('b', null, al ? `${al.name} [${al.tag}]` : '—'),
-        h('span', null, 'Отношения'), h('b', { style: { color: REL_COLORS[o.rel] } }, REL_NAMES[o.rel] || 'неутрален'),
-        h('span', null, 'Точки'), h('b', null, fmtN(p.score)),
-        h('span', null, 'Морал'), h('b', null, `${Math.round(E.morale(E.score(s), p.score) * 100)}%`)));
-      if (o.protected) body.push(h('p', { class: 'ee-why' }, `🛡 Под защита за новаци още ${fmtLeft(p.protectedUntil - now())}.`));
+        h('span', null, txt('Alliance')), h('b', null, al ? `${al.name} [${al.tag}]` : '—'),
+        h('span', null, txt('Relations')), h('b', { style: { color: REL_COLORS[o.rel] } }, REL_NAMES[o.rel] || txt('neutral')),
+        h('span', null, txt('Points')), h('b', null, fmtN(p.score)),
+        h('span', null, txt('Morale')), h('b', null, `${Math.round(E.morale(E.score(s), p.score) * 100)}%`)));
+      if (o.protected) body.push(h('p', { class: 'ee-why' }, txt('🛡 Under beginner protection for {0} more.', fmtLeft(p.protectedUntil - now()))));
       body.push(intelBox(`player:${p.uid}:${o.city.id}`));
       const T = { type: 'player', uid: p.uid, cityId: o.city.id, x, y, name: `${p.name} – ${o.city.name}` };
       scoutBtn(T, T.name);
-      if (!['alliance', 'ally', 'pact'].includes(o.rel) && !o.protected) btns.push(h('button', { class: 'btn btn-sm btn-danger', onclick: () => openSend('attack', T, `Атака: ${T.name}`, s.intel[`player:${p.uid}:${o.city.id}`]?.data?.army) }, '⚔ Атакувай'));
-      if (o.rel === 'alliance') btns.push(h('button', { class: 'btn btn-sm', onclick: () => openSend('support', { type: 'ally', uid: p.uid, cityId: o.city.id, x, y, name: p.name }, `Подкрепа за ${p.name}`) }, '🛡 Подкрепи'));
+      if (!['alliance', 'ally', 'pact'].includes(o.rel) && !o.protected) btns.push(h('button', { class: 'btn btn-sm btn-danger', onclick: () => openSend('attack', T, txt('Attack: {0}', T.name), s.intel[`player:${p.uid}:${o.city.id}`]?.data?.army) }, txt('⚔ Attack')));
+      if (o.rel === 'alliance') btns.push(h('button', { class: 'btn btn-sm', onclick: () => openSend('support', { type: 'ally', uid: p.uid, cityId: o.city.id, x, y, name: p.name }, txt('Reinforcement for {0}', p.name)) }, txt('🛡 Reinforce')));
     } else if (o.type === 'npc') {
       const info = E.npcInfo(s, o.npc, now(), env);
       const pact = s.pacts[o.npc.clan] > now();
-      body.push(head(info.name, `${RACES[info.race].name} · компютър`));
+      body.push(head(info.name, txt('{0} · computer', RACES[info.race].name)));
       body.push(h('div', { class: 'ee-kv' },
-        h('span', null, 'Клан'), h('b', { style: { color: info.clanInfo.color } }, `${info.clanInfo.name} [${info.clanInfo.tag}]`),
-        h('span', null, 'Ниво'), h('b', null, Math.floor(info.lvl)),
-        h('span', null, 'Стена'), h('b', null, info.wall),
-        h('span', null, 'Лоялност'), h('b', null, `${Math.round(info.loyalty)}%`),
-        h('span', null, 'Морал'), h('b', null, `${Math.round(E.morale(E.score(s), info.score) * 100)}%`),
-        h('span', null, 'Пакт'), h('b', null, pact ? `още ${fmtLeft(s.pacts[o.npc.clan] - now())}` : 'няма')));
+        h('span', null, txt('Clan')), h('b', { style: { color: info.clanInfo.color } }, `${info.clanInfo.name} [${info.clanInfo.tag}]`),
+        h('span', null, txt('Level')), h('b', null, Math.floor(info.lvl)),
+        h('span', null, txt('Wall')), h('b', null, info.wall),
+        h('span', null, txt('Loyalty')), h('b', null, `${Math.round(info.loyalty)}%`),
+        h('span', null, txt('Morale')), h('b', null, `${Math.round(E.morale(E.score(s), info.score) * 100)}%`),
+        h('span', null, txt('Pact')), h('b', null, pact ? txt('{0} more', fmtLeft(s.pacts[o.npc.clan] - now())) : txt('none'))));
       body.push(intelBox(`npc:${o.npc.id}`));
       const T = { type: 'npc', id: o.npc.id, x, y, name: info.name };
       scoutBtn(T, info.name);
-      if (!pact) btns.push(h('button', { class: 'btn btn-sm btn-danger', onclick: () => openSend('attack', T, `Атака: ${info.name}`, s.intel[`npc:${o.npc.id}`] ? info.army : null, { wall: info.wall, score: info.score }) }, '⚔ Атакувай'));
+      if (!pact) btns.push(h('button', { class: 'btn btn-sm btn-danger', onclick: () => openSend('attack', T, txt('Attack: {0}', info.name), s.intel[`npc:${o.npc.id}`] ? info.army : null, { wall: info.wall, score: info.score }) }, txt('⚔ Attack')));
     } else if (o.type === 'camp') {
       const camp = o.camp;
-      body.push(head(E.campName(camp), `варвари · ниво ${camp.lvl}`));
-      if (camp.respawn) body.push(h('p', { class: 'muted' }, 'Разбит · варварите се събират: ', h('span', { class: 'ee-timer', dataset: { end: camp.respawn } })));
+      body.push(head(E.campName(camp), txt('barbarians · level {0}', camp.lvl)));
+      if (camp.respawn) body.push(h('p', { class: 'muted' }, txt('Destroyed · the barbarians are gathering: '), h('span', { class: 'ee-timer', dataset: { end: camp.respawn } })));
       else {
-        body.push(enemyChips(E.campArmy(camp.lvl)), h('div', { class: 'ee-loot' }, h('small', { class: 'muted' }, 'Плячка до:'), rewardChips(E.campLoot(camp.lvl))));
-        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => openSend('raid', { type: 'camp', id: camp.id, x, y, name: E.campName(camp) }, `Набег: ${E.campName(camp)} (ниво ${camp.lvl})`, E.campArmy(camp.lvl)) }, '🚩 Набег'));
+        body.push(enemyChips(E.campArmy(camp.lvl)), h('div', { class: 'ee-loot' }, h('small', { class: 'muted' }, txt('Loot up to:')), rewardChips(E.campLoot(camp.lvl))));
+        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => openSend('raid', { type: 'camp', id: camp.id, x, y, name: E.campName(camp) }, txt('Raid: {0} (level {1})', E.campName(camp), camp.lvl), E.campArmy(camp.lvl)) }, txt('🚩 Raid')));
       }
     } else if (o.type === 'adventure') {
       const a = o.adv;
-      body.push(head(a.diff === 'hard' ? 'Опасно приключение' : 'Приключение', `изчезва след ${fmtLeft(a.expires - now())}`));
-      body.push(h('p', { class: 'muted' }, a.diff === 'hard' ? 'По-богата награда и по-тежки рани. Героят може да загине.' : 'Героят ще се върне с опит и може би с плячка.'));
-      btns.push(h('button', { class: 'btn btn-sm btn-primary', disabled: !heroHere, title: heroHere ? '' : 'Героят не е в този град', onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x, y, diff: a.diff, name: 'приключение' }, 'Приключение') }, '🧭 Изпрати героя'));
+      body.push(head(a.diff === 'hard' ? txt('Dangerous adventure') : txt('Adventure'), txt('disappears in {0}', fmtLeft(a.expires - now()))));
+      body.push(h('p', { class: 'muted' }, a.diff === 'hard' ? txt('A richer reward and worse wounds. The hero may die.') : txt('The hero will return with experience and maybe with loot.')));
+      btns.push(h('button', { class: 'btn btn-sm btn-primary', disabled: !heroHere, title: heroHere ? '' : txt('The hero is not in this city'), onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x, y, diff: a.diff, name: txt('adventure') }, txt('Adventure')) }, txt('🧭 Send the hero')));
     } else if (o.type === 'oasis') {
       const oi = E.oasisInfo(s, x, y, env);
-      body.push(head(`Оазис: +${OASIS_BONUS * 100}% ${resName(s.race, oi.res).toLowerCase()}`, `ниво ${oi.lvl}`));
-      if (oi.owner) body.push(h('p', null, `Владетел: ${oi.mine ? 'вие' : oi.ownerName || '?'}`));
+      body.push(head(txt('Oasis: +{0}% {1}', OASIS_BONUS * 100, decode(resName(s.race, oi.res)).toLowerCase()), txt('level {0}', oi.lvl)));
+      if (oi.owner) body.push(h('p', null, txt('Ruler: {0}', oi.mine ? txt('you') : oi.ownerName || '?')));
       else {
-        body.push(oi.guards.length ? enemyChips(oi.guards) : h('p', { class: 'muted' }, 'Зверовете са прогонени.' + (oi.respawn ? ' Връщат се след ' : '')), oi.respawn ? h('span', { class: 'ee-timer', dataset: { end: oi.respawn } }) : null);
-        body.push(h('p', { class: 'muted' }, `Победете пазачите с героя във войската, за да завладеете оазиса (Зала на героите ниво 3/6/10; до ${3} полета от града). Имате ${s.oases.length}/${E.oasisSlots(s)}.`));
-        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => openSend('attack', { type: 'oasis', x, y, name: `оазис (${x}|${y})` }, `Атака: оазис (${x}|${y})`, oi.guards) }, '⚔ Атакувай'));
+        body.push(oi.guards.length ? enemyChips(oi.guards) : h('p', { class: 'muted' }, txt('The beasts have been driven away.') + (oi.respawn ? txt(' They return in ') : '')), oi.respawn ? h('span', { class: 'ee-timer', dataset: { end: oi.respawn } }) : null);
+        body.push(h('p', { class: 'muted' }, txt('Defeat the guards with the hero in the army to conquer the oasis (Hall of Heroes level 3/6/10; up to {0} tiles from the city). You have {1}/{2}.', 3, s.oases.length, E.oasisSlots(s))));
+        btns.push(h('button', { class: 'btn btn-sm btn-primary', onclick: () => openSend('attack', { type: 'oasis', x, y, name: txt('oasis ({0}|{1})', x, y) }, txt('Attack: oasis ({0}|{1})', x, y), oi.guards) }, txt('⚔ Attack')));
       }
     }
     return h('div', { class: 'ee-card ee-mi' }, ...body, btns.length > 0 && h('div', { class: 'ee-mi-b' }, btns));
   }
 
   function intelView(data) {
-    if (!data) return h('p', { class: 'muted' }, 'Няма данни.');
+    if (!data) return h('p', { class: 'muted' }, txt('No data.'));
     return h('div', { class: 'ee-intel-d' },
-      data.army && (data.army.length ? enemyChips(data.army) : h('p', { class: 'muted' }, 'Няма войска у дома.')),
+      data.army && (data.army.length ? enemyChips(data.army) : h('p', { class: 'muted' }, txt('No troops at home.'))),
       (data.wall != null || data.traps != null || data.cranny != null || data.loyalty != null) && h('div', { class: 'ee-kv' },
-        data.wall != null && [h('span', null, 'Стена'), h('b', null, data.wall)],
-        data.traps != null && [h('span', null, 'Капани'), h('b', null, data.traps)],
-        data.cranny != null && [h('span', null, 'Скривалище'), h('b', null, data.cranny)],
-        data.loyalty != null && [h('span', null, 'Лоялност'), h('b', null, `${data.loyalty}%`)]),
-      (data.res || data.pile) && typeof (data.res || data.pile) === 'object' && h('div', null, h('small', { class: 'muted' }, 'Ресурси'), rewardChips(data.res || data.pile)));
+        data.wall != null && [h('span', null, txt('Wall')), h('b', null, data.wall)],
+        data.traps != null && [h('span', null, txt('Traps')), h('b', null, data.traps)],
+        data.cranny != null && [h('span', null, txt('Hideout')), h('b', null, data.cranny)],
+        data.loyalty != null && [h('span', null, txt('Loyalty')), h('b', null, `${data.loyalty}%`)]),
+      (data.res || data.pile) && typeof (data.res || data.pile) === 'object' && h('div', null, h('small', { class: 'muted' }, txt('Resources')), rewardChips(data.res || data.pile)));
   }
 
-  // Прозорец за изпращане на войска (набег, атака, разузнаване, подкрепа, заселване, приключение).
+  // Dialog for sending troops (raid, attack, scouting, reinforcement, settling, adventure).
   async function openSend(kind, target, title, enemy = null, extra = {}) {
     E.advance(s, now(), env);
     const c = cur();
@@ -955,9 +958,9 @@ export function mount(root, ctx) {
       const units = Object.fromEntries(Object.entries(pick).filter(([, n]) => n > 0));
       const tt = E.travelTime(s, c, target, units, withHero);
       const arriveAt = now() + tt;
-      const lines = [h('div', null, '⏱ Път: ', h('b', null, fmtLeft(tt)), ` · пристига в ${clock(arriveAt)}`)];
-      if (night(arriveAt)) lines.push(h('div', { class: 'mid' }, `🌙 Пристига през нощта – защитниците получават +${Math.round((NIGHT.bonus - 1) * 100)}% защита.`));
-      if (mo < 1) lines.push(h('div', { class: 'mid' }, `Морал ${Math.round(mo * 100)}% – целта е много по-слаба от вас.`));
+      const lines = [h('div', null, txt('⏱ Travel: '), h('b', null, fmtLeft(tt)), txt(' · arrives at {0}', clock(arriveAt)))];
+      if (night(arriveAt)) lines.push(h('div', { class: 'mid' }, txt('🌙 Arrives at night – the defenders get +{0}% defense.', Math.round((NIGHT.bonus - 1) * 100))));
+      if (mo < 1) lines.push(h('div', { class: 'mid' }, txt('Morale {0}% – the target is much weaker than you.', Math.round(mo * 100))));
       if ((kind === 'attack' || kind === 'raid') && enemy?.length) {
         const off = withHero ? E.heroStats(s).off : 0;
         const side = FIGHTERS.filter((u) => units[u]).map((u) => { const st = E.unitStats(s, u, c); return { key: u, n: units[u], ...st, atk: st.atk * mo * (1 + off) }; });
@@ -973,10 +976,10 @@ export function mount(root, ctx) {
             lost += r.att.reduce((a, g) => a + (g.key === 'hero' ? 0 : g.lost), 0);
           }
           const p = Math.round((wins / N) * 100);
-          lines.unshift(h('div', null, 'Шанс за победа: ', h('b', { class: p >= 75 ? 'good' : p >= 40 ? 'mid' : 'bad' }, `~${p}%`), h('span', { class: 'muted' }, ` · загуби ~${Math.round(lost / N)}`)));
+          lines.unshift(h('div', null, txt('Chance of victory: '), h('b', { class: p >= 75 ? 'good' : p >= 40 ? 'mid' : 'bad' }, `~${p}%`), h('span', { class: 'muted' }, txt(' · losses ~{0}', Math.round(lost / N)))));
         }
-      } else if (kind === 'attack') lines.unshift(h('div', { class: 'muted' }, 'Силата на врага е неизвестна – разузнайте първо.'));
-      if ((kind === 'attack') && (target.type === 'npc' || target.type === 'player') && E.isProtected(s, now())) lines.push(h('div', { class: 'bad' }, '⚠ Атаката ще прекрати защитата ви за новаци.'));
+      } else if (kind === 'attack') lines.unshift(h('div', { class: 'muted' }, txt('The enemy\'s strength is unknown – scout first.')));
+      if ((kind === 'attack') && (target.type === 'npc' || target.type === 'player') && E.isProtected(s, now())) lines.push(h('div', { class: 'bad' }, txt('⚠ The attack will end your beginner protection.')));
       forecast.replaceChildren(...lines);
     };
     const rows = avail.map((u) => {
@@ -987,29 +990,29 @@ export function mount(root, ctx) {
     });
     const heroRow = kind !== 'scout' && heroHere && kind !== 'adventure' && h('label', { class: 'ee-herochk' },
       h('input', { type: 'checkbox', onchange: (e) => { withHero = e.target.checked; redraw(); } }),
-      h('span', { html: unitIcon('hero', '#e2b553', 30) }), `${s.hero.name} (ниво ${s.hero.lvl}, живот ${Math.round(s.hero.health)}%)`);
+      h('span', { html: unitIcon('hero', '#e2b553', 30) }), txt('{0} (level {1}, health {2}%)', s.hero.name, s.hero.lvl, Math.round(s.hero.health)));
     redraw();
     const v = await modal({
       title,
       body: h('div', { class: 'ee-attack' },
-        enemy?.length > 0 && [h('small', { class: 'muted' }, 'Врагът'), enemyChips(enemy)],
-        kind === 'found' && h('p', { class: 'muted' }, 'Тръгват едни заселници; можете да изпратите и охрана – тя остава в новия град.'),
-        kind === 'adventure' && h('p', null, `${s.hero.name} тръгва сам. Живот: ${Math.round(s.hero.health)}%.`),
-        rows.length > 0 && h('small', { class: 'muted' }, kind === 'found' ? 'Охрана' : 'Войска'), rows,
-        !rows.length && kind !== 'adventure' && kind !== 'found' && h('p', { class: 'ee-why' }, 'Нямате подходяща войска в този град.'),
+        enemy?.length > 0 && [h('small', { class: 'muted' }, txt('The enemy')), enemyChips(enemy)],
+        kind === 'found' && h('p', { class: 'muted' }, txt('One group of settlers sets out; you can send an escort too – it stays in the new city.')),
+        kind === 'adventure' && h('p', null, txt('{0} sets out alone. Health: {1}%.', s.hero.name, Math.round(s.hero.health))),
+        rows.length > 0 && h('small', { class: 'muted' }, kind === 'found' ? txt('Escort') : txt('Troops')), rows,
+        !rows.length && kind !== 'adventure' && kind !== 'found' && h('p', { class: 'ee-why' }, txt('You have no suitable troops in this city.')),
         heroRow,
         canTactic && h('label', { class: 'ee-herochk ee-tacchk' },
           h('input', { type: 'checkbox', checked: tactical, onchange: (e) => { tactical = e.target.checked; ui.tactical = tactical; savePrefs('empires.ui', ui); } }),
-          h('span', null, h('b', null, 'Тактическа битка'), h('br'), h('small', { class: 'muted' }, 'При пристигане водите битката сами на ходове (иначе – автоматично). Имате 1 час да я изиграете.'))),
+          h('span', null, h('b', null, txt('Tactical battle')), h('br'), h('small', { class: 'muted' }, txt('On arrival you lead the battle yourself, turn by turn (otherwise it is automatic). You have 1 hour to play it.')))),
         forecast),
-      actions: [{ label: 'Отказ', value: false }, { label: 'Тръгвай', value: true, primary: true }],
+      actions: [{ label: txt('Cancel'), value: false }, { label: txt('Set out'), value: true, primary: true }],
       className: 'ee-modal',
     });
     if (!v || !s || destroyed) return;
-    doAct('send', [c.id, kind, target, pick, withHero, tactical], kind === 'adventure' ? 'Героят потегли.' : 'Войската потегли.');
+    doAct('send', [c.id, kind, target, pick, withHero, tactical], kind === 'adventure' ? txt('The hero set out.') : txt('The army set out.'));
   }
 
-  // ---------- Походи ----------
+  // ---------- Marches ----------
   function viewMarches() {
     const c = cur();
     const inc = allIncoming();
@@ -1018,101 +1021,101 @@ export function mount(root, ctx) {
       const tw = E.lv(city, 'tower');
       const total = x.groups.filter((g) => g.key !== 'hero').reduce((a, g) => a + g.n, 0);
       const seen = tw >= 5 ? enemyChips(x.groups.filter((g) => g.key !== 'hero'))
-        : tw >= 3 ? h('div', { class: 'ee-enemy' }, x.groups.filter((g) => g.key !== 'hero').map((g) => h('span', { class: 'ee-echip', title: enemyName(g.key) }, h('span', { html: unitIcon(UNITS[g.key]?.cls || 'inf', '#ff5d6c', 22) }), '?')), h('small', { class: 'muted' }, ` ~${fmtN(Math.round(total / 10) * 10 || total)} войници`))
-          : tw >= 1 ? h('small', { class: 'muted' }, `~${fmtN(Math.round(total / 10) * 10 || total)} войници (видове – от кула ниво 3, точен състав – от ниво 5)`)
-            : h('small', { class: 'muted' }, 'Неизвестна сила – постройте Стражева кула.');
+        : tw >= 3 ? h('div', { class: 'ee-enemy' }, x.groups.filter((g) => g.key !== 'hero').map((g) => h('span', { class: 'ee-echip', title: enemyName(g.key) }, h('span', { html: unitIcon(UNITS[g.key]?.cls || 'inf', '#ff5d6c', 22) }), '?')), h('small', { class: 'muted' }, txt(' ~{0} soldiers', fmtN(Math.round(total / 10) * 10 || total))))
+          : tw >= 1 ? h('small', { class: 'muted' }, txt('~{0} soldiers (types – from tower level 3, exact makeup – from level 5)', fmtN(Math.round(total / 10) * 10 || total)))
+            : h('small', { class: 'muted' }, txt('Unknown strength – build a Watchtower.'));
       return h('div', { class: 'ee-card ee-inc' },
         h('div', { class: 'ee-tech-h' }, h('b', null, `⚠ ${x.attacker} → ${x.cityName}`), h('span', { class: 'ee-timer', dataset: { end: x.arrive } })),
-        h('small', { class: 'muted' }, `пристига в ${clock(x.arrive)}${E.isNight(x.arrive) ? ' · 🌙 нощен бонус за вас' : ''}`),
+        h('small', { class: 'muted' }, txt('arrives at {0}{1}', clock(x.arrive), E.isNight(x.arrive) ? txt(' · 🌙 night bonus for you') : '')),
         seen,
-        h('small', { class: 'muted' }, `Защитата ви: ${fmtN(power(E.defenders(s, city, env).side, E.wallBonus(E.lv(city, 'wall')).def))} · стена ${E.lv(city, 'wall')} · капани за ${E.trapCap(city)} · скривалище ${fmtN(E.crannyCap(city))}`));
+        h('small', { class: 'muted' }, txt('Your defense: {0} · wall {1} · traps for {2} · hideout {3}', fmtN(power(E.defenders(s, city, env).side, E.wallBonus(E.lv(city, 'wall')).def)), E.lv(city, 'wall'), E.trapCap(city), fmtN(E.crannyCap(city)))));
     });
     const battles = s.marches.filter((m) => m.phase === 'battle').map((m) => h('div', { class: 'ee-card ee-inc' },
-      h('div', { class: 'ee-tech-h' }, h('b', null, `⚔ ${m.target.name || 'Битка'}`), h('span', { class: 'ee-timer', dataset: { end: m.battle.expires } })),
-      h('small', { class: 'muted' }, 'Войската чака заповед. Ако не изиграете битката навреме, тя ще се реши автоматично.'),
+      h('div', { class: 'ee-tech-h' }, h('b', null, `⚔ ${m.target.name || txt('Battle')}`), h('span', { class: 'ee-timer', dataset: { end: m.battle.expires } })),
+      h('small', { class: 'muted' }, txt('The army awaits orders. If you don\'t play the battle in time, it will be decided automatically.')),
       enemyChips(m.battle.def),
       h('div', { class: 'ee-mi-b' },
-        h('button', { class: 'btn btn-primary btn-sm', onclick: () => openBattle(m) }, 'Поведи битката'),
-        h('button', { class: 'btn btn-sm', onclick: () => doAct('tactical', [m.id, [{ auto: 1 }]], 'Битката е решена.') }, 'Автоматично'))));
+        h('button', { class: 'btn btn-primary btn-sm', onclick: () => openBattle(m) }, txt('Lead the battle')),
+        h('button', { class: 'btn btn-sm', onclick: () => doAct('tactical', [m.id, [{ auto: 1 }]], txt('The battle is decided.')) }, txt('Automatic')))));
     const marchEls = s.marches.filter((m) => m.phase !== 'battle').map((m) => h('div', { class: 'ee-qrow' },
       h('span', null, marchLabel(m), h('br'), h('small', { class: 'muted' }, [unitsLine(m.units), m.hero ? s.hero.name : ''].filter(Boolean).join(', '))),
-      m.phase === 'wait' ? h('small', { class: 'muted' }, 'чака…') : h('span', { class: 'ee-timer', dataset: { end: m.phase === 'back' ? m.back : m.arrive } })));
+      m.phase === 'wait' ? h('small', { class: 'muted' }, txt('waiting…')) : h('span', { class: 'ee-timer', dataset: { end: m.phase === 'back' ? m.back : m.arrive } })));
     const abroadEls = s.abroad.map((a) => h('div', { class: 'ee-qrow' },
-      h('span', null, `При ${a.toName}: ${unitsLine(a.units)}`),
-      h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doAct('recall', [a.id], 'Войската се прибира.') }, 'Изтегли')));
+      h('span', null, txt('At {0}: {1}', a.toName, unitsLine(a.units))),
+      h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doAct('recall', [a.id], txt('The army is going home.')) }, txt('Withdraw'))));
     const reports = s.reports.map((r) => h('button', { class: `ee-report ${r.win ? 'win' : 'loss'}`, onclick: () => showReport(r) },
       h('b', null, { raid: '🚩', attack: '⚔', defense: '🛡', scout: '👁', adventure: '🧭', found: '🏰' }[r.kind] || '•'),
       h('span', null, r.title),
       h('small', { class: 'muted' }, clock(r.t))));
     return h('div', { class: 'ee-pane' },
-      battles.length > 0 && h('div', null, h('h3', { class: 'ee-h3 bad' }, 'Битки, които чакат'), h('div', { class: 'ee-grid' }, battles)),
-      inc.length > 0 && h('div', null, h('h3', { class: 'ee-h3 bad' }, 'Входящи нападения'), h('div', { class: 'ee-grid' }, incEls)),
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Вашите походи'), marchEls.length ? marchEls : h('small', { class: 'muted' }, 'Няма войска на път. Изберете цел от Картата.')),
-      abroadEls.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, 'Подкрепления при съюзници'), abroadEls),
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Доклади'), reports.length ? h('div', { class: 'ee-reports' }, reports) : h('small', { class: 'muted' }, 'Още няма доклади.')),
-      h('p', { class: 'muted ee-hint' }, `Защита: стената дава бонус към защитата, капаните залавят нападатели, скривалището пази ${fmtN(E.crannyCap(c))} от всеки ресурс в ${c.name}. Стражевата кула вижда нападенията ${fmtLeft(E.warnWindow(s, c))} преди пристигане. Нощем (${NIGHT.from}:00–${NIGHT.to}:00 българско време) защитниците са с +${Math.round((NIGHT.bonus - 1) * 100)}% по-силни.`));
+      battles.length > 0 && h('div', null, h('h3', { class: 'ee-h3 bad' }, txt('Battles waiting')), h('div', { class: 'ee-grid' }, battles)),
+      inc.length > 0 && h('div', null, h('h3', { class: 'ee-h3 bad' }, txt('Incoming attacks')), h('div', { class: 'ee-grid' }, incEls)),
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Your marches')), marchEls.length ? marchEls : h('small', { class: 'muted' }, txt('No troops on the move. Choose a target on the Map.'))),
+      abroadEls.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, txt('Reinforcements with allies')), abroadEls),
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Reports')), reports.length ? h('div', { class: 'ee-reports' }, reports) : h('small', { class: 'muted' }, txt('No reports yet.'))),
+      h('p', { class: 'muted ee-hint' }, txt('Defense: the wall adds a defense bonus, traps catch attackers, the hideout protects {0} of each resource in {1}. The watchtower sees attacks {2} before arrival. At night ({3}:00–{4}:00 Bulgarian time) defenders are +{5}% stronger.', fmtN(E.crannyCap(c)), c.name, fmtLeft(E.warnWindow(s, c)), NIGHT.from, NIGHT.to, Math.round((NIGHT.bonus - 1) * 100))));
   }
 
   function showReport(r) {
     const mineAtt = r.kind !== 'defense';
     const side = (list, mine) => h('div', { class: 'ee-rside' }, (list || []).map((g) => h('div', null,
       h('span', { html: unitIcon(clsOf(g.key, mine && !g.ally), mine && !g.ally ? color : '#ff5d6c', 24) }),
-      h('span', null, g.key === 'hero' && mine ? s.hero.name : mine && !g.ally ? E.uName(s, g.key) : enemyName(g.key) + (g.ally ? ' (съюзник)' : '')),
+      h('span', null, g.key === 'hero' && mine ? s.hero.name : mine && !g.ally ? E.uName(s, g.key) : enemyName(g.key) + (g.ally ? txt(' (ally)') : '')),
       h('b', null, g.n + g.lost), g.lost > 0 && h('span', { class: 'bad' }, ` −${g.lost}`))));
     const extras = [];
-    if (r.morale && r.morale < 1) extras.push(`Морал: ${Math.round(r.morale * 100)}%`);
-    if (r.night) extras.push('🌙 Нощен бонус за защитниците');
-    if (r.wall) extras.push(`Стена ниво ${r.wall}`);
-    if (r.trapped) extras.push(`В капаните попаднаха ${r.trapped} нападатели`);
-    if (r.raised) extras.push(`💀 ${r.raised} паднали врагове се вдигнаха като скелети`);
-    if (r.annexed) extras.push('🌴 Оазисът е завладян!');
-    if (r.siege?.wall) extras.push(`🪨 Катапултите събориха ${r.siege.wall} нива от стената`);
-    if (r.siege?.buildings?.length) extras.push(`🪨 Повредени сгради: ${r.siege.buildings.join(', ')}`);
-    if (r.siege?.loyalty != null) extras.push(`👑 Лоялност на града: ${r.siege.loyalty}%`);
+    if (r.morale && r.morale < 1) extras.push(txt('Morale: {0}%', Math.round(r.morale * 100)));
+    if (r.night) extras.push(txt('🌙 Night bonus for the defenders'));
+    if (r.wall) extras.push(txt('Wall level {0}', r.wall));
+    if (r.trapped) extras.push(txt('{0} attackers fell into the traps', r.trapped));
+    if (r.raised) extras.push(txt('💀 {0} fallen enemies rose as skeletons', r.raised));
+    if (r.annexed) extras.push(txt('🌴 The oasis is conquered!'));
+    if (r.siege?.wall) extras.push(txt('🪨 The catapults knocked down {0} levels of the wall', r.siege.wall));
+    if (r.siege?.buildings?.length) extras.push(txt('🪨 Damaged buildings: {0}', r.siege.buildings.join(', ')));
+    if (r.siege?.loyalty != null) extras.push(txt('👑 City loyalty: {0}%', r.siege.loyalty));
     if (r.siege?.note) extras.push(r.siege.note);
-    if (r.tactical) extras.push('Битката е проведена на тактическата карта.');
+    if (r.tactical) extras.push(txt('The battle was fought on the tactical map.'));
     if (r.note) extras.push(r.note);
     let body;
-    if (r.kind === 'scout') body = h('div', { class: 'ee-attack' }, r.intel ? intelView(r.intel) : h('p', { class: 'bad' }, 'Съгледвачите не успяха.'), r.scoutsLost > 0 && h('small', { class: 'muted' }, `Загубени съгледвачи: ${r.scoutsLost}`));
-    else if (r.kind === 'adventure') body = h('div', { class: 'ee-attack' }, h('p', null, r.text), h('small', { class: 'muted' }, `Рани: −${r.dmg}% живот`), r.item && h('p', null, 'Предмет: ', h('b', { style: { color: TIERS[r.item.tier - 1].color } }, r.item.name), ` (${r.item.text})`), rewardChips(r.loot));
-    else if (r.kind === 'found') body = h('p', null, 'Новият град е ваш. Превключете към него от горната лента.');
+    if (r.kind === 'scout') body = h('div', { class: 'ee-attack' }, r.intel ? intelView(r.intel) : h('p', { class: 'bad' }, txt('The scouts failed.')), r.scoutsLost > 0 && h('small', { class: 'muted' }, txt('Scouts lost: {0}', r.scoutsLost)));
+    else if (r.kind === 'adventure') body = h('div', { class: 'ee-attack' }, h('p', null, r.text), h('small', { class: 'muted' }, txt('Wounds: −{0}% health', r.dmg)), r.item && h('p', null, txt('Item: '), h('b', { style: { color: TIERS[r.item.tier - 1].color } }, r.item.name), ` (${r.item.text})`), rewardChips(r.loot));
+    else if (r.kind === 'found') body = h('p', null, txt('The new city is yours. Switch to it from the top bar.'));
     else body = h('div', { class: 'ee-attack' },
-      r.rounds != null && h('small', { class: 'muted' }, `${r.rounds} рунда${r.enemy ? ` · нападател: ${r.enemy}` : ''}`),
+      r.rounds != null && h('small', { class: 'muted' }, txt('{0} rounds{1}', r.rounds, r.enemy ? txt(' · attacker: {0}', r.enemy) : '')),
       h('div', { class: 'ee-rgrid' },
-        h('div', null, h('h4', null, mineAtt ? 'Вие' : r.enemy || 'Нападател'), side(r.att, mineAtt)),
-        h('div', null, h('h4', null, mineAtt ? 'Противник' : 'Вие'), side(r.def, !mineAtt))),
+        h('div', null, h('h4', null, mineAtt ? txt('You') : r.enemy || txt('Attacker')), side(r.att, mineAtt)),
+        h('div', null, h('h4', null, mineAtt ? txt('Opponent') : txt('You')), side(r.def, !mineAtt))),
       extras.map((x) => h('p', { class: 'muted' }, x)),
-      r.loot && Object.values(r.loot).some((v) => v > 0) && h('div', null, h('small', { class: 'muted' }, r.kind === 'defense' ? 'Отнесено' : 'Плячка'), rewardChips(r.loot)));
+      r.loot && Object.values(r.loot).some((v) => v > 0) && h('div', null, h('small', { class: 'muted' }, r.kind === 'defense' ? txt('Taken') : txt('Loot')), rewardChips(r.loot)));
     modal({ title: r.title, body, className: 'ee-modal' });
   }
 
-  // ---------- Герой ----------
+  // ---------- Hero ----------
   function viewHero() {
     const hh = s.hero;
     const st = E.heroStats(s);
     const c = cur();
     const home = E.cityOf(s, hh.city);
-    const statusText = hh.state === 'dead' ? (hh.reviveEnd ? 'Съживява се' : 'Мъртъв') : hh.state === 'away' ? 'На път' : `У дома в ${home.name}`;
+    const statusText = hh.state === 'dead' ? (hh.reviveEnd ? txt('Reviving') : txt('Dead')) : hh.state === 'away' ? txt('On the road') : txt('At home in {0}', home.name);
     const xpNeed = 60 * hh.lvl ** 1.7;
     const head = h('div', { class: 'ee-card ee-herocard' },
       h('div', { class: 'ee-hero-l', html: heroPortrait(s.race, 104, hh.state === 'dead') }),
       h('div', { class: 'ee-hero-r' },
         h('div', { class: 'ee-tech-h' }, h('b', { class: 'ee-hero-name' }, hh.name), h('button', { class: 'btn btn-sm btn-ghost', onclick: renameHero }, '✎')),
-        h('small', { class: 'muted' }, `Ниво ${hh.lvl} · ${statusText}`),
-        h('div', { class: 'ee-hbar' }, h('small', null, `Живот ${Math.round(hh.health)}%`), h('i', { class: 'ee-bar static hp' }, h('i', { dataset: { hp: 1 }, style: { width: Math.round(hh.health) + '%' } }))),
-        h('div', { class: 'ee-hbar' }, h('small', null, `Опит ${Math.round(hh.xp)} / ${Math.round(xpNeed)}`), progress(hh.xp, xpNeed)),
+        h('small', { class: 'muted' }, txt('Level {0} · {1}', hh.lvl, statusText)),
+        h('div', { class: 'ee-hbar' }, h('small', null, txt('Health {0}%', Math.round(hh.health))), h('i', { class: 'ee-bar static hp' }, h('i', { dataset: { hp: 1 }, style: { width: Math.round(hh.health) + '%' } }))),
+        h('div', { class: 'ee-hbar' }, h('small', null, txt('Experience {0} / {1}', Math.round(hh.xp), Math.round(xpNeed))), progress(hh.xp, xpNeed)),
         h('div', { class: 'ee-stats' },
-          h('span', { title: 'Атака' }, '⚔ ', st.atk), h('span', { title: 'Живот в битка' }, '❤ ', st.hp),
-          h('span', { title: 'Скорост' }, '🐎 ', `${+st.speed.toFixed(1)}`), h('span', { title: 'Възстановяване' }, '✚ ', `${st.regen}%/ч`))));
+          h('span', { title: txt('Attack') }, '⚔ ', st.atk), h('span', { title: txt('Health in battle') }, '❤ ', st.hp),
+          h('span', { title: txt('Speed') }, '🐎 ', `${+st.speed.toFixed(1)}`), h('span', { title: txt('Recovery') }, '✚ ', txt('{0}%/h', st.regen)))));
     let revive = null;
     if (hh.state === 'dead') {
       revive = hh.reviveEnd
-        ? h('div', { class: 'ee-card' }, h('b', null, 'Съживяване'), h('span', { class: 'ee-timer', dataset: { end: hh.reviveEnd } }), bar(hh.reviveEnd - E.reviveTime(s), hh.reviveEnd))
-        : h('div', { class: 'ee-card' }, h('b', null, `Съживете ${hh.name}`), h('p', { class: 'muted' }, `В Залата на героите на ${c.name}.`), costChips(E.reviveCost(s)),
-          h('button', { class: 'btn btn-primary btn-sm', disabled: !E.lv(c, 'heroHall'), onclick: () => doAct('revive', [c.id], 'Съживяването започна.') }, E.lv(c, 'heroHall') ? `Съживи · ${fmtLeft(E.reviveTime(s))}` : 'Нужна е Зала на героите'));
+        ? h('div', { class: 'ee-card' }, h('b', null, txt('Revival')), h('span', { class: 'ee-timer', dataset: { end: hh.reviveEnd } }), bar(hh.reviveEnd - E.reviveTime(s), hh.reviveEnd))
+        : h('div', { class: 'ee-card' }, h('b', null, txt('Revive {0}', hh.name)), h('p', { class: 'muted' }, txt('In the Hall of Heroes of {0}.', c.name)), costChips(E.reviveCost(s)),
+          h('button', { class: 'btn btn-primary btn-sm', disabled: !E.lv(c, 'heroHall'), onclick: () => doAct('revive', [c.id], txt('The revival has started.')) }, E.lv(c, 'heroHall') ? txt('Revive · {0}', fmtLeft(E.reviveTime(s))) : txt('A Hall of Heroes is required')));
     }
     const points = h('div', { class: 'ee-card' },
-      h('div', { class: 'ee-tech-h' }, h('b', null, 'Умения'), h('small', { class: hh.free ? 'good' : 'muted' }, `свободни точки: ${hh.free}`)),
+      h('div', { class: 'ee-tech-h' }, h('b', null, txt('Skills')), h('small', { class: hh.free ? 'good' : 'muted' }, txt('free points: {0}', hh.free))),
       Object.entries(HERO_POINTS).map(([k, p]) => h('div', { class: 'ee-point' },
         h('div', null, h('b', null, `${p.name}: ${hh.points[k]}`), h('small', { class: 'muted' }, p.desc)),
         h('button', { class: 'icon-btn', disabled: !hh.free, 'aria-label': `+ ${p.name}`, onclick: () => doAct('assignPoint', [k]) }, '+'))));
@@ -1120,68 +1123,68 @@ export function mount(root, ctx) {
       const it = hh.items.find((i) => i.id === hh.eq[slot]);
       const ii = it && E.itemOf(it);
       return h('div', { class: `ee-slot ${ii ? 't' + ii.tier : ''}` }, h('small', { class: 'muted' }, name),
-        ii ? [h('b', { style: { color: TIERS[ii.tier - 1].color } }, ii.name), h('small', null, ii.text), h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doAct('unequip', [slot]) }, 'Свали')] : h('small', { class: 'muted' }, '—'));
+        ii ? [h('b', { style: { color: TIERS[ii.tier - 1].color } }, ii.name), h('small', null, ii.text), h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doAct('unequip', [slot]) }, txt('Unequip'))] : h('small', { class: 'muted' }, '—'));
     });
     const inv = hh.items.filter((i) => !Object.values(hh.eq).includes(i.id)).map((it) => {
       const ii = E.itemOf(it);
       return h('div', { class: 'ee-qrow ee-item' },
         h('span', null, h('b', { style: { color: TIERS[ii.tier - 1].color } }, ii.name), h('small', { class: 'muted' }, ` · ${SLOTS[ii.slot]}, ${TIERS[ii.tier - 1].name} · ${ii.text}`)),
         h('span', { class: 'ee-item-b' },
-          h('button', { class: 'btn btn-sm', onclick: () => doAct('equip', [it.id]) }, 'Сложи'),
-          h('button', { class: 'btn btn-sm btn-ghost', title: `Продай за ${100 * ii.tier ** 2} злато и ${ii.tier * 2} души`, onclick: () => doAct('sellItem', [c.id, it.id], 'Продадено.') }, 'Продай')));
+          h('button', { class: 'btn btn-sm', onclick: () => doAct('equip', [it.id]) }, txt('Equip')),
+          h('button', { class: 'btn btn-sm btn-ghost', title: txt('Sell for {0} gold and {1} souls', 100 * ii.tier ** 2, ii.tier * 2), onclick: () => doAct('sellItem', [c.id, it.id], txt('Sold.')) }, txt('Sell'))));
     });
     const advs = s.adventures.map((a) => h('div', { class: 'ee-qrow' },
-      h('span', null, a.diff === 'hard' ? '⚠ Опасно приключение' : '🧭 Приключение', h('small', { class: 'muted' }, ` (${a.x}|${a.y}) · ${dist(home, a).toFixed(1)} полета · изчезва след `), h('span', { class: 'ee-timer', dataset: { end: a.expires } })),
-      h('button', { class: 'btn btn-sm btn-primary ee-adv-send', disabled: !E.heroHome(s, c), onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x: a.x, y: a.y, diff: a.diff, name: 'приключение' }, 'Приключение') }, 'Изпрати')));
+      h('span', null, a.diff === 'hard' ? txt('⚠ Dangerous adventure') : txt('🧭 Adventure'), h('small', { class: 'muted' }, txt(' ({0}|{1}) · {2} tiles · disappears in ', a.x, a.y, dist(home, a).toFixed(1))), h('span', { class: 'ee-timer', dataset: { end: a.expires } })),
+      h('button', { class: 'btn btn-sm btn-primary ee-adv-send', disabled: !E.heroHome(s, c), onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x: a.x, y: a.y, diff: a.diff, name: txt('adventure') }, txt('Adventure')) }, txt('Send'))));
     return h('div', { class: 'ee-pane' },
       head, revive,
       h('div', { class: 'ee-grid' }, points,
-        h('div', { class: 'ee-card' }, h('b', null, 'Екипировка'), h('div', { class: 'ee-slots' }, eqItems))),
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Приключения'),
-        advs.length ? advs : h('small', { class: 'muted' }, 'Няма приключения. Ново се появява на всеки няколко часа.'),
-        !E.heroHome(s, c) && hh.state === 'home' && h('small', { class: 'muted' }, `Героят е в ${home.name} – превключете към този град, за да го изпратите.`)),
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Торба'), inv.length ? inv : h('small', { class: 'muted' }, 'Празна. Предметите се намират в приключения.')));
+        h('div', { class: 'ee-card' }, h('b', null, txt('Equipment')), h('div', { class: 'ee-slots' }, eqItems))),
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Adventures')),
+        advs.length ? advs : h('small', { class: 'muted' }, txt('No adventures. A new one appears every few hours.')),
+        !E.heroHome(s, c) && hh.state === 'home' && h('small', { class: 'muted' }, txt('The hero is in {0} – switch to that city to send them.', home.name))),
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Bag')), inv.length ? inv : h('small', { class: 'muted' }, txt('Empty. Items are found on adventures.'))));
   }
 
   async function renameHero() {
     const input = h('input', { class: 'ee-input', value: s.hero.name, maxlength: 20 });
     setTimeout(() => input.focus(), 50);
-    const v = await modal({ title: 'Име на героя', body: input, actions: [{ label: 'Отказ', value: false }, { label: 'Запази', value: true, primary: true }], className: 'ee-modal' });
+    const v = await modal({ title: txt('Hero name'), body: input, actions: [{ label: txt('Cancel'), value: false }, { label: txt('Save'), value: true, primary: true }], className: 'ee-modal' });
     if (v && input.value.trim()) doAct('renameHero', [input.value]);
   }
 
-  // ---------- Наука ----------
+  // ---------- Science ----------
   function viewScience() {
     const c = cur();
     const req = E.epochReqs(s);
     let epochCard;
-    if (s.epochUp) epochCard = h('div', { class: 'ee-card ee-epoch' }, h('b', null, `Преход към ${EPOCHS[s.epochUp.to - 1].name}`), h('span', { class: 'ee-timer', dataset: { end: s.epochUp.end } }), bar(s.epochUp.start, s.epochUp.end));
-    else if (!req || s.epoch >= MAX_EPOCH) epochCard = h('div', { class: 'ee-card ee-epoch' }, h('b', null, EPOCHS[s.epoch - 1].name), h('p', { class: 'muted' }, 'Следващата епоха идва в нова версия на играта.'));
+    if (s.epochUp) epochCard = h('div', { class: 'ee-card ee-epoch' }, h('b', null, txt('Advance to the {0}', EPOCHS[s.epochUp.to - 1].name)), h('span', { class: 'ee-timer', dataset: { end: s.epochUp.end } }), bar(s.epochUp.start, s.epochUp.end));
+    else if (!req || s.epoch >= MAX_EPOCH) epochCard = h('div', { class: 'ee-card ee-epoch' }, h('b', null, EPOCHS[s.epoch - 1].name), h('p', { class: 'muted' }, txt('The next age comes in a new version of the game.')));
     else epochCard = h('div', { class: 'ee-card ee-epoch' },
-      h('div', { class: 'ee-uhead' }, h('span', { class: 'ee-epoch-n' }, '✦'), h('div', null, h('small', { class: 'muted' }, 'Следваща епоха'), h('b', null, EPOCHS[req.next - 1].name))),
+      h('div', { class: 'ee-uhead' }, h('span', { class: 'ee-epoch-n' }, '✦'), h('div', null, h('small', { class: 'muted' }, txt('Next age')), h('b', null, EPOCHS[req.next - 1].name))),
       h('ul', { class: 'ee-check' }, req.list.map((x) => h('li', { class: x.ok ? 'ok' : '' }, x.ok ? '✔ ' : '○ ', x.text))),
       costChips(req.spec.cost),
-      h('button', { class: 'btn btn-primary', disabled: req.list.some((x) => !x.ok), onclick: () => doAct('advanceEpoch', [c.id], 'Империята навлиза в нова епоха!') }, `Към ${EPOCHS[req.next - 1].name} · ${fmtLeft((req.spec.time * 1000) / s.speed)}`));
+      h('button', { class: 'btn btn-primary', disabled: req.list.some((x) => !x.ok), onclick: () => doAct('advanceEpoch', [c.id], txt('The empire is entering a new age!')) }, txt('To the {0} · {1}', EPOCHS[req.next - 1].name, fmtLeft((req.spec.time * 1000) / s.speed))));
     const groups = EPOCHS.slice(0, MAX_EPOCH).map((x) => x.n).map((ep) => h('div', null,
       h('h3', { class: 'ee-h3' }, EPOCHS[ep - 1].name),
       h('div', { class: 'ee-grid' }, Object.entries(TECHS).filter(([, d]) => d.epoch === ep).map(([id, d]) => {
         const st = E.techState(s, id);
         return h('div', { class: `ee-card ee-tech ${st.status}` },
           h('div', { class: 'ee-tech-h' }, h('b', null, d.name), st.status === 'done' && h('span', { class: 'good' }, '✔')),
-          h('p', { class: 'muted' }, d.desc.replace('храна', resName(s.race, 'food').toLowerCase())),
+          h('p', { class: 'muted' }, decode(d.desc).replace(txt('food'), decode(resName(s.race, 'food')).toLowerCase())),
           st.status === 'active' ? h('div', null, h('span', { class: 'ee-timer', dataset: { end: s.research.end } }), bar(s.research.start, s.research.end))
             : st.status === 'done' ? null
               : h('div', { class: 'ee-tech-f' },
                 st.status === 'locked' ? h('p', { class: 'ee-why' }, '🔒 ' + st.why) : costChips(d.cost),
                 st.status !== 'locked' && h('div', { class: 'ee-tech-b' }, h('small', { class: 'muted' }, '⏱ ' + fmtLeft(E.tTime(s, id))),
-                  h('button', { class: 'btn btn-primary btn-sm', disabled: st.status !== 'ok', title: st.why || '', onclick: () => doAct('research', [c.id, id], 'Изследването започна.') }, 'Изследвай'))));
+                  h('button', { class: 'btn btn-primary btn-sm', disabled: st.status !== 'ok', title: st.why || '', onclick: () => doAct('research', [c.id, id], txt('Research started.')) }, txt('Research')))));
       }))));
     return h('div', { class: 'ee-pane' },
-      !E.maxLv(s, 'academy') && h('p', { class: 'ee-why' }, 'Постройте академия, за да изследвате технологии.'),
+      !E.maxLv(s, 'academy') && h('p', { class: 'ee-why' }, txt('Build an academy to research technologies.')),
       epochCard, groups);
   }
 
-  // ---------- Съюз ----------
+  // ---------- Alliance ----------
   let chatList = null;
   function chatItems(a) {
     return a.chat.slice(-60).map((m) => h('div', { class: `ee-msg ${m.sys ? 'sys' : m.uid === uid ? 'me' : ''}` },
@@ -1200,72 +1203,72 @@ export function mount(root, ctx) {
     const a = W.allianceOf(uid);
     const parts = [];
     chatList = null;
-    if (!emb) parts.push(h('p', { class: 'ee-why' }, 'Постройте Посолство, за да се присъедините към съюз (ниво 1) или да основете свой (ниво 3).'));
+    if (!emb) parts.push(h('p', { class: 'ee-why' }, txt('Build an Embassy to join an alliance (level 1) or found your own (level 3).')));
     if (a) {
       const leader = a.leader === uid;
       const members = a.members.map((m) => W.player(m)).filter(Boolean).sort((x, y) => y.score - x.score);
       parts.push(h('div', { class: 'ee-card ee-epoch' },
-        h('div', { class: 'ee-tech-h' }, h('b', null, `${a.name} [${a.tag}]`), h('small', { class: 'muted' }, `${a.members.length} / ${Math.max(3, 3 * (members.find((m) => m.uid === a.leader) ? E.maxLv(s, 'embassy') : 1))} членове`)),
+        h('div', { class: 'ee-tech-h' }, h('b', null, `${a.name} [${a.tag}]`), h('small', { class: 'muted' }, txt('{0} / {1} members', a.members.length, Math.max(3, 3 * (members.find((m) => m.uid === a.leader) ? E.maxLv(s, 'embassy') : 1))))),
         h('div', { class: 'ee-members' }, members.map((p) => h('div', { class: 'ee-qrow' },
-          h('span', null, h('span', { class: `ee-online ${p.uid === uid || leaseFresh(p.uid) ? 'on' : ''}` }), `${p.name}${p.uid === a.leader ? ' 👑' : ''}`, h('small', { class: 'muted' }, ` · ${RACES[p.race]?.name} · ${fmtN(p.score)} т. · ${p.cities.length} гр.`)),
-          leader && p.uid !== uid ? h('button', { class: 'btn btn-sm btn-ghost', onclick: async () => { if (await confirmDialog('Изключване', `Да изключите ли ${p.name}?`, 'Изключи', true)) doWorld('kick', [p.uid]); } }, 'Изключи') : null))),
+          h('span', null, h('span', { class: `ee-online ${p.uid === uid || leaseFresh(p.uid) ? 'on' : ''}` }), `${p.name}${p.uid === a.leader ? ' 👑' : ''}`, h('small', { class: 'muted' }, txt(' · {0} · {1} pts · {2} cities', RACES[p.race]?.name, fmtN(p.score), p.cities.length))),
+          leader && p.uid !== uid ? h('button', { class: 'btn btn-sm btn-ghost', onclick: async () => { if (await confirmDialog(txt('Kick'), txt('Kick {0}?', p.name), txt('Kick'), true)) doWorld('kick', [p.uid]); } }, txt('Kick')) : null))),
         h('div', { class: 'ee-mi-b' },
-          h('button', { class: 'btn btn-sm btn-ghost', onclick: async () => { if (await confirmDialog('Напускане', 'Да напуснете ли съюза?', 'Напусни', true)) doWorld('leave', []); } }, 'Напусни'))));
-      // покана
-      const q = h('input', { class: 'ee-input', placeholder: 'Име на играч…', 'aria-label': 'Покани играч' });
+          h('button', { class: 'btn btn-sm btn-ghost', onclick: async () => { if (await confirmDialog(txt('Leaving'), txt('Leave the alliance?'), txt('Leave'), true)) doWorld('leave', []); } }, txt('Leave')))));
+      // invitation
+      const q = h('input', { class: 'ee-input', placeholder: txt('Player name…'), 'aria-label': txt('Invite player') });
       const found = h('div');
       q.oninput = () => {
         const v = q.value.trim().toLowerCase();
         const list = v.length < 2 ? [] : W.players().filter((p) => p.uid !== uid && !p.alliance && p.name.toLowerCase().includes(v)).slice(0, 6);
-        found.replaceChildren(...list.map((p) => h('div', { class: 'ee-qrow' }, h('span', null, `${p.name} · ${fmtN(p.score)} т.`),
-          h('button', { class: 'btn btn-sm', onclick: () => doWorld('invite', [p.uid], `Поканихте ${p.name}.`) }, 'Покани'))));
+        found.replaceChildren(...list.map((p) => h('div', { class: 'ee-qrow' }, h('span', null, txt('{0} · {1} pts', p.name, fmtN(p.score))),
+          h('button', { class: 'btn btn-sm', onclick: () => doWorld('invite', [p.uid], txt('You invited {0}.', p.name)) }, txt('Invite')))));
       };
       parts.push(h('div', { class: 'ee-grid' },
-        h('div', { class: 'ee-card' }, h('b', null, 'Чат на съюза'),
+        h('div', { class: 'ee-card' }, h('b', null, txt('Alliance chat')),
           (chatList = h('div', { class: 'ee-chat' }, chatItems(a))),
           (() => {
-            const inp = h('input', { class: 'ee-input', placeholder: 'Съобщение…', maxlength: 400, 'aria-label': 'Съобщение' });
+            const inp = h('input', { class: 'ee-input', placeholder: txt('Message…'), maxlength: 400, 'aria-label': txt('Message') });
             const sendMsg = async () => { const v = inp.value.trim(); if (!v) return; inp.value = ''; if (await doWorld('say', [v])) refreshChat(); };
             inp.onkeydown = (e) => { if (e.key === 'Enter') sendMsg(); };
-            return h('div', { class: 'ee-chat-in' }, inp, h('button', { class: 'btn btn-primary btn-sm', onclick: sendMsg }, 'Прати'));
+            return h('div', { class: 'ee-chat-in' }, inp, h('button', { class: 'btn btn-primary btn-sm', onclick: sendMsg }, txt('Send')));
           })()),
-        h('div', { class: 'ee-card' }, h('b', null, 'Покани играч'), q, found,
-          h('b', null, 'Дипломация'),
+        h('div', { class: 'ee-card' }, h('b', null, txt('Invite player')), q, found,
+          h('b', null, txt('Diplomacy')),
           W.alliances().filter((x) => x.id !== a.id).length
             ? W.alliances().filter((x) => x.id !== a.id).map((o) => h('div', { class: 'ee-qrow' }, h('span', null, `${o.name} [${o.tag}]`),
               leader
                 ? h('select', { class: 'ee-sel', onchange: (e) => doWorld('setRelation', [o.id, e.target.value || null]) },
-                  [['', 'неутрален'], ['ally', 'съюзници'], ['pact', 'пакт'], ['war', 'война']].map(([v, l]) => h('option', { value: v, selected: (a.diplomacy[o.id] || '') === v }, l)))
+                  [['', txt('neutral')], ['ally', txt('allies')], ['pact', txt('pact')], ['war', txt('war')]].map(([v, l]) => h('option', { value: v, selected: (a.diplomacy[o.id] || '') === v }, l)))
                 : h('small', { style: { color: REL_COLORS[a.diplomacy[o.id] || 'neutral'] } }, REL_NAMES[a.diplomacy[o.id] || 'neutral'])))
-            : h('small', { class: 'muted' }, 'Няма други съюзи.'))));
+            : h('small', { class: 'muted' }, txt('No other alliances.')))));
       setTimeout(() => chatList && (chatList.scrollTop = chatList.scrollHeight), 0);
     } else {
       const inv = W.invitesFor(uid);
-      if (inv.length) parts.push(h('div', { class: 'ee-queue' }, h('h3', null, 'Покани'), inv.map((x) => h('div', { class: 'ee-qrow' }, h('span', null, `${x.name} [${x.tag}] · ${x.members.length} членове`),
+      if (inv.length) parts.push(h('div', { class: 'ee-queue' }, h('h3', null, txt('Invite')), inv.map((x) => h('div', { class: 'ee-qrow' }, h('span', null, txt('{0} [{1}] · {2} members', x.name, x.tag, x.members.length)),
         h('span', { class: 'ee-item-b' },
-          h('button', { class: 'btn btn-sm btn-primary', disabled: !emb, onclick: () => doWorld('acceptInvite', [x.id], `Вече сте в ${x.name}!`) }, 'Приеми'),
-          h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doWorld('declineInvite', [x.id]) }, 'Откажи'))))));
-      const name = h('input', { class: 'ee-input', placeholder: 'Име на съюза', maxlength: 28 });
-      const tag = h('input', { class: 'ee-input ee-tag', placeholder: 'Таг', maxlength: 4 });
-      parts.push(h('div', { class: 'ee-card' }, h('b', null, 'Основаване на съюз'), h('small', { class: 'muted' }, 'Нужно е Посолство ниво 3.'),
+          h('button', { class: 'btn btn-sm btn-primary', disabled: !emb, onclick: () => doWorld('acceptInvite', [x.id], txt('You are now in {0}!', x.name)) }, txt('Accept')),
+          h('button', { class: 'btn btn-sm btn-ghost', onclick: () => doWorld('declineInvite', [x.id]) }, txt('Decline')))))));
+      const name = h('input', { class: 'ee-input', placeholder: txt('Alliance name'), maxlength: 28 });
+      const tag = h('input', { class: 'ee-input ee-tag', placeholder: txt('Tag'), maxlength: 4 });
+      parts.push(h('div', { class: 'ee-card' }, h('b', null, txt('Founding an alliance')), h('small', { class: 'muted' }, txt('Embassy level 3 required.')),
         h('div', { class: 'ee-chat-in' }, name, tag,
           h('button', { class: 'btn btn-primary btn-sm', disabled: emb < 3, onclick: () => {
-            if (name.value.trim().length < 3 || tag.value.trim().length < 2) return toast('Име (3+ букви) и таг (2–4 знака).', 'error');
-            doWorld('createAlliance', [name.value.trim(), tag.value.trim().toUpperCase()], 'Съюзът е основан!');
-          } }, 'Основи'))));
+            if (name.value.trim().length < 3 || tag.value.trim().length < 2) return toast(txt('Name (3+ letters) and tag (2–4 characters).'), 'error');
+            doWorld('createAlliance', [name.value.trim(), tag.value.trim().toUpperCase()], txt('The alliance is founded!'));
+          } }, txt('Found')))));
     }
-    // кланове на компютъра
-    parts.push(h('div', { class: 'ee-queue' }, h('h3', null, 'Кланове на варварските владетели'),
+    // computer clans
+    parts.push(h('div', { class: 'ee-queue' }, h('h3', null, txt('Clans of the barbarian rulers')),
       NPC_CLANS.map((cl) => {
         const until = s.pacts[cl.id] || 0;
         const members = E.npcs(s).filter((n) => n.clan === cl.id).length;
         return h('div', { class: 'ee-qrow' },
-          h('span', null, h('b', { style: { color: cl.color } }, `${cl.name} [${cl.tag}]`), h('small', { class: 'muted' }, ` · ${members} владетели`)),
-          until > now() ? h('small', { class: 'good' }, 'пакт още ', h('span', { class: 'ee-timer', dataset: { end: until } }))
-            : h('button', { class: 'btn btn-sm', title: 'Кланът няма да ви напада 3 дни', onclick: () => doAct('pact', [cur().id, cl.id], `Пакт с ${cl.name}.`) }, `Пакт · ${fmtN(E.pactCost(s).gold)} злато`));
+          h('span', null, h('b', { style: { color: cl.color } }, `${cl.name} [${cl.tag}]`), h('small', { class: 'muted' }, txt(' · {0} rulers', members))),
+          until > now() ? h('small', { class: 'good' }, txt('pact for '), h('span', { class: 'ee-timer', dataset: { end: until } }))
+            : h('button', { class: 'btn btn-sm', title: txt('The clan will not attack you for 3 days'), onclick: () => doAct('pact', [cur().id, cl.id], txt('Pact with {0}.', cl.name)) }, txt('Pact · {0} gold', fmtN(E.pactCost(s).gold))));
       }),
-      h('small', { class: 'muted' }, 'Пактът спира нападенията на клана срещу вас, но и вие не можете да ги нападате.')));
-    // класация
+      h('small', { class: 'muted' }, txt('The pact stops the clan\'s attacks against you, but you cannot attack them either.'))));
+    // ranking
     const t = now();
     const rows = [
       ...W.players().map((p) => ({ name: p.name, tag: W.allianceOf(p.uid)?.tag, score: p.uid === uid ? E.score(s) : p.score, me: p.uid === uid })),
@@ -1273,14 +1276,14 @@ export function mount(root, ctx) {
     ].sort((x, y) => y.score - x.score).slice(0, 20);
     const allis = W.alliances().map((x) => ({ x, score: x.members.reduce((acc, m) => acc + (W.player(m)?.score || 0), 0) })).sort((p, q) => q.score - p.score);
     parts.push(h('div', { class: 'ee-grid' },
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Класация на владетелите'),
-        rows.map((r, i) => h('div', { class: `ee-qrow ${r.me ? 'me' : ''}` }, h('span', null, `${i + 1}. ${r.name}`, r.tag && h('small', { class: 'muted' }, ` [${r.tag}]`), r.npc && h('small', { class: 'muted' }, ' · компютър')), h('b', null, fmtN(r.score))))),
-      h('div', { class: 'ee-queue' }, h('h3', null, 'Класация на съюзите'),
-        allis.length ? allis.map((r, i) => h('div', { class: 'ee-qrow' }, h('span', null, `${i + 1}. ${r.x.name} [${r.x.tag}]`, h('small', { class: 'muted' }, ` · ${r.x.members.length} членове`)), h('b', null, fmtN(r.score)))) : h('small', { class: 'muted' }, 'Още няма съюзи.'))));
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Ranking of rulers')),
+        rows.map((r, i) => h('div', { class: `ee-qrow ${r.me ? 'me' : ''}` }, h('span', null, `${i + 1}. ${r.name}`, r.tag && h('small', { class: 'muted' }, ` [${r.tag}]`), r.npc && h('small', { class: 'muted' }, txt(' · computer'))), h('b', null, fmtN(r.score))))),
+      h('div', { class: 'ee-queue' }, h('h3', null, txt('Ranking of alliances')),
+        allis.length ? allis.map((r, i) => h('div', { class: 'ee-qrow' }, h('span', null, `${i + 1}. ${r.x.name} [${r.x.tag}]`, h('small', { class: 'muted' }, txt(' · {0} members', r.x.members.length))), h('b', null, fmtN(r.score)))) : h('small', { class: 'muted' }, txt('No alliances yet.')))));
     return h('div', { class: 'ee-pane' }, parts);
   }
 
-  // ---------- Мисии ----------
+  // ---------- Missions ----------
   function viewMissions() {
     const c = cur();
     const story = E.storyList(s);
@@ -1291,19 +1294,19 @@ export function mount(root, ctx) {
       m.title && h('p', { class: 'muted' }, m.text),
       progress(m.have, m.goal),
       h('div', { class: 'ee-tech-b' }, rewardChips(m.reward || m.prize),
-        m.claimed ? h('span', { class: 'good' }, '✔ взета') : h('button', { class: 'btn btn-primary btn-sm', disabled: m.have < m.goal, onclick: onClaim }, 'Вземи')));
+        m.claimed ? h('span', { class: 'good' }, txt('✔ claimed')) : h('button', { class: 'btn btn-primary btn-sm', disabled: m.have < m.goal, onclick: onClaim }, txt('Claim'))));
     const tomorrow = new Date(); tomorrow.setHours(24, 0, 0, 0);
     return h('div', { class: 'ee-pane' },
-      h('div', { class: 'ee-sec' }, h('h3', { class: 'ee-h3' }, 'Кампания'), h('small', { class: 'muted' }, `${done} / ${story.length}`)),
-      open.length ? h('div', { class: 'ee-grid' }, open.map((m) => card(m, () => doAct('claimStory', [c.id, m.id], 'Наградата е ваша!'))))
-        : h('p', { class: 'muted' }, 'Кампанията за тази версия е завършена. Очаквайте нови глави!'),
-      h('div', { class: 'ee-sec' }, h('h3', { class: 'ee-h3' }, 'Дневни мисии'), h('small', { class: 'muted' }, 'нови след ', h('span', { class: 'ee-timer', dataset: { end: tomorrow.getTime() } }))),
-      h('div', { class: 'ee-grid' }, E.dailyList(s).map((d) => card(d, () => doAct('claimDaily', [c.id, d.id], 'Наградата е ваша!')))));
+      h('div', { class: 'ee-sec' }, h('h3', { class: 'ee-h3' }, txt('Campaign')), h('small', { class: 'muted' }, `${done} / ${story.length}`)),
+      open.length ? h('div', { class: 'ee-grid' }, open.map((m) => card(m, () => doAct('claimStory', [c.id, m.id], txt('The reward is yours!')))))
+        : h('p', { class: 'muted' }, txt('The campaign for this version is complete. New chapters are coming!')),
+      h('div', { class: 'ee-sec' }, h('h3', { class: 'ee-h3' }, txt('Daily missions')), h('small', { class: 'muted' }, txt('new in '), h('span', { class: 'ee-timer', dataset: { end: tomorrow.getTime() } }))),
+      h('div', { class: 'ee-grid' }, E.dailyList(s).map((d) => card(d, () => doAct('claimDaily', [c.id, d.id], txt('The reward is yours!'))))));
   }
 
-  // ---------- Настройки ----------
+  // ---------- Settings ----------
   async function settings() {
-    const speedSel = DEV && !ONLINE && h('div', { class: 'opt-group' }, h('span', null, 'Скорост (само за тестове на локалния сървър)'),
+    const speedSel = DEV && !ONLINE && h('div', { class: 'opt-group' }, h('span', null, txt('Speed (only for tests on the local server)')),
       h('div', { class: 'seg' }, [1, 10, 100, 1000].map((v) => h('button', {
         type: 'button', class: s.speed === v ? 'on' : '',
         onclick: (e) => {
@@ -1318,25 +1321,25 @@ export function mount(root, ctx) {
       title: s.name,
       body: h('div', { class: 'ee-away' },
         h('div', { class: 'ee-center', html: emblem(s.race, 72) }),
-        h('p', { class: 'ee-center' }, `${RACES[s.race].name} · ${EPOCHS[s.epoch - 1].name} · ${fmtN(E.score(s))} точки · ${s.cities.length} град(а)`),
+        h('p', { class: 'ee-center' }, txt('{0} · {1} · {2} points · {3} city(ies)', RACES[s.race].name, EPOCHS[s.epoch - 1].name, fmtN(E.score(s)), s.cities.length)),
         h('ul', { class: 'ee-check' }, RACES[s.race].perks.map((p) => h('li', { class: 'ok' }, '✔ ' + p)), h('li', null, '✖ ' + RACES[s.race].weak)),
-        prot && h('p', { class: 'muted' }, `🛡 Защита за новаци: още ${fmtLeft(s.protectedUntil - now())}. Изтича по-рано, ако нападнете друг владетел.`),
-        h('div', { class: 'opt-group' }, h('span', null, 'Известия за нападения и събития'),
+        prot && h('p', { class: 'muted' }, txt('🛡 Beginner protection: {0} more. It ends earlier if you attack another ruler.', fmtLeft(s.protectedUntil - now()))),
+        h('div', { class: 'opt-group' }, h('span', null, txt('Notifications about attacks and events')),
           h('div', { class: 'seg' },
-            h('button', { type: 'button', class: notifyOn() ? 'on' : '', onclick: async (e) => { await enableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0 && notifyOn())); } }, 'Включени'),
-            h('button', { type: 'button', class: notifyOn() ? '' : 'on', onclick: async (e) => { await disableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 1)); } }, 'Изключени'))),
-        h('div', { class: 'opt-group' }, h('span', null, 'Звук (музика, град, битки)'),
+            h('button', { type: 'button', class: notifyOn() ? 'on' : '', onclick: async (e) => { await enableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0 && notifyOn())); } }, txt('On')),
+            h('button', { type: 'button', class: notifyOn() ? '' : 'on', onclick: async (e) => { await disableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 1)); } }, txt('Off')))),
+        h('div', { class: 'opt-group' }, h('span', null, txt('Sound (music, city, battles)')),
           h('div', { class: 'seg' },
-            h('button', { type: 'button', class: isMuted() ? '' : 'on', onclick: (e) => { setMuted(!isMuted()); updateAudio(); renderTop(); e.currentTarget.classList.toggle('on', !isMuted()); e.currentTarget.textContent = isMuted() ? '🔇 Изключен' : '🔊 Включен'; } }, isMuted() ? '🔇 Изключен' : '🔊 Включен'),
-            h('button', { type: 'button', class: audioPrefs().music ? 'on' : '', onclick: (e) => { const on = !audioPrefs().music; setAudioPref('music', on); e.currentTarget.classList.toggle('on', on); } }, '🎵 Музика'),
-            h('button', { type: 'button', class: audioPrefs().ambient ? 'on' : '', onclick: (e) => { const on = !audioPrefs().ambient; setAudioPref('ambient', on); e.currentTarget.classList.toggle('on', on); } }, '🐦 Град'))),
-        h('p', { class: 'muted' }, ONLINE ? 'Онлайн свят: всички играчи са в един свят, а сървърът проверява всяко действие.' : 'Локален свят: споделен само между акаунтите в този браузър.'),
+            h('button', { type: 'button', class: isMuted() ? '' : 'on', onclick: (e) => { setMuted(!isMuted()); updateAudio(); renderTop(); e.currentTarget.classList.toggle('on', !isMuted()); e.currentTarget.textContent = isMuted() ? txt('🔇 Off') : txt('🔊 On'); } }, isMuted() ? txt('🔇 Off') : txt('🔊 On')),
+            h('button', { type: 'button', class: audioPrefs().music ? 'on' : '', onclick: (e) => { const on = !audioPrefs().music; setAudioPref('music', on); e.currentTarget.classList.toggle('on', on); } }, txt('🎵 Music')),
+            h('button', { type: 'button', class: audioPrefs().ambient ? 'on' : '', onclick: (e) => { const on = !audioPrefs().ambient; setAudioPref('ambient', on); e.currentTarget.classList.toggle('on', on); } }, txt('🐦 City')))),
+        h('p', { class: 'muted' }, ONLINE ? txt('Online world: all players share one world and the server checks every action.') : txt('Local world: shared only between the accounts in this browser.')),
         speedSel),
-      actions: [{ label: 'Започни отначало', value: 'reset', danger: true }, ...(prot ? [{ label: 'Свали защитата', value: 'unprotect' }] : []), { label: 'Затвори', value: null, primary: true }],
+      actions: [{ label: txt('Start over'), value: 'reset', danger: true }, ...(prot ? [{ label: txt('Drop protection'), value: 'unprotect' }] : []), { label: txt('Close'), value: null, primary: true }],
       className: 'ee-modal',
     });
-    if (v === 'unprotect' && await confirmDialog('Край на защитата', 'Варварските владетели ще могат да ви нападат. Сигурни ли сте?', 'Свали защитата', true)) doAct('endProtection', []);
-    if (v === 'reset' && await confirmDialog('Нова империя', 'Цялият напредък ще бъде изтрит завинаги. Сигурни ли сте?', 'Изтрий и започни', true)) {
+    if (v === 'unprotect' && await confirmDialog(txt('End of protection'), txt('The barbarian rulers will be able to attack you. Are you sure?'), txt('Drop protection'), true)) doAct('endProtection', []);
+    if (v === 'reset' && await confirmDialog(txt('New empire'), txt('All progress will be deleted forever. Are you sure?'), txt('Delete and start'), true)) {
       if (ONLINE) {
         try { await call({ op: 'reset' }); } catch (e) { return toast(e.message, 'error'); }
       } else {
@@ -1371,15 +1374,15 @@ export function mount(root, ctx) {
     scheduleSync();
   }
 
-  // ---------- старт ----------
+  // ---------- start ----------
   (async () => {
     if (ONLINE) {
-      wrap.append(h('p', { class: 'muted ee-center' }, 'Свързване със света…'));
+      wrap.append(h('p', { class: 'muted ee-center' }, txt('Connecting to the world…')));
       try {
         applyServer(await call({ op: 'sync' }));
       } catch (e) {
-        wrap.replaceChildren(h('div', { class: 'ee-card' }, h('b', null, 'Онлайн светът не е достъпен'), h('p', { class: 'muted' }, e.message),
-          h('p', { class: 'muted' }, 'Сървърът на Evil Empires (Supabase Edge Function) трябва да е качен – виж README.')));
+        wrap.replaceChildren(h('div', { class: 'ee-card' }, h('b', null, txt('The online world is not available')), h('p', { class: 'muted' }, e.message),
+          h('p', { class: 'muted' }, txt('The Evil Empires server (Supabase Edge Function) must be deployed – see the README.'))));
         return;
       }
       if (destroyed) return;
@@ -1432,12 +1435,12 @@ export function mount(root, ctx) {
   };
 }
 
-// ---------- избор на раса ----------
+// ---------- race selection ----------
 function chooseRace(root, user) {
   return new Promise((resolve) => {
     let race = null;
-    const name = h('input', { value: `Империята на ${user.displayName}`, maxlength: 32, 'aria-label': 'Име на империята' });
-    const go = h('button', { class: 'btn btn-primary btn-lg', disabled: true }, 'Основи империята');
+    const name = h('input', { value: txt('The Empire of {0}', user.displayName), maxlength: 32, 'aria-label': txt('Empire name') });
+    const go = h('button', { class: 'btn btn-primary btn-lg', disabled: true }, txt('Found the empire'));
     const cards = Object.entries(RACES).map(([id, r]) => h('button', {
       class: 'ee-race', style: { '--rc': r.color },
       onclick: (e) => {
@@ -1451,16 +1454,16 @@ function chooseRace(root, user) {
       h('p', { class: 'muted' }, r.lore),
       h('ul', null, r.perks.map((p) => h('li', { class: 'good' }, '+ ' + p)), h('li', { class: 'bad' }, '− ' + r.weak))));
     go.onclick = () => {
-      const n = name.value.trim() || `Империята на ${user.displayName}`;
+      const n = name.value.trim() || txt('The Empire of {0}', user.displayName);
       el.remove();
       resolve({ race, name: n.slice(0, 32) });
     };
     const el = h('div', { class: 'ee-start' },
       h('div', { class: 'ee-start-h' },
         h('h2', null, 'Evil Empires'),
-        h('p', { class: 'muted' }, 'Векове след Падението светът е пепелище. Изберете народ и издигнете империя, която ще надживее мрака.')),
+        h('p', { class: 'muted' }, txt('Centuries after the Fall the world is ashes. Choose a people and raise an empire that will outlive the darkness.'))),
       h('div', { class: 'ee-races' }, cards),
-      h('div', { class: 'ee-start-f' }, h('label', null, h('span', { class: 'muted' }, 'Име на империята'), name), go));
+      h('div', { class: 'ee-start-f' }, h('label', null, h('span', { class: 'muted' }, txt('Empire name')), name), go));
     root.append(el);
   });
 }

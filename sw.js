@@ -1,6 +1,6 @@
-// Service worker: офлайн работа и бързо зареждане.
-// При промяна на файловете увеличете VERSION, за да се обнови кешът.
-const VERSION = 'evil-v23';
+// Service worker: offline support and fast loading.
+// When files change, bump VERSION so the cache is refreshed.
+const VERSION = 'evil-v24';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -15,8 +15,8 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Network-first за собствените файлове (винаги най-новата версия, кеш при офлайн),
-// cache-first за шрифтовете.
+// Network-first for our own files (always the latest version, cache when offline),
+// cache-first for the fonts.
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -37,8 +37,8 @@ self.addEventListener('fetch', (e) => {
   }
 
   e.respondWith(
-    // 'reload' заобикаля HTTP кеша на браузъра; копие се пази за офлайн режим.
-    // (Заявка за навигация не може да се копира с нови настройки – затова по URL.)
+    // 'reload' bypasses the browser's HTTP cache; a copy is kept for offline mode.
+    // (A navigation request cannot be copied with new options – hence by URL.)
     (req.mode === 'navigate' ? fetch(req.url, { cache: 'reload' }) : fetch(req, { cache: 'reload' }))
       .then((res) => {
         if (res.ok) {
@@ -51,7 +51,7 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
-// Известия от сървъра (Evil Empires): нападения, битки, завършени походи.
+// Notifications from the server (Evil Empires): attacks, battles, finished marches.
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data.json(); } catch { d = { body: e.data ? e.data.text() : '' }; }

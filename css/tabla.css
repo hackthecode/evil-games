@@ -1,4 +1,4 @@
-/* ===== Табла ===== */
+/* ===== Backgammon ===== */
 .game-tabla { container-type: size; }
 .tb-layout {
   flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center;
@@ -16,7 +16,7 @@
 }
 .tb-svg.rot { width: min(100%, calc((100cqh - 128px) * 760 / 980), 640px); }
 .tb-svg.rot .tb-num, .tb-svg.rot .tb-count { transform-box: fill-box; transform-origin: center; transform: rotate(-90deg); }
-/* черните виждат дъската обърната вертикално – надписите се обръщат обратно */
+/* black sees the board flipped vertically – the labels are flipped back */
 .tb-svg.flip .tb-num, .tb-svg.flip .tb-count { transform-box: fill-box; transform-origin: center; transform: scale(1, -1); }
 .tb-svg.rot.flip .tb-num, .tb-svg.rot.flip .tb-count { transform: scale(1, -1) rotate(-90deg); }
 .tb-num { font-size: 12px; font-weight: 700; fill: rgba(255, 236, 200, .45); text-anchor: middle; font-family: var(--font); }
@@ -30,7 +30,7 @@
 .tb-die.pop { animation: tb-pop .35s cubic-bezier(.3,1.5,.5,1) both; }
 @keyframes tb-pop { from { transform: scale(0); opacity: 0; } }
 
-/* 3D зарове по време на хвърляне */
+/* 3D dice during a throw */
 .d3-gl { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; }
 .d3-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
 .d3 { position: absolute; left: 0; top: 0; width: var(--S); height: var(--S); will-change: transform; }

@@ -4,15 +4,16 @@ import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../co
 import { variantEngine } from './variants.js';
 import { rollDice3d, preloadDice } from './dice3d.js';
 import { offlineNet } from '../../net/room.js';
+import { txt } from '../../i18n.js';
 
-const LEVEL_NAMES = { easy: 'Лесно', medium: 'Средно', hard: 'Трудно' };
+const LEVEL_NAMES = { easy: txt('Easy'), medium: txt('Medium'), hard: txt('Hard') };
 const VARIANTS = {
-  tabla: { name: 'табла', sub: 'Вие сте с белите пулове и местите към долния десен ъгъл.' },
-  tapa: { name: 'тапа', sub: 'Всички пулове тръгват от един ъгъл. Не се бие – единичен пул се затапва.' },
-  gulbara: { name: 'гюлбара', sub: 'Двамата се движат в една посока. Единичен пул блокира точката.' },
+  tabla: { name: txt('backgammon'), sub: txt('You play white and move towards the bottom right corner.') },
+  tapa: { name: txt('tapa'), sub: txt('All checkers start from one corner. No hitting – a single checker gets pinned.') },
+  gulbara: { name: txt('gulbara'), sub: txt('Both players move in the same direction. A single checker blocks the point.') },
 };
 
-// ---- Геометрия на дъската (SVG координати) ----
+// ---- Board geometry (SVG coordinates) ----
 const W = 980, H = 760, F = 20, PW = 65, R = 29;
 const LEFT_X = F, BAR_X = F + 6 * PW, RIGHT_X = BAR_X + 60, TRAY_X = RIGHT_X + 6 * PW + 10;
 const TRI_H = 300;
@@ -35,7 +36,7 @@ function checkerXY(loc, k, n) {
 }
 
 function offXY(p, k) {
-  // плочки в тавата: играчът долу, компютърът горе
+  // trays: the player at the bottom, the computer at the top
   return p === 0 ? [TRAY_X, H - F - 14 - k * 15] : [TRAY_X, F + k * 15];
 }
 
@@ -54,32 +55,32 @@ export async function mount(root, ctx) {
     if (online) return match(online, 'online', Number(online.opts.target) || 3);
     const opts = await setupScreen(root, {
       gameId: variant,
-      title: `Нова игра на ${VARIANTS[variant].name}`,
+      title: txt('New game of {0}', VARIANTS[variant].name),
       subtitle: VARIANTS[variant].sub,
       groups: [
-        { key: 'level', label: 'Трудност', value: 'medium', options: Object.entries(LEVEL_NAMES) },
-        { key: 'target', label: 'Мач до', value: 3, options: [[1, '1 точка'], [3, '3 точки'], [5, '5 точки']] },
+        { key: 'level', label: txt('Difficulty'), value: 'medium', options: Object.entries(LEVEL_NAMES) },
+        { key: 'target', label: txt('Match to'), value: 3, options: [[1, txt('1 point')], [3, txt('3 points')], [5, txt('5 points')]] },
       ],
     });
-    if (!destroyed) match(offlineNet([ctx.user.displayName, 'Компютър']), opts.level, Number(opts.target));
+    if (!destroyed) match(offlineNet([ctx.user.displayName, txt('Computer')]), opts.level, Number(opts.target));
   };
 
   function match(net, level, target) {
     if (!online) ctx.newMatch();
-    const me = net.seat; // 0 = белите, 1 = черните
+    const me = net.seat; // 0 = white, 1 = black
     const opp = 1 - me;
-    const flip = me === 1; // черните виждат дъската обърната: своя дом долу вдясно
+    const flip = me === 1; // black sees the board flipped: their home at the bottom right
     const names = [net.name(0), net.name(1)];
     const score = [0, 0];
     let st = initialState(), turn = 0, dice = [], used = [], seqs = [], selected = null, busy = true, over = false;
-    let moveDice = []; // ходовете за изиграване (при чифт – 4; в Гюлбара – и ескалиращи/прехвърлени)
+    let moveDice = []; // the moves to play (4 with doubles; in Gulbara also escalating/passed ones)
     let turnHistory = [], movesMade = [], turnResolver = null, rollResolver = null;
     let gameNo = 0, rollNo = 0;
-    let openingColors = false; // при хвърлянето за първи ход заровете са бял и черен
-    let popUntil = 0; // при дюшеш другите два зара „изскачат“
+    let openingColors = false; // when rolling for the first move the dice are white and black
+    let popUntil = 0; // with doubles the other two dice "pop up"
 
     // ---------- DOM ----------
-    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, class: `tb-svg ${flip ? 'flip' : ''}`, role: 'img', 'aria-label': 'Дъска за табла' });
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, class: `tb-svg ${flip ? 'flip' : ''}`, role: 'img', 'aria-label': txt('Backgammon board') });
     const staticLayer = s('g');
     const hiLayer = s('g');
     const checkerLayer = s('g');
@@ -88,7 +89,7 @@ export async function mount(root, ctx) {
     boardG.append(staticLayer, hiLayer, checkerLayer, diceLayer);
     svg.append(buildDefs(), boardG);
     drawStatic(staticLayer, me);
-    // На портретен екран дъската се завърта на 90°, за да са пуловете по-едри.
+    // On a portrait screen the board rotates 90° so the checkers are larger.
     const fit = () => {
       const rot = root.clientWidth < root.clientHeight * 0.85;
       svg.classList.toggle('rot', rot);
@@ -103,10 +104,10 @@ export async function mount(root, ctx) {
     fit();
 
     const statusEl = h('div', { class: 'g-status' });
-    const rollBtn = h('button', { class: 'btn btn-primary tb-roll', onclick: () => humanRoll() }, icon('dice', 18), 'Хвърли');
-    const undoBtn = h('button', { class: 'btn', onclick: undoMove }, icon('undo', 16), 'Върни');
-    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), 'Предай се');
-    const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), 'Нова');
+    const rollBtn = h('button', { class: 'btn btn-primary tb-roll', onclick: () => humanRoll() }, icon('dice', 18), txt('Roll'));
+    const undoBtn = h('button', { class: 'btn', onclick: undoMove }, icon('undo', 16), txt('Undo'));
+    const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), txt('Resign'));
+    const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), txt('New'));
     const scoreEl = h('div', { class: 'tb-score' });
 
     root.replaceChildren(
@@ -120,16 +121,16 @@ export async function mount(root, ctx) {
 
     svg.addEventListener('click', onBoardClick);
 
-    // ---------- рендиране ----------
+    // ---------- rendering ----------
     function renderScore() {
       const chip = (p) => h('span', { class: `tb-chip ${p === 0 ? 'light' : 'dark'}` });
       scoreEl.replaceChildren(
         h('div', { class: `tb-pl ${turn === me && !over ? 'on' : ''}` },
           chip(me), h('b', null, names[me]),
-          h('span', { class: 'muted' }, `пипс ${pipCount(st, me)}`)),
-        h('div', { class: 'tb-match' }, h('b', null, score[me]), h('span', null, `до ${target}`), h('b', null, score[opp])),
+          h('span', { class: 'muted' }, txt('pips {0}', pipCount(st, me)))),
+        h('div', { class: 'tb-match' }, h('b', null, score[me]), h('span', null, txt('to {0}', target)), h('b', null, score[opp])),
         h('div', { class: `tb-pl right ${turn === opp && !over ? 'on' : ''}` },
-          h('span', { class: 'muted' }, `пипс ${pipCount(st, opp)}`),
+          h('span', { class: 'muted' }, txt('pips {0}', pipCount(st, opp))),
           h('b', null, names[opp]), chip(opp)),
       );
     }
@@ -139,7 +140,7 @@ export async function mount(root, ctx) {
       const els = {};
       const put = (loc, owner, k, n) => {
         const [x, y] = checkerXY(loc, k, n);
-        // при обърната дъска пулът се обръща обратно, за да е отблясъкът горе
+        // on a flipped board the checker is turned back so the highlight is on top
         const g = s('g', { class: 'tb-ck', 'data-loc': String(loc) },
           s('use', { href: owner === 0 ? '#pulL' : '#pulD', x: x - R, y: y - R, width: 2 * R, height: 2 * R, transform: flip ? `translate(0 ${2 * y}) scale(1 -1)` : null }),
         );
@@ -194,7 +195,7 @@ export async function mount(root, ctx) {
       }
     }
 
-    // Горен ляв ъгъл на i-тия от n зара (моите – вдясно, на противника – вляво).
+    // Top-left corner of the i-th of n dice (mine on the right, the opponent's on the left).
     function diePos(i, n, p) {
       const cx = p === me ? RIGHT_X + 3 * PW : LEFT_X + 3 * PW;
       return [cx - (n * 66 - 8) / 2 + i * 66, H / 2 - 29];
@@ -216,7 +217,7 @@ export async function mount(root, ctx) {
       });
     }
 
-    // Хвърляне с 3D зарове; items: [{ value, dark, slot: [x, y], thrower }].
+    // A roll with 3D dice; items: [{ value, dark, slot: [x, y], thrower }].
     async function throw3d(items) {
       diceLayer.replaceChildren();
       const m = boardG.getScreenCTM();
@@ -233,7 +234,7 @@ export async function mount(root, ctx) {
         rotZ: svg.classList.contains('rot') ? 90 : 0,
         items: items.map((it) => {
           const [x, y] = it.slot;
-          // хвърля се от страната на хвърлящия (моята е долу на екрана)
+          // thrown from the thrower's side (mine is at the bottom of the screen)
           const dir = (it.thrower === me ? 1 : -1) * (flip ? -1 : 1);
           return {
             value: it.value, dark: it.dark,
@@ -256,13 +257,13 @@ export async function mount(root, ctx) {
       return els;
     }
 
-    // ---------- логика на хода ----------
+    // ---------- move logic ----------
     const diceList = () => moveDice;
     const expand = (d) => (d[0] === d[1] ? [d[0], d[0], d[0], d[0]] : d.slice());
     const isGone = () => destroyed || !alive;
     let alive = true;
     const rollValue = (r) => 1 + Math.floor(r() * 6);
-    const who = (p) => (p === me ? 'Вие' : names[p]);
+    const who = (p) => (p === me ? txt('You') : names[p]);
 
     function nextMoves() {
       const seen = new Map();
@@ -276,7 +277,7 @@ export async function mount(root, ctx) {
     }
 
     async function animateMove(prevSt, realMove, owner) {
-      // позиция преди хода
+      // position before the move
       const srcLoc = realMove.from === 'bar' ? 'bar' + owner : realMove.from;
       const srcN = realMove.from === 'bar' ? prevSt.bar[owner] : E.stacks(prevSt)[realMove.from].length;
       const [sx, sy] = checkerXY(srcLoc, srcN - 1, srcN);
@@ -310,7 +311,7 @@ export async function mount(root, ctx) {
       if (idx >= 0) used[idx] = true;
     }
 
-    // Ход на играча с мишката/пръста – по един пул; ходът се изпраща цял накрая.
+    // A player's move with mouse/finger – one checker at a time; the whole move is sent at the end.
     async function humanMove(from, to) {
       const cand = seqs.find((q) => q.moves.length && toReal(me, q.moves[0]).from === from && toReal(me, q.moves[0]).to === to);
       if (!cand || !turnResolver) return;
@@ -355,7 +356,7 @@ export async function mount(root, ctx) {
         const dst = firsts.find((m) => m.from === selected && String(m.to) === String(loc));
         if (dst) return humanMove(dst.from, dst.to);
         if (loc === selected) {
-          // повторно натискане: изиграй с по-големия зар
+          // tapping again: play with the larger die
           const opts = firsts.filter((m) => m.from === selected).sort((a, b) => b.die - a.die);
           if (opts.length) return humanMove(opts[0].from, opts[0].to);
         }
@@ -400,10 +401,10 @@ export async function mount(root, ctx) {
       renderDice();
     }
 
-    // Хвърляне: решението е само „кога“; стойностите идват от общия генератор.
+    // Rolling: the only decision is "when"; the values come from the shared generator.
     async function rollPhase(p) {
       busy = true;
-      statusEl.textContent = p === me ? 'Ваш ред – хвърлете заровете.' : `${names[p]} хвърля…`;
+      statusEl.textContent = p === me ? txt('Your turn – roll the dice.') : txt('{0} is rolling…', names[p]);
       await net.decide(p, 'roll', () => {
         if (p !== me) return sleep(450).then(() => 0);
         const pr = new Promise((r) => (rollResolver = r));
@@ -417,7 +418,7 @@ export async function mount(root, ctx) {
       await animateRoll([rollValue(r), rollValue(r)]);
     }
 
-    // Ходове: целият ход (до 4 премествания) е едно решение. Връща броя изиграни ходове.
+    // Moves: the whole move (up to 4 steps) is one decision. Returns the number of steps played.
     async function movePhase(p, list = expand(dice)) {
       moveDice = list;
       used = [];
@@ -427,7 +428,7 @@ export async function mount(root, ctx) {
       selected = null;
       render();
       if (!seqs.some((q) => q.moves.length)) {
-        statusEl.textContent = `${p === me ? 'Хвърлихте' : `${names[p]} хвърли`} ${dice.join('–')} – няма възможен ход.`;
+        statusEl.textContent = txt('{0} {1} – no possible move.', p === me ? txt('You rolled') : txt('{0} rolled', names[p]), dice.join('–'));
         await sleep(1400);
         return 0;
       }
@@ -436,7 +437,7 @@ export async function mount(root, ctx) {
       const data = await net.decide(p, 'moves', () => {
         local = true;
         if (p !== me) return sleep(500).then(() => chooseSequence(st, p, list, level).moves.map(({ from, to, die }) => ({ from, to, die })));
-        statusEl.textContent = `Хвърлихте ${dice.join('–')}. Изберете пул.`;
+        statusEl.textContent = txt('You rolled {0}. Choose a checker.', dice.join('–'));
         const pr = new Promise((r) => (turnResolver = r));
         busy = false;
         render();
@@ -445,8 +446,8 @@ export async function mount(root, ctx) {
       if (isGone()) return 0;
       turnResolver = null;
       busy = true;
-      if (local && p === me) return data.length; // вече е изиграно на дъската
-      statusEl.textContent = `${names[p]} хвърли ${dice.join('–')}.`;
+      if (local && p === me) return data.length; // already played on the board
+      statusEl.textContent = txt('{0} rolled {1}.', names[p], dice.join('–'));
       const q = matchSeq(legalSeqs, data);
       for (const raw of q.moves) {
         if (isGone() || over) return 0;
@@ -460,8 +461,8 @@ export async function mount(root, ctx) {
       return q.moves.length;
     }
 
-    // Гюлбара: от 4-тия ход на всеки играч чифтът ескалира – играе се и следващият чифт
-    // до 6-6. Ако играчът не може да изиграе всичко (но е започнал), остатъкът минава у противника.
+    // Gulbara: from each player's 4th move on doubles escalate – the next doubles are played too
+    // up to 6-6. If the player can't play everything (but has started), the rest passes to the opponent.
     async function gulbaraDoubles(p, played, turnNo) {
       if (variant !== 'gulbara' || turnNo <= 6 || dice[0] !== dice[1]) return;
       let d = dice[0], total = 4;
@@ -469,7 +470,7 @@ export async function mount(root, ctx) {
         if (played < total) {
           if (played > 0) {
             const left = total - played;
-            statusEl.textContent = `${p === me ? 'Не можете' : `${names[p]} не може`} да изиграе всичко – ${left} × ${d} минава у ${p === me ? names[1 - p] : 'вас'}.`;
+            statusEl.textContent = txt('{0} play everything – {1} × {2} passes to {3}.', p === me ? txt('You can\'t') : txt('{0} can\'t', names[p]), left, d, p === me ? names[1 - p] : txt('you'));
             await sleep(1300);
             turn = 1 - p;
             render();
@@ -480,7 +481,7 @@ export async function mount(root, ctx) {
         }
         if (d === 6) return;
         d++;
-        statusEl.textContent = `Чифт – ${p === me ? 'продължавате' : `${names[p]} продължава`} с ${d}–${d}.`;
+        statusEl.textContent = txt('Doubles – {0} with {1}–{2}.', p === me ? txt('you continue') : txt('{0} continues', names[p]), d, d);
         dice = [d, d];
         popUntil = performance.now() + 400;
         render();
@@ -503,7 +504,7 @@ export async function mount(root, ctx) {
       render();
     }
 
-    // Една игра до изнасяне на всички пулове.
+    // One game until all checkers are borne off.
     async function playGame() {
       gameNo++;
       rollNo = 0;
@@ -514,7 +515,7 @@ export async function mount(root, ctx) {
       turn = 0;
       busy = true;
       render();
-      statusEl.textContent = 'Хвърляне за първи ход…';
+      statusEl.textContent = txt('Rolling for the first move…');
       await sleep(500);
       const r = net.rng(`open:${gameNo}`);
       let a, b;
@@ -533,7 +534,7 @@ export async function mount(root, ctx) {
       openingColors = true;
       renderScore();
       renderDice();
-      statusEl.textContent = `${names[0]}: ${a}, ${names[1]}: ${b} – ${turn === me ? 'започвате вие' : `започва ${names[turn]}`}.`;
+      statusEl.textContent = `${names[0]}: ${a}, ${names[1]}: ${b} – ${turn === me ? txt('you start') : txt('{0} starts', names[turn])}.`;
       await sleep(1300);
       if (isGone()) return;
       openingColors = false;
@@ -569,9 +570,9 @@ export async function mount(root, ctx) {
       dice = [];
       busy = true;
       render();
-      const kind = pts === 1 ? '' : variant === 'tapa' && winPoints(st, w) === 2 && st.off[1 - w] > 0 ? ' (затапена майка)' : pts === 2 ? ' (марс)' : ' (бекгемон)';
-      if (score[w] >= target) return endMatch(score[me] > score[opp] ? 'win' : 'loss', `Краен резултат ${score[me]} : ${score[opp]}${kind}.`);
-      statusEl.textContent = w === me ? `Печелите играта${kind} – +${pts}` : `${names[w]} печели играта${kind} – +${pts}`;
+      const kind = pts === 1 ? '' : variant === 'tapa' && winPoints(st, w) === 2 && st.off[1 - w] > 0 ? txt(' (pinned mother)') : pts === 2 ? txt(' (gammon)') : txt(' (backgammon)');
+      if (score[w] >= target) return endMatch(score[me] > score[opp] ? 'win' : 'loss', txt('Final score {0} : {1}{2}.', score[me], score[opp], kind));
+      statusEl.textContent = w === me ? txt('You win the game{0} – +{1}', kind, pts) : txt('{0} wins the game{1} – +{2}', names[w], kind, pts);
       sound(w === me ? 'win' : 'notify');
       await sleep(2200);
       if (!isGone()) playGame();
@@ -584,25 +585,25 @@ export async function mount(root, ctx) {
       net.finish();
       turnResolver = rollResolver = null;
       render();
-      statusEl.textContent = outcome === 'win' ? 'Спечелихте мача!' : `${names[opp]} спечели мача.`;
+      statusEl.textContent = outcome === 'win' ? txt('You won the match!') : txt('{0} won the match.', names[opp]);
       await ctx.report(outcome, online
-        ? { summary: `Онлайн срещу ${names[opp]} · ${score[me]}:${score[opp]} · до ${target}`, online: true, opponent: names[opp], score: [score[me], score[opp]] }
-        : { summary: `${score[0]}:${score[1]} · до ${target} · ${LEVEL_NAMES[level]}`, level, score: score.slice() });
+        ? { summary: txt('Online against {0} · {1}:{2} · to {3}', names[opp], score[me], score[opp], target), online: true, opponent: names[opp], score: [score[me], score[opp]] }
+        : { summary: txt('{0}:{1} · to {2} · {3}', score[0], score[1], target, LEVEL_NAMES[level]), level, score: score.slice() });
       if (isGone()) return;
-      const c = await showResult({ outcome, text, again: online ? 'Реванш' : undefined });
+      const c = await showResult({ outcome, text, again: online ? txt('Rematch') : undefined });
       if (c === 'again') online ? net.rematch() : start();
       else if (c === 'exit') location.hash = online ? `#/online/${variant}` : '#/';
     }
 
     async function resign() {
       if (over) return;
-      if (!(await confirmDialog('Предаване', 'Да се отчете ли мачът като загуба?', 'Предай се', true))) return;
-      if (online) net.resign(); // събитието завършва мача и при двамата
-      else endMatch('loss', 'Предадохте мача.');
+      if (!(await confirmDialog(txt('Resign'), txt('Count the match as a loss?'), txt('Resign'), true))) return;
+      if (online) net.resign(); // the event ends the match for both players
+      else endMatch('loss', txt('You resigned the match.'));
     }
 
     async function newGame() {
-      if (!over && !(await confirmDialog('Нова игра', 'Текущият мач ще бъде прекратен без да се отчита. Продължаване?'))) return;
+      if (!over && !(await confirmDialog(txt('New game'), txt('The current match will be stopped without being counted. Continue?')))) return;
       over = true;
       alive = false;
       start();
@@ -611,11 +612,11 @@ export async function mount(root, ctx) {
     offEvents();
     offEvents = net.onEvent((e) => {
       if (isGone() || over) return;
-      if (e.kind === 'resign') endMatch(e.seat === me ? 'loss' : 'win', e.seat === me ? 'Предадохте мача.' : `${names[e.seat]} се предаде.`);
-      else if (e.kind === 'forfeit') endMatch(e.winner === me ? 'win' : 'loss', e.reason === 'stall' ? 'Служебна победа заради бездействие.' : 'Противникът напусна – служебна победа.');
+      if (e.kind === 'resign') endMatch(e.seat === me ? 'loss' : 'win', e.seat === me ? txt('You resigned the match.') : txt('{0} resigned.', names[e.seat]));
+      else if (e.kind === 'forfeit') endMatch(e.winner === me ? 'win' : 'loss', e.reason === 'stall' ? txt('Forfeit win due to inactivity.') : txt('The opponent left – forfeit win.'));
       else if (e.kind === 'desync') {
         over = true;
-        statusEl.textContent = 'Грешка в синхронизацията – мачът е прекратен.';
+        statusEl.textContent = txt('Synchronization error – the match was stopped.');
       }
     });
 
@@ -635,8 +636,8 @@ const PIP_POS = {
   6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]],
 };
 
-// Пул: бомбе (радиален градиент), скосен ръб, два гравирани пръстена (тъмна линия +
-// светла под нея) и отблясък горе вляво.
+// Checker: domed (radial gradient), bevelled rim, two engraved rings (dark line +
+// a light one beneath it) and a highlight at the top left.
 function pulSymbol(id, body, rim, groove, lite, hi) {
   const ring = (r, w) => `<circle r="${r}" fill="none" stroke="${groove}" stroke-width="${w}"/><circle r="${r}" cy="${w * 0.7}" fill="none" stroke="${lite}" stroke-width="${w * 0.6}"/>`;
   return `<symbol id="${id}" viewBox="-30 -30 60 60" overflow="visible">
@@ -672,7 +673,7 @@ function buildDefs() {
 
 function drawStatic(g, me = 0) {
   g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, fill: 'url(#wood)' }));
-  // жилки на дървото
+  // wood grain
   g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, filter: 'url(#grain)', opacity: 0.35, 'pointer-events': 'none' }));
   g.append(s('rect', { x: 2, y: 2, width: W - 4, height: H - 4, rx: 20, fill: 'none', stroke: 'rgba(255,220,170,.18)', 'stroke-width': 2 }));
   for (const x of [LEFT_X, RIGHT_X]) {
@@ -690,7 +691,7 @@ function drawStatic(g, me = 0) {
       ? `M${x + 2} ${F} L${x + PW / 2} ${F + TRI_H} L${x + PW - 2} ${F} Z`
       : `M${x + 2} ${H - F} L${x + PW / 2} ${H - F - TRI_H} L${x + PW - 2} ${H - F} Z`;
     g.append(s('path', { d, fill, opacity: 0.95 }));
-    // номерацията е от гледна точка на играча
+    // the numbering is from the player's point of view
     const label = s('text', { x: x + PW / 2, y: isTop(i) ? 14 : H - 5, class: 'tb-num' }, String(me === 0 ? i + 1 : 24 - i));
     g.append(label);
   }

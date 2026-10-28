@@ -1,5 +1,5 @@
-// Симулация за баланса на Evil Empires: „алчен“ бот играе N дни и отчита кога
-// стига ключовите етапи. Пуска се от конзолата на браузъра (на локалния сървър):
+// Balance simulation for Evil Empires: a "greedy" bot plays N days and records when
+// it reaches the key milestones. Run from the browser console (on the local server):
 //   const { run } = await import('/tools/empires-sim.js'); console.table(await run('humans', 20));
 import * as E from '../js/games/empires/engine.js';
 import { BUILDINGS, TECHS, FIGHTERS } from '../js/games/empires/data.js';

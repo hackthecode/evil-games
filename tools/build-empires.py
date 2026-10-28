@@ -1,11 +1,14 @@
-# Събира модулите на Evil Empires в един файл за Supabase Edge Function.
-# Употреба: python3 tools/build-empires.py  →  supabase/functions/empires/index.ts
-# (същият подход като tools/build-referee.py: всеки модул се обвива във функция)
+# Bundles the Evil Empires modules into one file for a Supabase Edge Function.
+# Usage: python3 tools/build-empires.py  →  supabase/functions/empires/index.ts
+# (the same approach as tools/build-referee.py: every module is wrapped in a function)
 import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODULES = [
+    'js/i18n/tk.js',
+    'js/i18n/render.js',
+    'js/i18n/bg.js',
     'js/games/empires/data.js',
     'js/games/empires/battle.js',
     'js/games/empires/worldgen.js',
@@ -32,19 +35,19 @@ def transform(path):
     code = re.sub(r"import\s*\{([^}]*)\}\s*from\s*'([^']+)';", named, code)
     code = re.sub(r"import\s*\*\s*as\s+(\w+)\s+from\s*'([^']+)';", lambda m: f"const {m.group(1)} = __m['{resolve(path, m.group(2))}'];", code)
     if re.search(r"^\s*import\s", code, re.M):
-        raise SystemExit(f'Неподдържан импорт в {path}')
+        raise SystemExit(f'Unsupported import in {path}')
     code = re.sub(r'^(\s*)export\s+((?:async\s+)?function\s*\*?\s*|const\s+|let\s+|class\s+)(\w+)', lambda m: (names.append(m.group(3)), m.group(1) + m.group(2) + m.group(3))[1], code, flags=re.M)
     if re.search(r'^\s*export\s', code, re.M):
-        raise SystemExit(f'Неподдържан export в {path}')
+        raise SystemExit(f'Unsupported export in {path}')
     return f"__m['{path}'] = (() => {{\n{code}\nreturn {{ {', '.join(names)} }};\n}})();\n"
 
 
 def main():
-    out = ['// АВТОМАТИЧНО ГЕНЕРИРАН ФАЙЛ – не редактирайте ръчно.',
-           '// Източник: js/games/empires/ и supabase/functions/empires/handler.ts (виж tools/build-empires.py).',
+    out = ['// AUTO-GENERATED FILE – do not edit by hand.',
+           '// Source: js/games/empires/ and supabase/functions/empires/handler.ts (see tools/build-empires.py).',
            '// @ts-nocheck', '/* eslint-disable */']
     handler = open(os.path.join(ROOT, 'supabase/functions/empires/handler.ts'), encoding='utf-8').read()
-    # импортите на обработчика остават най-отгоре
+    # the handler's imports stay at the very top
     imports = [l for l in handler.splitlines() if l.startswith('import ')]
     rest = '\n'.join(l for l in handler.splitlines() if not l.startswith('import '))
     out += imports + ['const __m = {};']

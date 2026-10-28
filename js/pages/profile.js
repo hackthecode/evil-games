@@ -3,8 +3,9 @@ import { store } from '../store/index.js';
 import { GAMES, gameById } from '../games/registry.js';
 import { h, avatar, fmtDuration, fmtDate, pct, toast, modal, AVATAR_COLORS } from '../ui.js';
 import { icon } from '../icons.js';
+import { txt, LOCALE } from '../i18n.js';
 
-const RESULT = { win: 'Победа', loss: 'Загуба', draw: 'Реми' };
+const RESULT = { win: txt('Victory'), loss: txt('Defeat'), draw: txt('Draw') };
 
 export async function renderProfile(view, userId) {
   const me = session.user;
@@ -17,7 +18,7 @@ export async function renderProfile(view, userId) {
     store.getRatings(uid).catch(() => ({})),
   ]);
   if (!user) {
-    view.append(h('p', { class: 'empty' }, 'Няма такъв играч.'));
+    view.append(h('p', { class: 'empty' }, txt('No such player.')));
     return;
   }
 
@@ -34,28 +35,28 @@ export async function renderProfile(view, userId) {
       avatar(user, 72),
       h('div', { class: 'profile-id' },
         h('h1', null, user.displayName),
-        h('p', { class: 'muted' }, `@${user.username} · член от ${new Date(user.createdAt).toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' })}`),
-        tot.timeMs > 0 && h('p', { class: 'muted' }, `Любима игра: `, h('b', null, fav.g.name)),
+        h('p', { class: 'muted' }, txt('@{0} · member since {1}', user.username, new Date(user.createdAt).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' }))),
+        tot.timeMs > 0 && h('p', { class: 'muted' }, txt('Favourite game: '), h('b', null, fav.g.name)),
       ),
-      isMe && h('button', { class: 'btn btn-ghost', onclick: () => editProfile(user) }, icon('edit', 16), 'Редактирай'),
+      isMe && h('button', { class: 'btn btn-ghost', onclick: () => editProfile(user) }, icon('edit', 16), txt('Edit')),
     ),
     h('section', { class: 'kpis' },
-      kpi('Изиграни игри', tot.played),
-      kpi('Победи', tot.wins, 'good'),
-      kpi('Загуби', tot.losses, 'bad'),
-      kpi('Успеваемост', pct(tot.wins, tot.played) + '%'),
-      kpi('Общо време', fmtDuration(tot.timeMs)),
+      kpi(txt('Games played'), tot.played),
+      kpi(txt('Wins'), tot.wins, 'good'),
+      kpi(txt('Losses'), tot.losses, 'bad'),
+      kpi(txt('Win rate'), pct(tot.wins, tot.played) + '%'),
+      kpi(txt('Total time'), fmtDuration(tot.timeMs)),
     ),
     h('section', { class: 'panel glass' },
-      h('h2', null, 'По игри'),
+      h('h2', null, txt('By game')),
       h('div', { class: 'game-stats' },
         rows.map(({ g, s }) =>
           h('div', { class: 'gs-row', style: { '--accent-g': g.accent } },
             h('div', { class: 'gs-name' }, h('span', { class: 'dot' }), g.name),
             h('div', { class: 'gs-nums' },
-              num(s.played, 'игри'), num(s.wins, 'победи'), num(s.losses, 'загуби'),
-              s.draws > 0 && num(s.draws, 'реми'), num(pct(s.wins, s.played) + '%', 'успех'),
-              ratings[g.id] && num(ratings[g.id].rating, 'рейтинг'),
+              num(s.played, txt('games')), num(s.wins, txt('wins')), num(s.losses, txt('losses')),
+              s.draws > 0 && num(s.draws, txt('draws')), num(pct(s.wins, s.played) + '%', txt('win rate')),
+              ratings[g.id] && num(ratings[g.id].rating, txt('rating')),
             ),
             h('div', { class: 'gs-bar' },
               h('div', { class: 'gs-fill', style: { width: `${(s.timeMs / maxTime) * 100}%` } }),
@@ -66,7 +67,7 @@ export async function renderProfile(view, userId) {
       ),
     ),
     isMe && h('section', { class: 'panel glass' },
-      h('h2', null, 'Последни игри'),
+      h('h2', null, txt('Recent games')),
       history.length
         ? h('ul', { class: 'history' },
             history.map((x) =>
@@ -78,7 +79,7 @@ export async function renderProfile(view, userId) {
               ),
             ),
           )
-        : h('p', { class: 'empty' }, 'Все още нямате завършени игри.'),
+        : h('p', { class: 'empty' }, txt('You have no finished games yet.')),
     ),
   );
 }
@@ -106,15 +107,15 @@ async function editProfile(user) {
     ),
   );
   const ok = await modal({
-    title: 'Редакция на профила',
-    body: h('div', { class: 'auth-form' }, h('label', null, h('span', null, 'Име за показване'), name), h('div', { class: 'field' }, h('span', null, 'Цвят'), sw)),
-    actions: [{ label: 'Отказ', value: false }, { label: 'Запази', value: true, primary: true }],
+    title: txt('Edit profile'),
+    body: h('div', { class: 'auth-form' }, h('label', null, h('span', null, txt('Display name')), name), h('div', { class: 'field' }, h('span', null, txt('Colour')), sw)),
+    actions: [{ label: txt('Cancel'), value: false }, { label: txt('Save'), value: true, primary: true }],
   });
   if (!ok) return;
   try {
     const u = await store.updateProfile(user.id, { displayName: name.value.trim(), color });
     session.setUser(u);
-    toast('Профилът е обновен.', 'success');
+    toast(txt('The profile has been updated.'), 'success');
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   } catch (e) {
     toast(e.message, 'error');
