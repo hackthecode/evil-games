@@ -1305,6 +1305,16 @@ export function mount(root, ctx) {
   }
 
   // ---------- Settings ----------
+  // Volume slider (0–100) for the music or for all other sounds; changes are heard right away.
+  function volumeSlider(key, label) {
+    const value = h('b', null, `${audioPrefs()[key]}%`);
+    const input = h('input', { type: 'range', min: 0, max: 100, step: 5, value: audioPrefs()[key], 'aria-label': label });
+    input.addEventListener('input', () => {
+      setAudioPref(key, +input.value);
+      value.textContent = `${input.value}%`;
+    });
+    return h('label', { class: 'ee-vol' }, h('span', null, label), input, value);
+  }
   async function settings() {
     const speedSel = DEV && !ONLINE && h('div', { class: 'opt-group' }, h('span', null, txt('Speed (only for tests on the local server)')),
       h('div', { class: 'seg' }, [1, 10, 100, 1000].map((v) => h('button', {
@@ -1330,9 +1340,9 @@ export function mount(root, ctx) {
             h('button', { type: 'button', class: notifyOn() ? '' : 'on', onclick: async (e) => { await disableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 1)); } }, txt('Off')))),
         h('div', { class: 'opt-group' }, h('span', null, txt('Sound (music, city, battles)')),
           h('div', { class: 'seg' },
-            h('button', { type: 'button', class: isMuted() ? '' : 'on', onclick: (e) => { setMuted(!isMuted()); updateAudio(); renderTop(); e.currentTarget.classList.toggle('on', !isMuted()); e.currentTarget.textContent = isMuted() ? txt('🔇 Off') : txt('🔊 On'); } }, isMuted() ? txt('🔇 Off') : txt('🔊 On')),
-            h('button', { type: 'button', class: audioPrefs().music ? 'on' : '', onclick: (e) => { const on = !audioPrefs().music; setAudioPref('music', on); e.currentTarget.classList.toggle('on', on); } }, txt('🎵 Music')),
-            h('button', { type: 'button', class: audioPrefs().ambient ? 'on' : '', onclick: (e) => { const on = !audioPrefs().ambient; setAudioPref('ambient', on); e.currentTarget.classList.toggle('on', on); } }, txt('🐦 City')))),
+            h('button', { type: 'button', class: isMuted() ? '' : 'on', onclick: (e) => { setMuted(!isMuted()); updateAudio(); renderTop(); e.currentTarget.classList.toggle('on', !isMuted()); e.currentTarget.textContent = isMuted() ? txt('🔇 Off') : txt('🔊 On'); } }, isMuted() ? txt('🔇 Off') : txt('🔊 On'))),
+          volumeSlider('music', txt('🎵 Music')),
+          volumeSlider('sfx', txt('🔉 Other sounds (city, battles)'))),
         h('p', { class: 'muted' }, ONLINE ? txt('Online world: all players share one world and the server checks every action.') : txt('Local world: shared only between the accounts in this browser.')),
         speedSel),
       actions: [{ label: txt('Start over'), value: 'reset', danger: true }, ...(prot ? [{ label: txt('Drop protection'), value: 'unprotect' }] : []), { label: txt('Close'), value: null, primary: true }],

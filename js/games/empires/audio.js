@@ -1,15 +1,23 @@
 // Evil Empires – atmosphere: music for each race and for battles, city sounds (recordings of birds,
-// crickets, rain and an anvil; the wind and the owl are synthesized) and battle sounds. All recordings are CC0.
+// crickets and an anvil; the wind and the owl are synthesized) and battle sounds. All recordings are CC0.
+// Two volume levels (0–100): music, and all other sounds (city and battles).
 import { isMuted } from '../common.js';
 
 const PREF = 'ee.audio';
+const level = (v, d) => (typeof v === 'number' ? Math.max(0, Math.min(100, v)) : v === false ? 0 : d);
 export function audioPrefs() {
-  try { return { music: true, ambient: true, ...JSON.parse(localStorage.getItem(PREF) || '{}') }; } catch { return { music: true, ambient: true }; }
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem(PREF) || '{}') || {}; } catch {}
+  // older versions stored on/off switches (music, ambient)
+  return { music: level(p.music, 70), sfx: level(p.sfx ?? p.ambient, 80) };
 }
-export function setAudioPref(key, on) {
+/** key: 'music' | 'sfx', value: 0–100. */
+export function setAudioPref(key, value) {
   const p = audioPrefs();
-  p[key] = on;
+  p[key] = level(Number(value), 0);
   try { localStorage.setItem(PREF, JSON.stringify(p)); } catch {}
+  if (out) out.gain.value = 0.8 * (p.sfx / 100);
+  if (key === 'music' && musicEl) { clearTimeout(musicEl._fade); musicEl.volume = musicTarget(musicKey); }
   apply();
 }
 
@@ -24,7 +32,7 @@ function getCtx() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     out = ctx.createGain();
-    out.gain.value = 0.8;
+    out.gain.value = 0.8 * (audioPrefs().sfx / 100);
     out.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -49,6 +57,7 @@ window.addEventListener('keydown', unlock, { once: true, capture: true });
 const MUSIC = { humans: 'bards-tale', undead: 'undead', orcs: 'orcs', vesheri: 'vesheri', battle: 'battle' };
 const MUSIC_VOL = { orcs: 0.16, battle: 0.2 };
 let musicKey = null;
+const musicTarget = (key) => (MUSIC_VOL[key] ?? 0.22) * 1.6 * (audioPrefs().music / 100);
 function fadeTo(el, target, done) {
   clearTimeout(el._fade);
   const step = () => {
@@ -71,7 +80,7 @@ function setMusic(key) {
   musicEl.loop = true;
   musicEl.volume = 0;
   musicEl.play().catch(() => {});
-  fadeTo(musicEl, MUSIC_VOL[key] ?? 0.22);
+  fadeTo(musicEl, musicTarget(key));
 }
 
 // ---------- recordings ----------
@@ -80,7 +89,7 @@ function sample(name) {
   if (!bufs[name]) bufs[name] = (async () => getCtx().decodeAudioData(await (await fetch(`assets/sounds/ambient/${name}.mp3`)).arrayBuffer()))().catch(() => null);
   return bufs[name];
 }
-// An endless recording (rain, birds, crickets) – quiet start, no click at the end (skips the mp3 silence).
+// An endless recording (birds, crickets) – quiet start, no click at the end (skips the mp3 silence).
 function sampleLoop(name, gain) {
   const c = getCtx();
   const g = c.createGain();
@@ -173,7 +182,6 @@ function startAmb(w) {
   stopAmb();
   const day = w.hour >= 6 && w.hour < 20;
   const loops = [noiseLoop('bandpass', 380, 0.6, 0.03)]; // wind
-  if (w.weather === 'rain') loops.push(sampleLoop('rain', 0.5));
   if (w.weather === 'snow') loops.push(noiseLoop('bandpass', 260, 0.4, 0.05));
   amb = { loops };
   if (w.weather !== 'rain') {
@@ -188,8 +196,8 @@ function apply() {
   if (!unlocked) return;
   const p = audioPrefs();
   const active = !!want && !isMuted();
-  setMusic(active && p.music ? (battleOn ? 'battle' : want.race || 'humans') : null);
-  if (active && p.ambient) {
+  setMusic(active && p.music > 0 ? (battleOn ? 'battle' : want.race || 'humans') : null);
+  if (active && p.sfx > 0) {
     const key = JSON.stringify(want);
     if (!amb || amb.key !== key) { startAmb(want); amb.key = key; }
   } else stopAmb();
@@ -224,7 +232,7 @@ export const preloadBattleSounds = () => loadSwords();
 
 /** A strike in battle: kind – 'sword' (swing) or 'clash'; strength 0..1. */
 export async function battleSound(kind = 'clash', strength = 0.6, delay = 0) {
-  if (isMuted()) return;
+  if (isMuted() || audioPrefs().sfx <= 0) return;
   const bank = await loadSwords();
   if (!bank) return;
   const c = getCtx();

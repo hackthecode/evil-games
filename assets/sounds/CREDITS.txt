@@ -7,7 +7,6 @@ Sounds and music (all CC0 – public domain, OpenGameArt.org):
 - music/vesheri    – congusbongus „Cathedral in the forest (ambient loop)“ (witchers)
 - music/battle     – Emma_MA „Determined Pursuit (epic orchestra loop)“ (battles)
 - ambient/birds    – isaiah658 „Ambient Bird Sounds“
-- ambient/rain     – kindland „Rain and thunders“ (excerpt)
 - ambient/crickets – Wolfgang_ „Crickets Ambient Noise – loopable“
 - ambient/anvil    – themightyglider „Hammer on Anvil“
 

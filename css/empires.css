@@ -398,3 +398,8 @@ g.ee-hl { outline: none; filter: drop-shadow(0 0 10px var(--race)) brightness(1.
 .ee-conv { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; text-align: left; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--border, #2a2a33); background: var(--surface-2, #1c1c22); color: inherit; cursor: pointer; }
 .ee-conv small { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) { .ee-chatp { top: 0; right: 0; bottom: 0; width: 100vw; border-radius: 0; } }
+/* volume sliders */
+.ee-vol { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 2fr) 44px; align-items: center; gap: 10px; margin-top: 10px; font-size: 14px; }
+.ee-vol input[type=range] { width: 100%; accent-color: var(--race, #e2b553); }
+.ee-vol b { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .ee-vol { grid-template-columns: 1fr 44px; } .ee-vol input[type=range] { grid-column: 1 / -1; grid-row: 2; } }
