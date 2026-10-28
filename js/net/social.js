@@ -8,6 +8,7 @@ let me = null;
 let online = null, inbox = null;
 let present = new Map();
 let where = null;
+let seek = null; // игра, за която търся противник (в лобито)
 const listeners = new Set();
 const emit = (e) => listeners.forEach((fn) => { try { fn(e); } catch (err) { console.error(err); } });
 
@@ -50,6 +51,15 @@ export const social = {
   },
 
   // Къде съм в момента (игра/стая) – вижда се от приятелите.
+  // Търся противник за игра (null – спирам да търся).
+  setSeek(gameId) {
+    seek = gameId || null;
+    online?.track(state());
+  },
+  get seeking() { return seek; },
+  present: () => present,
+  me: () => me,
+
   setWhere(w) {
     where = w;
     online?.track(state());
@@ -79,5 +89,5 @@ export const social = {
 };
 
 function state() {
-  return { name: me?.displayName, color: me?.color || null, where };
+  return { name: me?.displayName, color: me?.color || null, where, seek };
 }

@@ -2,7 +2,7 @@
 // Детерминирана: една и съща битка + същите ходове дават един и същ резултат,
 // затова сървърът може да провери битката, като повтори ходовете на играча.
 // Нападателят е страна 'A' (играчът), защитникът – 'D' (компютърът).
-import { TACTIC, TERRAIN, MOVES, COUNTER } from './data.js';
+import { TACTIC, TERRAIN, MOVES, COUNTER, FORMATION } from './data.js';
 import { rng, hashStr } from './battle.js';
 
 const EVEN = [[1, 0], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]];
@@ -25,9 +25,10 @@ const unitAt = (st, q, r) => st.units.find((u) => u.n > 0 && u.q === q && u.r ==
 export const rangeOf = (st, u) => (u.cls === 'ranged' ? 3 + (TERRAIN[terrainAt(st, u.q, u.r)].range || 0) : 1);
 
 /**
- * Нова битка. att/def: групи { key, cls, n, hp, atk, def }; opts: { defMult, defHp }.
+ * Нова битка. att/def: групи { key, cls, n, hp, atk, def }; opts: { defMult, defHp, formA, formD }
+ * (formA/formD – бойна формация: клас → 'front' | 'back' | 'flank').
  */
-export function createBattle(seed, att, def, { defMult = 1, defHp = 1 } = {}) {
+export function createBattle(seed, att, def, { defMult = 1, defHp = 1, formA = null, formD = null } = {}) {
   const cols = TACTIC.cols, rows = TACTIC.rows;
   const r = rng(hashStr(`tac:${seed}`));
   const terrain = [];
@@ -40,34 +41,39 @@ export function createBattle(seed, att, def, { defMult = 1, defHp = 1 } = {}) {
   }
   const st = { seed: String(seed), cols, rows, terrain, units: [], turn: 1, side: 'A', over: false, win: null, defMult, defHp, k: 0, log: [] };
   let id = 0;
-  const place = (groups, side) => {
-    const front = side === 'A' ? 1 : cols - 2, back = side === 'A' ? 0 : cols - 1;
-    const order = [3, 2, 4, 1, 5, 0, 6];
+  const place = (groups, side, form) => {
+    const F = { ...FORMATION, ...(form || {}) };
+    const front = side === 'A' ? 1 : cols - 2, back = side === 'A' ? 0 : cols - 1, extra = side === 'A' ? 2 : cols - 3;
+    const CENTER = [3, 2, 4, 1, 5, 0, 6], FLANK = [0, 6, 1, 5, 2, 4, 3];
     const used = new Set();
-    const put = (u, col) => {
-      for (const c of [col, col === front ? back : front]) {
-        for (const row of order) {
-          const key = `${c},${row}`;
-          if (used.has(key) || terrain[row * cols + c] === 'water') continue;
-          used.add(key);
-          u.q = c;
-          u.r = row;
-          return true;
-        }
+    const tryCol = (u, c, order) => {
+      for (const row of order) {
+        const key = `${c},${row}`;
+        if (used.has(key) || terrain[row * cols + c] === 'water') continue;
+        used.add(key);
+        u.q = c;
+        u.r = row;
+        return true;
       }
+      return false;
+    };
+    const put = (u, pos) => {
+      const plan = pos === 'flank' ? [[back, FLANK], [front, FLANK]] : pos === 'back' ? [[back, CENTER], [front, CENTER]] : [[front, CENTER], [back, CENTER]];
+      for (const [c, order] of [...plan, [extra, CENTER]]) if (tryCol(u, c, order)) return true;
+      // ако няма място – където и да е в своята половина
+      for (let c = 0; c < cols; c++) if ((side === 'A' ? c < cols / 2 : c >= cols / 2) && tryCol(u, c, CENTER)) return true;
       return false;
     };
     const list = groups.filter((g) => g.n > 0).map((g, gi) => ({
       id: id++, gi, side, key: g.key, cls: g.cls === 'elite' ? 'inf' : g.cls, n: g.n, start: g.n,
       hp: g.hp * (side === 'D' ? defHp : 1), atk: g.atk, def: g.def, dmg: 0, q: 0, r: 0, moved: false, acted: false,
     }));
-    // пехотата и героят отпред, стрелците и конницата отзад
-    for (const u of list.filter((x) => MELEE.includes(x.cls))) put(u, front);
-    for (const u of list.filter((x) => !MELEE.includes(x.cls))) put(u, back);
-    st.units.push(...list.filter((u) => used.has(`${u.q},${u.r}`)));
+    const rank = { front: 0, flank: 1, back: 2 };
+    for (const u of [...list].sort((a, b) => rank[F[a.cls] || 'front'] - rank[F[b.cls] || 'front'])) put(u, F[u.cls] || 'front');
+    st.units.push(...list);
   };
-  place(att, 'A');
-  place(def, 'D');
+  place(att, 'A', formA);
+  place(def, 'D', formD);
   return st;
 }
 

@@ -10,6 +10,7 @@ import { renderPlay } from './pages/play.js';
 import { renderOnline } from './pages/online.js';
 import { checkAbandoned } from './pages/room-ui.js';
 import { renderFriends } from './pages/friends.js';
+import { renderLobby } from './pages/lobby.js';
 import { social } from './net/social.js';
 import { modal } from './ui.js';
 
@@ -36,6 +37,7 @@ const routes = [
   { re: /^\/play\/(\w+)$/, page: (v, p, q) => renderPlay(v, p[0], q), nav: 'home', auth: true, game: true },
   { re: /^\/online\/(\w+)$/, page: (v, p) => renderOnline(v, p[0]), nav: 'home', auth: true },
   { re: /^\/friends$/, page: (v) => renderFriends(v), nav: 'friends', auth: true },
+  { re: /^\/lobby$/, page: (v) => renderLobby(v), nav: 'lobby', auth: true },
 ];
 
 const appEl = document.getElementById('app');
@@ -109,6 +111,7 @@ function renderChrome() {
     h('nav', { class: 'top-nav' },
       navLink('home', '/', 'Игри', 'grid'),
       navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
+      u && navLink('lobby', '/lobby', 'Лоби', 'chat'),
       u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
     ),
     h('div', { class: 'header-right' },
@@ -126,6 +129,7 @@ function renderChrome() {
   tabbarEl.replaceChildren(...[
     navLink('home', '/', 'Игри', 'grid'),
     navLink('leaderboard', '/leaderboard', 'Класация', 'trophy'),
+    u && navLink('lobby', '/lobby', 'Лоби', 'chat'),
     u && navLink('friends', '/friends', 'Приятели', 'users', friendBadge),
     navLink('profile', u ? '/profile' : '/login', u ? 'Профил' : 'Вход', 'user'),
   ].filter(Boolean));
@@ -186,6 +190,12 @@ async function boot() {
       refreshBadge();
     }
     if (e.type === 'friend-accept') toast(`${e.fromName} прие поканата за приятелство.`, 'success', 4000);
+    if (e.type === 'match') {
+      // намерен противник в лобито – влизаме направо в стаята
+      toast(`Намерен противник: ${e.fromName}!`, 'success', 4000);
+      social.setSeek(null);
+      navigate(`/play/${e.game}?room=${e.room}`);
+    }
     if (e.type === 'invite') {
       const ok = await modal({
         title: 'Покана за игра',

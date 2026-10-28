@@ -91,6 +91,10 @@ export function makeWorld(store, uid) {
     putResult(id, res) { mut((w) => { w.results[id] = res; }); },
     result: (id) => W().results[id] || null,
     clearResult(id) { mut((w) => { delete w.results[id]; }); },
+    // изходът на тактическа битка срещу играч (нападателят го праща, защитникът го прилага)
+    putOutcome(id, r) { mut((w) => { w.results[`o:${id}`] = r; }); },
+    outcome: (id) => W().results[`o:${id}`] || null,
+    clearOutcome(id) { mut((w) => { delete w.results[`o:${id}`]; }); },
     resolveOffline: null,
 
     // ----- подкрепления -----
@@ -122,11 +126,14 @@ export function makeWorld(store, uid) {
 
     // ----- империи на компютъра -----
     npcState: (id) => W().npc[id] || null,
-    hitNpc(id, { lost = 0, plunder = 0, t }) {
+    hitNpc(id, { lost = 0, plunder = 0, t, wallDmg = 0, loyalty, owner }) {
       mut((w) => {
         const o = w.npc[id] || { lost: 0, lostT: t, plunder: 0, plunderT: t };
         if (lost) Object.assign(o, { lost: Math.min(0.9, o.lost + lost), lostT: t });
         if (plunder) Object.assign(o, { plunder: Math.min(0.9, o.plunder + plunder), plunderT: t });
+        if (wallDmg) Object.assign(o, { wallDmg: (o.wallDmg || 0) + wallDmg, wallT: t });
+        if (loyalty != null) Object.assign(o, { loyalty, loyT: t });
+        if (owner) o.owner = owner;
         w.npc[id] = o;
       });
     },

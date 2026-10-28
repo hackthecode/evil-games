@@ -357,3 +357,22 @@ body.ee-tac-open { overflow: hidden; }
   .ee-sway, .ee-rain line, .ee-snow circle { animation: none; }
   .ee-wheel image:first-child { opacity: 1; animation: none; }
 }
+
+/* бойна формация */
+.ee-form summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.ee-form summary::-webkit-details-marker { display: none; }
+.ee-form-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
+.ee-form-row .seg button { padding: 6px 10px; font-size: 12.5px; }
+.ee-summary { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 600px) { .ee-summary { grid-template-columns: 1fr 1fr; } .ee-summary > div:last-child { grid-column: auto; } }
+
+/* обучение */
+.ee-coach-wrap { position: sticky; bottom: 0; z-index: 4; }
+.ee-coach { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--race) 55%, transparent);
+  background: linear-gradient(180deg, rgba(24, 20, 30, .97), rgba(12, 10, 16, .97)); box-shadow: 0 -10px 30px -10px #000, 0 0 30px -14px var(--race); }
+.ee-coach-ic { font-size: 22px; }
+.ee-coach-t { flex: 1; display: flex; flex-direction: column; font-size: 14px; }
+.ee-coach-t small { color: var(--race); font-weight: 600; font-size: 11.5px; }
+.ee-hl { outline: 3px solid var(--race); outline-offset: 3px; border-radius: 12px; animation: ee-hl 1.1s ease-in-out infinite; }
+g.ee-hl { outline: none; filter: drop-shadow(0 0 10px var(--race)) brightness(1.3); }
+@keyframes ee-hl { 50% { outline-color: transparent; } }

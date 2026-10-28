@@ -8,11 +8,11 @@ import {
   UNITS, UNIT_NAMES, FIGHTERS, unitCls, TECHS, TECH_PROD, WORLD_SPEED,
   HERO, ITEM_FX, ITEM_NAMES, ADVENTURE, OASIS_BONUS, OASIS_RANGE, OASIS_RESPAWN,
   CAMP_RESPAWN, CAMP_SLOTS, CAMP_START, CAMP_NAMES, PROTECTION, NIGHT, NPC_ATTACK_EVERY, NPC_CLANS, PACT,
-  STORY, DAILY, TACTIC, resName,
+  STORY, DAILY, TACTIC, FORMATION, LOYALTY_REGEN, resName,
 } from './data.js';
 import { fight, hashStr, rng, power } from './battle.js';
 import { tileAt, npcList, dist, tileKey, campSpots, inWorld } from './worldgen.js';
-import { replay } from './tactics.js';
+import { replay, createBattle, autoFinish, result as tacResult } from './tactics.js';
 
 const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -309,6 +309,7 @@ function accrue(s, to) {
       else if (d < 0) c.res[k] = Math.max(0, c.res[k] + d);
     }
   }
+  for (const c of s.cities) if (c.loyalty != null && c.loyalty < 100) c.loyalty = Math.min(100, c.loyalty + LOYALTY_REGEN * hours * s.speed);
   const h = s.hero;
   if (h.state !== 'dead') h.health = Math.min(100, h.health + heroStats(s).regen * hours * s.speed);
   s.t = to;
@@ -329,7 +330,7 @@ function nextEvent(s, env) {
   for (const m of s.marches) {
     if (m.phase === 'go') take(m.arrive, () => arrive(s, m, env));
     else if (m.phase === 'back') take(m.back, () => comeBack(s, m));
-    else if (m.phase === 'battle') take(m.battle.expires, () => { const b = m.battle; conclude(s, m, env, b, b.def.length ? fight(b.att, b.def, b.seed, b.opts) : emptyWin(b.att), b.expires); });
+    else if (m.phase === 'battle') take(m.battle.expires, () => { const b = m.battle; finishBattleAt(s, m, env, b.def.length ? replay(b, []) : emptyWin(b.att), b.expires); });
   }
   for (const c of s.camps) if (c.respawn) take(c.respawn, () => { c.respawn = 0; c.lvl = Math.min(campMax(s), c.lvl + 1); });
   for (const g of Object.values(s.guards)) if (g.respawn) take(g.respawn, () => { g.respawn = 0; g.alive = 1; });
@@ -343,6 +344,7 @@ function nextEvent(s, env) {
 }
 
 export function advance(s, to = Date.now(), env = null) {
+  processOutcomes(s, env);
   // походи, които чакат резултат от битка с друг играч
   for (const m of [...s.marches]) if (m.phase === 'wait') tryPvpResult(s, m, env);
   for (let guard = 0; guard < 100000; guard++) {
@@ -630,7 +632,10 @@ export function npcInfo(s, npc, t, env) {
   ].map((g) => ({ ...g, n: Math.round(g.n * (1 - lost)) })).filter((g) => g.n > 0);
   const f = (1 - plunder) * L ** 1.4;
   return {
-    ...npc, lvl: L, army, wall: Math.floor(L / 2), scouts: Math.round(2 * L), lost, plunder,
+    ...npc, lvl: L, army, lost, plunder, scouts: Math.round(2 * L),
+    wall: Math.max(0, Math.floor(L / 2) - Math.max(0, (st.wallDmg || 0) - Math.floor(((t - (st.wallT || t)) / (24 * HOUR)) * s.speed))),
+    loyalty: Math.min(100, (st.loyalty ?? 100) + ((t - (st.loyT || t)) / HOUR) * LOYALTY_REGEN * s.speed),
+    owner: st.owner || null,
     pile: { gold: Math.round(200 * f), wood: Math.round(300 * f), stone: Math.round(260 * f), food: Math.round(300 * f) },
     score: Math.round(60 * L ** 1.8),
     clanInfo: NPC_CLANS.find((c) => c.id === npc.clan),
@@ -638,6 +643,8 @@ export function npcInfo(s, npc, t, env) {
 }
 
 export const npcs = (s) => npcList(s.world);
+// Владетелите, които още не са завладени от играч.
+export const activeNpcs = (s, env) => npcs(s).filter((n) => !env?.world?.npcState(n.id)?.owner);
 
 // ---------- защита ----------
 export const isProtected = (s, t = Date.now()) => t < s.protectedUntil;
@@ -680,11 +687,8 @@ export function defenders(s, c, env) {
   return { side, stationed };
 }
 
-/**
- * Битка в град на играча. att: { name, groups, lootBoost, crannyFactor, seed }.
- * Връща резултата за нападателя: { win, loot, trapped, att, def, rounds }.
- */
-function defendCity(s, c, att, t, env) {
+// Подготовка на битката в град: капани, защитници, множители (стена, нощ, кула, герой).
+function prepareDefense(s, c, att, t, env) {
   let trapped = 0;
   const groups = att.groups.map((g) => ({ ...g }));
   let cap = trapCap(c);
@@ -695,26 +699,51 @@ function defendCity(s, c, att, t, env) {
     cap -= k;
     trapped += k;
   }
-  const { side, stationed } = defenders(s, c, env);
+  const { side } = defenders(s, c, env);
   const wb = wallBonus(lv(c, 'wall'), s.techs.fortify);
   const night = isNight(t) ? NIGHT.bonus : 1;
   const heroDef = (heroHome(s, c) ? 1 + heroStats(s).def2 : 1) * (1 + 0.02 * lv(c, 'tower'));
-  const attSide = groups.filter((g) => g.n > 0);
-  const r = side.length
-    ? fight(attSide, side, att.seed, { defMult: wb.def * night * heroDef, defHp: wb.hp })
-    : { win: 'att', rounds: 0, att: attSide.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [] };
+  return {
+    att: groups.filter((g) => g.n > 0), side, trapped, night: night > 1,
+    opts: { defMult: wb.def * night * heroDef, defHp: wb.hp, formA: att.formation || null, formD: c.formation || null },
+  };
+}
+
+// Автоматична битка на тактическата карта (формациите имат значение).
+function autoBattle(seed, att, def, opts) {
+  if (!def.length) return { win: 'att', rounds: 0, att: att.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [] };
+  const st = createBattle(seed, att, def, opts);
+  autoFinish(st);
+  return tacResult(st);
+}
+
+/**
+ * Последствията от битка в град: загуби (спрямо началото), плячка, обсада, лоялност, доклад.
+ * side – защитниците такива, каквито бяха в началото на битката.
+ */
+function resolveDefense(s, c, att, prep, r, t, env) {
   const win = r.win === 'att' && r.att.some((g) => g.n > 0);
-  // загуби на защитниците (r.def е в реда на side)
-  r.def.forEach((g, i) => {
-    const src = side[i];
-    if (src.key === 'hero') heroWounds(s, t, g);
-    else if (src.stId) src.n = g.n;
-    else c.units[g.key] = g.n;
+  const lostOf = (i) => r.def[i]?.lost || 0;
+  const touched = new Map();
+  prep.side.forEach((src, i) => {
+    const g = r.def[i];
+    if (!g) return;
+    if (src.key === 'hero') { if (heroHome(s, c)) heroWounds(s, t, g); }
+    else if (src.stId) touched.set(src.stId, [...(touched.get(src.stId) || []), [src.key, lostOf(i)]]);
+    else c.units[src.key] = Math.max(0, (c.units[src.key] || 0) - lostOf(i));
   });
-  if (env?.world) for (const st of stationed) env.world.setStationed(st.id, st.groups.map((g) => ({ ...g, n: side.find((x) => x.stId === st.id && x.key === g.key)?.n ?? g.n })));
+  if (env?.world) {
+    for (const [id, losses] of touched) {
+      const st = env.world.stationedById(id);
+      if (st) env.world.setStationed(id, st.groups.map((g) => ({ ...g, n: Math.max(0, g.n - (losses.find(([k]) => k === g.key)?.[1] || 0)) })));
+    }
+  }
   const loot = {};
+  const siege = {};
+  let captured = null;
   if (win) {
-    const room = r.att.reduce((a, g) => a + g.n * (groups.find((x) => x.key === g.key)?.carry || 0), 0) * (att.lootBoost || 1);
+    const carryOf = (k) => att.groups.find((x) => x.key === k)?.carry || UNITS[k]?.carry || 0;
+    const room = r.att.reduce((a, g) => a + g.n * carryOf(g.key), 0) * (att.lootBoost || 1);
     const hide = crannyCap(c) * (att.crannyFactor ?? 1);
     const avail = Object.fromEntries(['gold', 'wood', 'stone', 'food'].map((k) => [k, Math.max(0, c.res[k] - hide)]));
     const total = sum(avail);
@@ -723,14 +752,90 @@ function defendCity(s, c, att, t, env) {
       loot[k] = Math.floor(v * share);
       c.res[k] -= loot[k];
     }
+    // катапулти: стената и сградите
+    const rr = rng(hashStr(`${att.seed}:siege`));
+    const cats = r.att.find((g) => g.key === 'catapult')?.n || 0;
+    if (cats) {
+      const hit = Math.min(lv(c, 'wall'), Math.floor(cats / 6));
+      if (hit) { c.b.wall -= hit; siege.wall = hit; }
+      const ids = Object.keys(c.b).filter((b) => b !== 'hall' && b !== 'wall' && c.b[b] > 0);
+      siege.buildings = [];
+      for (let i = 0; i < Math.min(3, Math.floor(cats / 10)) && ids.length; i++) {
+        const b = ids.splice(Math.floor(rr() * ids.length), 1)[0];
+        c.b[b]--;
+        siege.buildings.push(bName(s, b));
+      }
+    }
+    // благородници: лоялността
+    const nobles = r.att.find((g) => g.key === 'noble')?.n || 0;
+    if (nobles) {
+      let drop = 0;
+      for (let i = 0; i < Math.min(3, nobles); i++) drop += 20 + Math.floor(rr() * 11);
+      c.loyalty = (c.loyalty ?? 100) - drop;
+      siege.loyalty = Math.max(0, Math.round(c.loyalty));
+      if (c.loyalty <= 0) {
+        if (c.id === s.cities[0].id) { c.loyalty = 1; siege.note = 'Столицата не може да бъде завладяна.'; }
+        else if (!att.canConquer) { c.loyalty = 1; siege.note = 'Нападателят няма място за нов град.'; }
+        else captured = captureCity(s, c, t, env);
+      }
+    }
   }
   if (!win) bump(s, t, 'defWins');
   report(s, {
-    kind: 'defense', t, title: `${win ? 'Градът е ограбен' : 'Нападението е отбито'}: ${c.name}`, win: !win, enemy: att.name,
-    att: r.att, def: r.def.map((g, i) => ({ ...g, ally: side[i]?.stId ? true : undefined })), loot, trapped, night: night > 1, wall: lv(c, 'wall'), rounds: r.rounds,
+    kind: 'defense', t, title: captured ? `Градът е завладян: ${c.name}` : `${win ? 'Градът е ограбен' : 'Нападението е отбито'}: ${c.name}`, win: !win, enemy: att.name,
+    att: r.att, def: r.def.map((g, i) => ({ ...g, key: prep.side[i]?.key || g.key, ally: prep.side[i]?.stId ? true : undefined })), loot, trapped: prep.trapped, night: prep.night, wall: lv(c, 'wall'), rounds: r.rounds, siege, tactical: r.tactical,
   });
-  log(s, t, win ? `${att.name} ограби ${c.name}!` : `${c.name} отби нападението на ${att.name}.`, win ? 'loss' : 'win');
-  return { win, loot, trapped, att: r.att, def: r.def, rounds: r.rounds };
+  log(s, t, captured ? `${att.name} завладя ${c.name}!` : win ? `${att.name} ограби ${c.name}!` : `${c.name} отби нападението на ${att.name}.`, win ? 'loss' : 'win');
+  return { win, loot, trapped: prep.trapped, att: r.att, def: r.def, rounds: r.rounds, siege, captured };
+}
+
+// Градът минава у нападателя: сградите и ресурсите (без войската).
+function captureCity(s, c, t, env) {
+  const data = { name: c.name, x: c.x, y: c.y, b: { ...c.b }, res: { ...c.res } };
+  s.cities.splice(s.cities.indexOf(c), 1);
+  for (const o of s.oases.filter((o) => o.city === c.id)) env?.world?.setOasisOwner(o.key, null);
+  s.oases = s.oases.filter((o) => o.city !== c.id);
+  s.incoming = s.incoming.filter((x) => x.city !== c.id);
+  if (s.hero.city === c.id) { s.hero.city = s.cities[0].id; if (s.hero.state === 'home') s.hero.health = Math.min(s.hero.health, 30); }
+  for (const m of s.marches) if (m.from === c.id) m.from = s.cities[0].id;
+  for (const st of env?.world?.stationedAt(s.uid, c.id) || []) env.world.sendBackStationed?.(st.id);
+  return data;
+}
+
+// Град, получен със завладяване (от играч или от владетел на компютъра).
+function addCapturedCity(s, t, data) {
+  const id = `c${s.seq++}`;
+  const city = newCity(id, data.name, data.x, data.y, data.res);
+  city.b = { ...data.b };
+  city.loyalty = 30;
+  s.cities.push(city);
+  report(s, { kind: 'found', t, title: `Завладян град: ${data.name} (${data.x}|${data.y})`, win: true });
+  log(s, t, `Завладяхте ${data.name}!`, 'epoch');
+}
+
+/**
+ * Битка в град на играча (веднага, автоматично). att: { name, groups, lootBoost, crannyFactor, seed, formation, canConquer }.
+ */
+function defendCity(s, c, att, t, env) {
+  const prep = prepareDefense(s, c, att, t, env);
+  const r = autoBattle(att.seed, prep.att, prep.side, prep.opts);
+  return resolveDefense(s, c, att, prep, r, t, env);
+}
+
+// Резултатите от тактически битки срещу мои градове, изиграни от нападателите.
+function processOutcomes(s, env) {
+  const w = env?.world;
+  if (!w?.outcome || !s.pendingDef) return;
+  for (const [id, p] of Object.entries(s.pendingDef)) {
+    const r = w.outcome(id);
+    if (!r) continue;
+    const c = s.cities.find((x) => x.id === p.city);
+    delete s.pendingDef[id];
+    w.clearOutcome(id);
+    if (!c) { w.putResult(id, { win: true, loot: {}, trapped: 0, att: r.att, def: [], defName: s.name, city: '', rounds: r.rounds }); continue; }
+    const res = resolveDefense(s, c, p.att, p.prep, r, Math.max(p.t, s.t), env);
+    w.putResult(id, { ...res, defName: s.name, city: c.name, wall: lv(c, 'wall') });
+  }
 }
 
 // Компютърът изпраща нападение към град на играча.
@@ -739,7 +844,7 @@ function launchNpc(s, t, env) {
   const next = () => { s.npcNext = t + scaled(s, NPC_ATTACK_EVERY[0] + r() * (NPC_ATTACK_EVERY[1] - NPC_ATTACK_EVERY[0])); };
   if (isProtected(s, t)) { s.npcNext = s.protectedUntil; return; }
   const c = s.cities[Math.floor(r() * s.cities.length)];
-  const hostile = npcs(s).filter((n) => !(s.pacts[n.clan] > t)).map((n) => ({ n, d: dist(n, c) })).sort((a, b) => a.d - b.d).slice(0, 4);
+  const hostile = activeNpcs(s, env).filter((n) => !(s.pacts[n.clan] > t)).map((n) => ({ n, d: dist(n, c) })).sort((a, b) => a.d - b.d).slice(0, 4);
   if (!hostile.length) return next();
   const { n: npc, d } = hostile[Math.floor(r() * hostile.length)];
   const info = npcInfo(s, npc, t, env);
@@ -769,10 +874,19 @@ function npcArrives(s, inc, env) {
 
 // Нападение от друг играч (през общия свят).
 function pvpArrives(s, inc, env) {
-  const c = cityOf(s, inc.toCity);
-  const res = defendCity(s, c, { name: inc.attName, groups: inc.groups, lootBoost: inc.lootBoost, crannyFactor: inc.crannyFactor, seed: `pvp:${inc.id}` }, inc.arrive, env);
-  env.world.putResult(inc.id, { ...res, defName: s.name, city: c.name, wall: lv(c, 'wall') });
+  const c = s.cities.find((x) => x.id === inc.toCity);
   env.world.removeIncoming(s.uid, inc.id);
+  if (!c) { env.world.putResult(inc.id, { win: true, loot: {}, trapped: 0, att: inc.groups.map((g) => ({ key: g.key, n: g.n, lost: 0, dmg: 0 })), def: [], defName: s.name, city: '', rounds: 0 }); return; }
+  const att = { name: inc.attName, groups: inc.groups, lootBoost: inc.lootBoost, crannyFactor: inc.crannyFactor, seed: `pvp:${inc.id}`, formation: inc.formation, canConquer: inc.canConquer };
+  const prep = prepareDefense(s, c, att, inc.arrive, env);
+  if (inc.tactical && prep.side.length) {
+    // нападателят ще води битката сам: пазим подготовката и чакаме изхода
+    (s.pendingDef ||= {})[inc.id] = { city: c.id, att, prep: { side: prep.side.map((g) => ({ key: g.key, stId: g.stId || null })), trapped: prep.trapped, night: prep.night }, t: inc.arrive };
+    env.world.putResult(inc.id, { pending: true, battle: { seed: att.seed, att: prep.att, def: prep.side.map(({ stId, ...g }) => g), opts: prep.opts }, defName: s.name, city: c.name });
+    return;
+  }
+  const res = resolveDefense(s, c, att, prep, autoBattle(att.seed, prep.att, prep.side, prep.opts), inc.arrive, env);
+  env.world.putResult(inc.id, { ...res, defName: s.name, city: c.name, wall: lv(c, 'wall') });
 }
 
 // ---------- походи ----------
@@ -863,7 +977,7 @@ export function send(s, t, cid, kind, target, units, withHero, env, tactical = f
   for (const [u, n] of Object.entries(sent)) c.units[u] -= n;
   if (withHero) s.hero.state = 'away';
   const travel = travelTime(s, c, target, sent, withHero);
-  const m = { id: s.seq++, kind, from: c.id, target, units: sent, hero: !!withHero, phase: 'go', depart: t, arrive: t + travel, travel, tactical: !!tactical && (kind === 'raid' || (kind === 'attack' && target.type !== 'player')) };
+  const m = { id: s.seq++, kind, from: c.id, target, units: sent, hero: !!withHero, phase: 'go', depart: t, arrive: t + travel, travel, tactical: !!tactical && (kind === 'raid' || kind === 'attack') };
   s.marches.push(m);
   if (kind === 'adventure') s.adventures = s.adventures.filter((a) => a.id !== target.id);
   if (kind === 'attack' && target.type === 'player') {
@@ -876,6 +990,7 @@ export function send(s, t, cid, kind, target, units, withHero, env, tactical = f
     env.world.sendIncoming({
       id: m.pvpId, toUid: target.uid, toCity: target.cityId, attUid: s.uid, attName: s.name, attRace: s.race,
       groups, lootBoost: s.race === 'orcs' ? 1.25 : 1, crannyFactor: s.race === 'orcs' ? 0.8 : 1, arrive: m.arrive, launched: t,
+      tactical: m.tactical, formation: c.formation || null, canConquer: s.cities.length < allowedCities(s),
     });
   }
   return m;
@@ -886,7 +1001,7 @@ function normalizeTarget(s, T, env) {
   const xy = (o) => ({ x: o.x, y: o.y });
   switch (T.type) {
     case 'camp': { const c = s.camps.find((x) => x.id === T.id); if (!c) fail('Няма такъв лагер.'); return { type: 'camp', id: c.id, ...xy(c), name: campName(c) }; }
-    case 'npc': { const n = npcs(s).find((x) => x.id === T.id); if (!n) fail('Няма такъв владетел.'); return { type: 'npc', id: n.id, ...xy(n), name: n.name }; }
+    case 'npc': { const n = activeNpcs(s, env).find((x) => x.id === T.id); if (!n) fail('Няма такъв владетел (може би вече е завладян).'); return { type: 'npc', id: n.id, ...xy(n), name: n.name }; }
     case 'player':
     case 'ally': {
       const p = env?.world?.player(T.uid);
@@ -1024,7 +1139,7 @@ function battleSetup(s, m, env) {
   const mo = morale(score(s), info.score);
   const wb = wallBonus(info.wall);
   const night = isNight(t) ? NIGHT.bonus : 1;
-  return { type: 'npc', att: attackSide(s, m, mo), def: info.army, opts: { defMult: wb.def * night, defHp: wb.hp }, ctx: { id: npc.id, name: npc.name, pile: info.pile, lost: info.lost, wall: info.wall, morale: mo, night: night > 1 } };
+  return { type: 'npc', att: attackSide(s, m, mo), def: info.army, opts: { defMult: wb.def * night, defHp: wb.hp, formA: cityOf(s, m.from).formation || null }, ctx: { id: npc.id, name: npc.name, pile: info.pile, lost: info.lost, wall: info.wall, morale: mo, night: night > 1, loyalty: info.loyalty, lvl: info.lvl } };
 }
 
 // Последствията от битка (набег, оазис, владетел на компютъра).
@@ -1095,9 +1210,38 @@ function conclude(s, m, env, setup, r, t) {
   const loot = win ? takeLoot(s, ctx.pile, surv) : {};
   const before = setup.def.reduce((a, g) => a + g.n, 0) || 1;
   const killed = r.def.reduce((a, g) => a + g.lost, 0);
-  env?.world?.hitNpc(ctx.id, { lost: (killed / before) * (1 - ctx.lost), plunder: win ? sum(loot) / (sum(ctx.pile) || 1) : 0, t });
+  const siege = {};
+  let conquered = false;
+  if (win) {
+    const cats = r.att.find((g) => g.key === 'catapult')?.n || 0;
+    if (cats) siege.wall = Math.min(ctx.wall, Math.floor(cats / 6));
+    const nobles = r.att.find((g) => g.key === 'noble')?.n || 0;
+    if (nobles) {
+      const rr = rng(hashStr(`${s.seed}:${m.id}:noble`));
+      let drop = 0;
+      for (let i = 0; i < Math.min(3, nobles); i++) drop += 20 + Math.floor(rr() * 11);
+      const loy = (ctx.loyalty ?? 100) - drop;
+      siege.loyalty = Math.max(0, Math.round(loy));
+      if (loy <= 0 && s.cities.length < allowedCities(s)) conquered = true;
+      else if (loy <= 0) siege.note = 'Нямате място за нов град – подобрете Цитаделата.';
+    }
+  }
+  env?.world?.hitNpc(ctx.id, {
+    lost: (killed / before) * (1 - ctx.lost), plunder: win ? sum(loot) / (sum(ctx.pile) || 1) : 0, t,
+    wallDmg: siege.wall || 0, loyalty: siege.loyalty != null ? Math.max(1, siege.loyalty) : undefined,
+    owner: conquered ? { uid: s.uid, name: s.name } : undefined,
+  });
+  if (conquered) {
+    const L = Math.floor(ctx.lvl);
+    const lvl = (k) => Math.max(1, Math.min(EPOCHS[s.epoch - 1].cap, Math.floor(L * k)));
+    addCapturedCity(s, t, {
+      name: ctx.name, x: m.target.x, y: m.target.y, res: { gold: 500, wood: 800, stone: 700, food: 800 },
+      b: { hall: lvl(0.5), farm: lvl(0.5), lumber: lvl(0.5), quarry: lvl(0.45), mine: lvl(0.4), houses: lvl(0.45), warehouse: lvl(0.45), barracks: lvl(0.35), wall: lvl(0.3) },
+    });
+    if (surv.noble) { surv.noble--; if (!surv.noble) delete surv.noble; }
+  }
   if (win) bump(s, t, 'raids');
-  report(s, { kind: 'attack', t, title: `${win ? 'Победа' : 'Поражение'}: ${ctx.name}${tag}`, win, att: r.att, def: r.def, loot, morale: ctx.morale, night: ctx.night, wall: ctx.wall, rounds: r.rounds });
+  report(s, { kind: 'attack', t, title: `${conquered ? 'Завладяхте' : win ? 'Победа' : 'Поражение'}: ${ctx.name}${tag}`, win, att: r.att, def: r.def, loot, morale: ctx.morale, night: ctx.night, wall: ctx.wall, rounds: r.rounds, siege });
   log(s, t, win ? `Ограбихте ${ctx.name}!` : `Атаката срещу ${ctx.name} се провали.`, win ? 'win' : 'loss');
   return sendHome(s, m, t, surv, loot);
 }
@@ -1108,7 +1252,21 @@ export function fightTactical(s, t, marchId, moves, env) {
   const m = s.marches.find((x) => x.id === marchId && x.phase === 'battle');
   if (!m) fail('Битката вече е решена.');
   if (moves != null && !Array.isArray(moves)) fail('Невалидни ходове.');
-  conclude(s, m, env, m.battle, replay(m.battle, moves || []), t);
+  finishBattleAt(s, m, env, replay(m.battle, moves || []), t);
+}
+
+// Изходът на тактическа битка: срещу компютъра – веднага; срещу играч – през защитника.
+function finishBattleAt(s, m, env, r, t) {
+  if (m.battle.pvp) {
+    env?.world?.putOutcome(m.pvpId, r);
+    m.phase = 'wait';
+    m.battle = undefined;
+    m.arrive = t;
+    if (r.win === 'att') bump(s, t, 'tactics');
+    tryPvpResult(s, m, env);
+    return;
+  }
+  conclude(s, m, env, m.battle, r, t);
 }
 
 function tryPvpResult(s, m, env, atArrival = false) {
@@ -1118,6 +1276,13 @@ function tryPvpResult(s, m, env, atArrival = false) {
   if (!res) { if (atArrival) m.phase = 'wait'; return; }
   w.clearResult(m.pvpId);
   const t = m.arrive;
+  if (res.pending) {
+    // защитникът е готов – водим битката сами
+    m.phase = 'battle';
+    m.battle = { ...res.battle, pvp: true, expires: Math.max(t, s.t) + scaled(s, TACTIC.window) };
+    log(s, s.t, `Войската пристигна при ${res.defName} – поведете битката!`, 'alarm');
+    return;
+  }
   const win = res.win;
   if (m.hero) {
     heroWounds(s, t, res.att.find((g) => g.key === 'hero'));
@@ -1125,7 +1290,13 @@ function tryPvpResult(s, m, env, atArrival = false) {
   }
   const surv = Object.fromEntries(res.att.filter((g) => g.n > 0 && g.key !== 'hero').map((g) => [g.key, g.n]));
   if (win) bump(s, t, 'raids');
-  report(s, { kind: 'attack', t, title: `${win ? 'Победа' : 'Поражение'}: ${res.defName} – ${res.city}`, win, att: res.att, def: res.def, loot: res.loot, trapped: res.trapped, wall: res.wall, rounds: res.rounds, morale: m.morale });
+  if (res.captured) {
+    if (s.cities.length < allowedCities(s)) {
+      addCapturedCity(s, t, res.captured);
+      if (surv.noble) { surv.noble--; if (!surv.noble) delete surv.noble; }
+    }
+  }
+  report(s, { kind: 'attack', t, title: `${res.captured ? 'Завладяхте' : win ? 'Победа' : 'Поражение'}: ${res.defName} – ${res.city}`, win, att: res.att, def: res.def, loot: res.loot, trapped: res.trapped, wall: res.wall, rounds: res.rounds, morale: m.morale, siege: res.siege });
   log(s, t, win ? `Ограбихте ${res.defName}!` : `Атаката срещу ${res.defName} се провали.`, win ? 'win' : 'loss');
   const heroBack = m.hero && s.hero.state !== 'dead';
   if (!Object.keys(surv).length && !heroBack) { s.marches.splice(s.marches.indexOf(m), 1); return; }
@@ -1142,13 +1313,13 @@ function scoutArrives(s, m, env, goHome) {
   if (T.type === 'npc') {
     const info = npcInfo(s, npcs(s).find((n) => n.id === T.id), t, env);
     D = info.scouts;
-    data = { army: info.army.map((g) => ({ key: g.key, n: g.n })), wall: info.wall, pile: info.pile, lvl: info.lvl };
+    data = { army: info.army.map((g) => ({ key: g.key, n: g.n })), wall: info.wall, pile: info.pile, lvl: info.lvl, loyalty: Math.round(info.loyalty) };
     title = info.name;
   } else if (T.type === 'player') {
     const p = env?.world?.player(T.uid);
     const pc = p?.cities.find((c) => c.id === T.cityId);
     D = pc?.scouts || 0;
-    data = pc ? { army: Object.entries(pc.units || {}).map(([key, n]) => ({ key, n })), wall: pc.wall, traps: pc.traps, cranny: pc.cranny, res: pc.res, race: p.race } : null;
+    data = pc ? { army: Object.entries(pc.units || {}).map(([key, n]) => ({ key, n })), wall: pc.wall, traps: pc.traps, cranny: pc.cranny, res: pc.res, race: p.race, loyalty: pc.loyalty } : null;
     title = `${p?.name || 'Играч'} – ${pc?.name || ''}`;
   } else if (T.type === 'oasis') {
     const o = oasisInfo(s, T.x, T.y, env);
@@ -1280,7 +1451,7 @@ export function snapshot(s, alliance = null) {
   return {
     uid: s.uid, name: s.name, race: s.race, epoch: s.epoch, score: score(s), protectedUntil: s.protectedUntil, alliance, t: s.t,
     cities: s.cities.map((c) => ({
-      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
+      id: c.id, name: c.name, x: c.x, y: c.y, hall: lv(c, 'hall'), loyalty: Math.round(c.loyalty ?? 100), wall: lv(c, 'wall'), traps: lv(c, 'traps'), cranny: lv(c, 'cranny'),
       units: Object.fromEntries(FIGHTERS.filter((u) => c.units[u] > 0).map((u) => [u, c.units[u]])), scouts: c.units.scout || 0,
       res: Object.fromEntries(['gold', 'wood', 'stone', 'food'].map((k) => [k, Math.floor(c.res[k])])),
     })),
@@ -1309,6 +1480,12 @@ const ACTIONS = {
   renameCity: (s, t, env, cid, name) => { const c = s.cities.find((x) => x.id === cid); if (!c) fail('Няма такъв град.'); c.name = cleanName(name, 24); },
   renameHero: (s, t, env, name) => { s.hero.name = cleanName(name, 20); },
   tactical: (s, t, env, marchId, moves) => fightTactical(s, t, marchId, moves, env),
+  setFormation: (s, t, env, cid, cls, pos) => {
+    const c = s.cities.find((x) => x.id === cid);
+    if (!c) fail('Няма такъв град.');
+    if (!own(FORMATION, cls) || !['front', 'back', 'flank'].includes(pos)) fail('Невалидна формация.');
+    c.formation = { ...FORMATION, ...(c.formation || {}), [cls]: pos };
+  },
 };
 
 export function perform(s, t, env, name, args = []) {

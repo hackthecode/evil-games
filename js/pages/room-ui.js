@@ -252,7 +252,7 @@ export async function runOnline({ root, bar, game, ctx, user, roomId, mountGame 
     const inv = JSON.parse(sessionStorage.getItem(INVITE_AFTER_KEY) || 'null');
     if (inv?.room === room.id) {
       sessionStorage.removeItem(INVITE_AFTER_KEY);
-      social.invite(inv.uid, { game: game.id, gameName: game.name, room: room.id })
+      social.send(inv.uid, { kind: inv.kind || 'invite', game: game.id, gameName: game.name, room: room.id })
         .then(() => toast(`Поканата до ${inv.name} е изпратена.`, 'success'))
         .catch(() => {});
     }

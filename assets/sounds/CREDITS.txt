@@ -1,0 +1,4 @@
+Звуци и музика (всички са CC0 – обществено достояние):
+- dice/  – Kenney „Casino Audio“ (kenney.nl), OpenGameArt.org
+- battle/ – StarNinjas „20 Sword Sound Effects (Attacks and Clashes)“, https://opengameart.org/users/starninjas
+- music/bards-tale.mp3 – RandomMind „Medieval: The Bard's Tale“, OpenGameArt.org

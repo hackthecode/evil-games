@@ -4,6 +4,7 @@ import { h } from '../../ui.js';
 import * as T from './tactics.js';
 import { unitIcon } from './art.js';
 import { TERRAIN, TACTIC, CLS_NAMES } from './data.js';
+import { battleSound } from './audio.js';
 
 const S = 30; // радиус на шестоъгълника
 const W = S * Math.sqrt(3);
@@ -55,11 +56,20 @@ export function openTactical({ battle, title, names, colors, saved = [], onProgr
 
     function record(mv) {
       if (st.over) return;
+      const before = st.k;
+      const logLen = st.log.length;
       if (T.applyMove(st, mv)) {
         moves.push(mv);
         onProgress?.(moves);
       }
       if (mv.end || mv.auto) sel = null;
+      // звук за всеки нов удар (ходовете на компютъра – един след друг)
+      const fresh = st.log.slice(Math.max(0, st.log.length - Math.min(8, st.k - before)));
+      void logLen;
+      fresh.forEach((e, i) => {
+        const a = st.units.find((u) => u.id === e.a);
+        battleSound(a.cls === 'ranged' ? 'sword' : 'clash', Math.min(1, 0.3 + e.kills / 10), i * 0.18);
+      });
       draw();
     }
 

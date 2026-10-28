@@ -106,6 +106,7 @@ export function defs(c) {
     <radialGradient id="ee-shd"><stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
     <filter id="ee-t-undead" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.62 0.28 0.06 0 0  0.18 0.72 0.08 0 0.01  0.16 0.26 0.52 0 0.01  0 0 0 1 0"/></filter>
     <filter id="ee-t-orcs" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1.08 0.08 0 0 0.02  0.06 0.88 0 0 0  0 0.06 0.74 0 0  0 0 0 1 0"/></filter>
+    <filter id="ee-t-vesheri-arcane" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.62 0.1 0.22 0 0.02  0.08 0.55 0.2 0 0  0.25 0.12 0.95 0 0.06  0 0 0 1 0"/></filter>
     <filter id="ee-t-vesheri" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.8 0.08 0.14 0 0  0.02 0.8 0.14 0 0  0.12 0.06 1.02 0 0.03  0 0 0 1 0"/></filter>
     ${glow('ee-g-race', c.glow, 0.35)}${glow('ee-g-fire', '#ff9a4a', 0.4)}${glow('ee-g-mana', '#a88be6', 0.35)}${glow('ee-g-gold', '#e8b850', 0.3)}${glow('ee-g-moon', '#cdd6e6', 0.35)}
   </defs>`;
@@ -526,6 +527,12 @@ const SPR = {
   embassy: { w: 460, h: 310, x0: 79, x1: 457, by: 305, size: 84, lights: [[150, 200], [330, 220], [400, 180]], smoke: [[368, 43]] },
   mill: { w: 460, h: 333, x0: 78, x1: 457, by: 328, size: 84, lights: [[250, 220]], smoke: [[311, 18]] },
   well: { w: 350, h: 378, x0: 74, x1: 346, by: 368, size: 40 },
+  // rubberduck (OpenGameArt, CC0)
+  temple: { w: 360, h: 380, x0: 1, x1: 344, by: 378, size: 84, lights: [[95, 270], [300, 290], [150, 95]], smoke: [[150, 6]] },
+  warehouse: { w: 386, h: 400, x0: 1, x1: 360, by: 398, size: 90, lights: [[160, 300], [330, 320]] },
+  guild: { w: 400, h: 397, x0: 2, x1: 367, by: 395, size: 90, lights: [[140, 300], [300, 280], [330, 210]], smoke: [[150, 10]] },
+  lumber: { w: 240, h: 189, x0: 1, x1: 226, by: 187, size: 74 },
+  cranny: { w: 230, h: 223, x0: 2, x1: 209, by: 221, size: 62 },
 };
 
 export function spriteKey(id, L, epoch) {
@@ -540,6 +547,10 @@ export function spriteKey(id, L, epoch) {
     case 'academy': return 'academy';
     case 'embassy': return 'embassy';
     case 'farm': return 'mill';
+    case 'temple': return 'temple';
+    case 'warehouse': return 'warehouse';
+    case 'lumber': return 'lumber';
+    case 'cranny': return 'cranny';
     default: return null;
   }
 }
@@ -564,18 +575,25 @@ function spriteImg(key, race, mul = 1, ox, oy) {
 }
 
 // Светлините на сградата (за нощта) – в координатите на парцела.
-export function buildingLights(id, L, epoch) {
-  const key = spriteKey(id, L, epoch);
+export function buildingLights(id, L, epoch, race) {
+  const key = id === 'unique' ? (race === 'humans' ? 'guild' : race === 'vesheri' ? 'tower-stone' : null) : spriteKey(id, L, epoch);
   if (!key) return [];
-  const { s, k, x, y } = spriteFit(key, spriteMul(id, L));
+  const { s, k, x, y } = spriteFit(key, id === 'unique' && race === 'vesheri' ? 1.15 : spriteMul(id, L));
   return (s.lights || []).map(([px, py]) => [x + px * k, y + py * k]);
 }
 
+const glowAtPx = (x, y, r) => `<g class="ee-pulse">${halo(x, y, r, 'mana')}</g>`;
 const spriteMul = (id, L) => (id === 'hall' ? 0.82 + 0.03 * Math.min(L, 10) : 0.92 + 0.02 * Math.min(L, 8));
 
 export function buildingSvg(id, race, L, epoch = 1) {
+  if (id === 'unique' && race === 'humans') return spriteImg('guild', race, spriteMul(id, L));
+  if (id === 'unique' && race === 'vesheri') return spriteImg('tower-stone', 'vesheri-arcane', 1.15) + glowAtPx(0, -78, 26);
   const key = spriteKey(id, L, epoch);
-  if (key) return spriteImg(key, race, spriteMul(id, L));
+  if (key) {
+    // дъскорезницата: навес с трупи около него
+    const extra = id === 'lumber' ? logPile(0.18, 0.28) + logPile(-0.34, 0.2) : '';
+    return spriteImg(key, race, spriteMul(id, L)) + extra;
+  }
   const sc = levelScale(L);
   return shadow(48 * sc, 22 * sc) + `<g transform="scale(${sc.toFixed(3)})">${DRAW[id](pal(race, epoch), race, L)}</g>`;
 }
@@ -899,6 +917,8 @@ const UNIT_GLYPH = {
   elite: '<path d="M10 20 Q10 6 22 6 Q34 6 34 20 L34 30 L28 34 L16 34 L10 30Z" fill="#e4e6ea"/><rect x="15" y="17" width="14" height="4" rx="1" fill="#222"/><line x1="22" y1="21" x2="22" y2="30" stroke="#222" stroke-width="2.5"/><path d="M22 6 L22 0" stroke="#c9a24a" stroke-width="3"/>',
   scout: '<path d="M8 22 Q22 9 36 22 Q22 35 8 22Z" fill="none" stroke="#e4e6ea" stroke-width="2.4"/><circle cx="22" cy="22" r="5" fill="#e4e6ea"/><circle cx="22" cy="22" r="2" fill="#222"/>',
   settler: '<path d="M9 24 L22 12 L35 24Z" fill="#e4e6ea"/><rect x="12" y="24" width="20" height="11" fill="#e4e6ea"/><rect x="19" y="27" width="6" height="8" fill="#222"/>',
+  siege: '<path d="M8 32 h28" stroke="#c59a62" stroke-width="3"/><circle cx="13" cy="33" r="3.5" fill="#e4e6ea"/><circle cx="31" cy="33" r="3.5" fill="#e4e6ea"/><line x1="16" y1="30" x2="32" y2="9" stroke="#c59a62" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="8" r="4" fill="#e4e6ea"/>',
+  noble: '<path d="M12 18 L16 10 L22 15 L28 10 L32 18Z" fill="#e2b553"/><circle cx="22" cy="24" r="5" fill="#e4e6ea"/><path d="M13 38 Q14 29 22 29 Q30 29 31 38Z" fill="#e4e6ea"/>',
   hero: '<path d="M11 15 L15 23 L22 11 L29 23 L33 15 L31 31 L13 31Z" fill="#e2b553"/><rect x="13" y="31" width="18" height="4" rx="1" fill="#e2b553"/><circle cx="22" cy="10" r="2" fill="#e2b553"/>',
 };
 export function unitIcon(cls, color, size = 40) {

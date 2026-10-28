@@ -150,6 +150,8 @@ export const OFF_PLOT = ['wall', 'traps'];
 export const UNITS = {
   warrior: { cls: 'inf', epoch: 1, hp: 10, atk: 3, def: 1, carry: 15, upkeep: 1, speed: 7, cost: { food: 40, gold: 15, wood: 10 }, time: 45 },
   slinger: { cls: 'ranged', epoch: 1, tech: 'slings', hp: 6, atk: 4, def: 0, carry: 10, upkeep: 1, speed: 7, cost: { food: 35, wood: 30, gold: 15 }, time: 55 },
+  catapult: { cls: 'siege', epoch: 2, tech: 'engineering', barracks: 5, hp: 30, atk: 2, def: 1, carry: 0, upkeep: 3, speed: 3, cost: { wood: 320, stone: 220, gold: 160 }, time: 300 },
+  noble: { cls: 'noble', epoch: 2, tech: 'nobility', hall: 10, hp: 20, atk: 1, def: 2, carry: 0, upkeep: 4, speed: 4, cost: { gold: 4000, food: 3000, wood: 2500, stone: 2500, souls: 50 }, time: 3600 },
   scout: { cls: 'scout', epoch: 1, tech: 'scouting', hp: 2, atk: 0, def: 1, carry: 0, upkeep: 1, speed: 18, cost: { food: 30, gold: 40, wood: 20 }, time: 40 },
   settler: { cls: 'settler', epoch: 1, hall: 5, hp: 5, atk: 0, def: 0, carry: 0, upkeep: 2, speed: 5, cost: { food: 1500, wood: 1300, stone: 1300, gold: 900 }, time: 2400 },
   spear: { cls: 'spear', epoch: 2, tech: 'spears', hp: 12, atk: 3, def: 3, carry: 15, upkeep: 1, speed: 6, cost: { food: 50, wood: 40, gold: 25 }, time: 70 },
@@ -160,18 +162,18 @@ export const UNITS = {
   knight: { cls: 'cav', epoch: 3, tech: 'chivalry', stable: 1, hp: 34, atk: 12, def: 6, carry: 45, upkeep: 3, speed: 14, cost: { food: 160, gold: 150, wood: 40, stone: 40 }, time: 220 },
   elite: { cls: 'inf', epoch: 2, unique: 1, hp: 30, atk: 9, def: 5, carry: 20, upkeep: 2, speed: 5, cost: { food: 120, gold: 120, mana: 30 }, time: 180 },
 };
-export const UNIT_ORDER = ['warrior', 'slinger', 'spear', 'archer', 'rider', 'elite', 'pike', 'crossbow', 'knight', 'scout', 'settler'];
-export const FIGHTERS = ['warrior', 'slinger', 'spear', 'archer', 'rider', 'elite', 'pike', 'crossbow', 'knight'];
+export const UNIT_ORDER = ['warrior', 'slinger', 'spear', 'archer', 'rider', 'elite', 'pike', 'crossbow', 'knight', 'catapult', 'noble', 'scout', 'settler'];
+export const FIGHTERS = ['warrior', 'slinger', 'spear', 'archer', 'rider', 'elite', 'pike', 'crossbow', 'knight', 'catapult', 'noble'];
 
 export const UNIT_NAMES = {
-  humans: { warrior: 'Опълченец', slinger: 'Прашкар', spear: 'Копиеносец', archer: 'Стрелец', rider: 'Конник', elite: 'Паладин', pike: 'Пикинер', crossbow: 'Арбалетчик', knight: 'Рицар', scout: 'Съгледвач', settler: 'Заселници' },
-  undead: { warrior: 'Скелет', slinger: 'Костен прашкар', spear: 'Гробен копиеносец', archer: 'Призрачен стрелец', rider: 'Мъртъв конник', elite: 'Гул', pike: 'Костен пикинер', crossbow: 'Прокълнат стрелец', knight: 'Рицар на смъртта', scout: 'Призрак', settler: 'Гробокопачи' },
-  orcs: { warrior: 'Грубиян', slinger: 'Хвърлач', spear: 'Копиеносец', archer: 'Ловец', rider: 'Вълчи ездач', elite: 'Берсерк', pike: 'Бодливец', crossbow: 'Копиехвъргач', knight: 'Ездач на глиган', scout: 'Следотърсач', settler: 'Заселници' },
-  vesheri: { warrior: 'Послушник', slinger: 'Прашкар', spear: 'Стражник', archer: 'Арбалетчик', rider: 'Нощен ездач', elite: 'Вещер', pike: 'Пазител', crossbow: 'Ловец на демони', knight: 'Сребърен рицар', scout: 'Сянка', settler: 'Заселници' },
+  humans: { warrior: 'Опълченец', slinger: 'Прашкар', spear: 'Копиеносец', archer: 'Стрелец', rider: 'Конник', elite: 'Паладин', pike: 'Пикинер', crossbow: 'Арбалетчик', knight: 'Рицар', catapult: 'Катапулт', noble: 'Благородник', scout: 'Съгледвач', settler: 'Заселници' },
+  undead: { warrior: 'Скелет', slinger: 'Костен прашкар', spear: 'Гробен копиеносец', archer: 'Призрачен стрелец', rider: 'Мъртъв конник', elite: 'Гул', pike: 'Костен пикинер', crossbow: 'Прокълнат стрелец', knight: 'Рицар на смъртта', catapult: 'Костотрошач', noble: 'Лич', scout: 'Призрак', settler: 'Гробокопачи' },
+  orcs: { warrior: 'Грубиян', slinger: 'Хвърлач', spear: 'Копиеносец', archer: 'Ловец', rider: 'Вълчи ездач', elite: 'Берсерк', pike: 'Бодливец', crossbow: 'Копиехвъргач', knight: 'Ездач на глиган', catapult: 'Таран', noble: 'Вожд', scout: 'Следотърсач', settler: 'Заселници' },
+  vesheri: { warrior: 'Послушник', slinger: 'Прашкар', spear: 'Стражник', archer: 'Арбалетчик', rider: 'Нощен ездач', elite: 'Вещер', pike: 'Пазител', crossbow: 'Ловец на демони', knight: 'Сребърен рицар', catapult: 'Требушет', noble: 'Магистър', scout: 'Сянка', settler: 'Заселници' },
 };
 export const unitCls = (race, u) => (u === 'elite' && race === 'vesheri' ? 'ranged' : UNITS[u].cls);
 
-export const CLS_NAMES = { inf: 'пехота', spear: 'копия', ranged: 'стрелци', cav: 'конница', scout: 'разузнаване', settler: 'заселване', hero: 'герой' };
+export const CLS_NAMES = { inf: 'пехота', spear: 'копия', ranged: 'стрелци', cav: 'конница', siege: 'обсада', noble: 'завладяване', scout: 'разузнаване', settler: 'заселване', hero: 'герой' };
 export const COUNTER = {
   spear: { cav: 2 },
   cav: { ranged: 2, inf: 1.2 },
@@ -197,6 +199,8 @@ export const TECHS = {
   smith: { name: 'Ковачество', epoch: 2, academy: 6, req: ['spears'], desc: '+10% атака на войската', cost: { gold: 1400, stone: 1200 }, time: 2700 },
   armor: { name: 'Броня', epoch: 2, academy: 6, req: ['smith'], desc: '+10% защита на войската', cost: { gold: 1600, stone: 1400 }, time: 3200 },
   trade: { name: 'Търговия', epoch: 2, academy: 5, desc: '+15% злато', cost: { gold: 800, wood: 800 }, time: 1600 },
+  engineering: { name: 'Инженерство', epoch: 2, academy: 6, req: ['mason'], desc: 'Отключва катапулти – рушат стени и сгради (нужна е казарма ниво 5)', cost: { gold: 1800, wood: 2200, stone: 1800 }, time: 3600 },
+  nobility: { name: 'Благородство', epoch: 2, academy: 8, req: ['trade'], desc: 'Отключва благородници – снижават лоялността и завладяват градове (Цитадела 10)', cost: { gold: 6000, food: 4000, souls: 30 }, time: 7200 },
   logistics: { name: 'Логистика', epoch: 2, academy: 7, req: ['trade'], desc: 'Втора опашка за строеж', cost: { gold: 2500, wood: 2000, stone: 2000 }, time: 4800 },
   iron: { name: 'Желязо', epoch: 2, academy: 10, req: ['smith', 'armor'], desc: 'Нужно за Желязната епоха', cost: { gold: 8000, stone: 8000, mana: 1500 }, time: 14400 },
   crop: { name: 'Сеитбооборот', epoch: 3, academy: 10, desc: '+15% храна', cost: { gold: 3000, wood: 3000 }, time: 5400 },
@@ -220,7 +224,10 @@ export const TERRAIN = {
   ruins: { name: 'Руини', cost: 1, def: 1.35 },
   water: { name: 'Река', cost: 99, def: 1 },
 };
-export const MOVES = { inf: 2, spear: 2, ranged: 2, cav: 4, hero: 3 };
+export const MOVES = { inf: 2, spear: 2, ranged: 2, cav: 4, hero: 3, siege: 1, noble: 2 };
+// Бойна формация по подразбиране: къде стои всеки клас в тактическата битка.
+export const FORMATION = { inf: 'front', spear: 'front', hero: 'front', ranged: 'back', cav: 'flank', siege: 'back', noble: 'back' };
+export const LOYALTY_REGEN = 2; // % на час
 
 // ---------- герой ----------
 export const HERO = {

@@ -5,7 +5,7 @@ import { sound, confirmDialog, loadPrefs, savePrefs } from '../common.js';
 import * as E from './engine.js';
 import {
   RES, RACES, EPOCHS, BUILDINGS, PLOTS, DECOR, OFF_PLOT, UNITS, UNIT_ORDER, FIGHTERS, TECHS, CLS_NAMES, resName, unitCls,
-  HERO_POINTS, SLOTS, TIERS, NPC_CLANS, OASIS_BONUS, NIGHT, MAX_EPOCH,
+  HERO_POINTS, SLOTS, TIERS, NPC_CLANS, OASIS_BONUS, NIGHT, MAX_EPOCH, FORMATION,
 } from './data.js';
 import {
   PALETTE, tile, scaffold, buildingSvg, buildingPicture, decorSvg, emblem, resIcon, RES_ICON, unitIcon, sceneSvg, campSvg,
@@ -15,6 +15,7 @@ import { fight, power } from './battle.js';
 import { tileAt, dist, tileKey, inWorld } from './worldgen.js';
 import { worldApi, viewApi, allocateHome, setLease, clearLease, leaseFresh, WORLD_KEY } from './world.js';
 import { openTactical } from './battleui.js';
+import { cityAudio, audioPrefs, setAudioPref, preloadBattleSounds } from './audio.js';
 import { store } from '../../store/index.js';
 import { CONFIG } from '../../../config.js';
 
@@ -157,15 +158,18 @@ export function mount(root, ctx) {
   }
 
   // ---------- рамка ----------
-  let topEl, jobsEl, tabsEl, bodyEl, color;
+  let topEl, jobsEl, tabsEl, bodyEl, coachEl, color;
   function buildShell() {
     topEl = h('div', { class: 'ee-top' });
     jobsEl = h('div', { class: 'ee-jobs' });
     tabsEl = h('div', { class: 'ee-tabs', role: 'tablist' });
     bodyEl = h('div', { class: 'ee-body' });
-    wrap.replaceChildren(topEl, jobsEl, tabsEl, bodyEl);
+    coachEl = h('div', { class: 'ee-coach-wrap' });
+    wrap.replaceChildren(topEl, jobsEl, tabsEl, bodyEl, coachEl);
     color = RACES[s.race].color;
     wrap.style.setProperty('--race', color);
+    updateAudio();
+    preloadBattleSounds();
   }
 
   function renderAll() {
@@ -175,6 +179,39 @@ export function mount(root, ctx) {
     renderTabs();
     renderBody();
     updateLive();
+  }
+
+  // ---------- обучение за нови играчи ----------
+  const TUT_KEY = `ee.tut.${uid}`;
+  const queued = (id) => s.cities.some((c) => c.queue.some((q) => q.id === id));
+  const TUT = [
+    { text: () => `Постройте ${E.bName(s, 'farm').toLowerCase()} – тя храни града. Натиснете светещия парцел.`, tab: 'city', sel: '.ee-plot[data-id="farm"]', done: () => E.maxLv(s, 'farm') >= 1 || queued('farm') },
+    { text: () => 'Постройте дъскорезница – дървото трябва за всички строежи.', tab: 'city', sel: '.ee-plot[data-id="lumber"]', done: () => E.maxLv(s, 'lumber') >= 1 || queued('lumber') },
+    { text: () => (s.adventures.length ? 'Изпратете героя на приключение – ще се върне с опит, а може би и с плячка.' : 'Героят чака първото си приключение – появява се след минута. Междувременно огледайте раздел „Герой“.'), tab: 'hero', sel: '.ee-adv-send', done: () => (s.stats.adventures || 0) >= 1 || s.marches.some((m) => m.kind === 'adventure') },
+    { text: () => 'Постройте казарма, за да обучавате войска.', tab: 'city', sel: '.ee-plot[data-id="barracks"]', done: () => E.maxLv(s, 'barracks') >= 1 || queued('barracks') },
+    { text: () => 'Обучете поне 5 войници в раздел „Армия“.', tab: 'army', sel: '.ee-card .ee-train .btn-primary', done: () => s.stats.trained + s.cities.reduce((a, c) => a + c.train.reduce((x, b) => x + b.n - b.done, 0), 0) >= 5 },
+    { text: () => 'Нападнете варварски лагер: на Картата изберете палатките и натиснете „Набег“.', tab: 'map', sel: '.ee-map', done: () => (s.stats.raids || 0) >= 1 || s.marches.some((m) => m.kind === 'raid') },
+    { text: () => 'Вземете наградите за изпълнените мисии.', tab: 'missions', sel: '.ee-mission.ready .btn-primary', done: () => s.story.claimed.length >= 3 },
+    { text: () => 'Постройте палисада – първата защита срещу нападенията на варварските владетели.', tab: 'city', sel: '.ee-brow[data-bid="wall"]', done: () => E.maxLv(s, 'wall') >= 1 || queued('wall') },
+  ];
+  function renderCoach() {
+    if (!coachEl) return;
+    document.querySelectorAll('.ee-hl').forEach((el) => el.classList.remove('ee-hl'));
+    let st = localStorage.getItem(TUT_KEY);
+    if (st === 'off' || st === 'done') return coachEl.replaceChildren();
+    const i = TUT.findIndex((x) => !x.done());
+    if (i < 0) {
+      localStorage.setItem(TUT_KEY, 'done');
+      toast('Обучението е завършено – империята е ваша! 👑', 'success', 4000);
+      return coachEl.replaceChildren();
+    }
+    const step = TUT[i];
+    if (ui.tab === step.tab) document.querySelector(step.sel)?.classList.add('ee-hl');
+    coachEl.replaceChildren(h('div', { class: 'ee-coach' },
+      h('span', { class: 'ee-coach-ic' }, '🧭'),
+      h('div', { class: 'ee-coach-t' }, h('small', null, `Обучение · стъпка ${i + 1} от ${TUT.length}`), h('b', null, step.text())),
+      ui.tab !== step.tab && h('button', { class: 'btn btn-sm btn-primary', onclick: () => goTab(step.tab) }, 'Покажи'),
+      h('button', { class: 'icon-btn', title: 'Пропусни обучението', 'aria-label': 'Пропусни обучението', onclick: () => { localStorage.setItem(TUT_KEY, 'off'); renderCoach(); } }, '✕')));
   }
 
   function renderTop() {
@@ -280,6 +317,7 @@ export function mount(root, ctx) {
   function renderBody() {
     const view = { city: viewCity, army: viewArmy, map: viewMap, marches: viewMarches, hero: viewHero, science: viewScience, alliance: viewAlliance, missions: viewMissions }[ui.tab] || viewCity;
     bodyEl.replaceChildren(view());
+    renderCoach();
   }
 
   // Обновява числата и таймерите без да прерисува всичко.
@@ -342,6 +380,7 @@ export function mount(root, ctx) {
     if (afterChange()) return;
     // светлината в града се сменя на всеки 15 минути (ден, залез, нощ)
     const sk = `${Math.floor(E.localHour(t) * 4)}:${weatherNow()}`;
+    if (sk !== sceneKey) updateAudio();
     if (ui.tab === 'city' && sceneKey && sk !== sceneKey && !document.querySelector('dialog[open]')) renderBody();
     sceneKey = sk;
     if (++tickN % 5 === 0) renderTop();
@@ -489,6 +528,10 @@ export function mount(root, ctx) {
     return v < 0.14 ? 'rain' : 'clear';
   }
   let sceneKey = '';
+  function updateAudio() {
+    if (!s || destroyed) return cityAudio(null);
+    cityAudio({ hour: Math.floor(E.localHour(now())), weather: weatherNow(), smithy: E.lv(cur(), 'smithy') > 0 });
+  }
 
   // ---------- Град ----------
   function viewCity() {
@@ -512,7 +555,7 @@ export function mount(root, ctx) {
       const timerTxt = st.status === 'building' ? `<g transform="translate(0 -74)"><rect x="-31" y="-11" width="62" height="18" rx="9" fill="rgba(0,0,0,.8)" stroke="rgba(255,210,122,.4)"/><text x="0" y="2" text-anchor="middle" font-size="10.5" font-weight="600" fill="#ffd27a" data-end="${st.q.end}">${fmtLeft(st.q.end - now())}</text></g>` : '';
       cell.attrs = `class="ee-plot" data-id="${id}" tabindex="0" role="button" aria-label="${E.bName(s, id)}"`;
       cell.html = `${tile(pal, L || st.status === 'building' ? 'built' : 'empty')}${inner}`;
-      if (L && st.status !== 'building') cell.lights = buildingLights(id, L, s.epoch);
+      if (L && st.status !== 'building') cell.lights = buildingLights(id, L, s.epoch, s.race);
       cell.label = badge + timerTxt;
     }
     const svg = h('div', {
@@ -525,7 +568,7 @@ export function mount(root, ctx) {
     const list = h('div', { class: 'ee-blist' }, ids.map((id) => {
       const L = c.b[id] || 0;
       const st = E.buildState(s, c, id);
-      return h('button', { class: `ee-brow ${st.status}`, onclick: () => openBuilding(id) },
+      return h('button', { class: `ee-brow ${st.status}`, dataset: { bid: id }, onclick: () => openBuilding(id) },
         h('span', { class: 'ee-brow-pic', html: OFF_PLOT.includes(id) ? offPlotIcon(id) : buildingPicture(id, s.race, L || 1, s.epoch) }),
         h('span', { class: 'ee-brow-t' }, h('b', null, E.bName(s, id)),
           h('small', { class: 'muted' }, st.status === 'building' ? 'строи се…' : st.status === 'locked' ? st.why : L ? `ниво ${L}` : 'не е построена')),
@@ -610,6 +653,18 @@ export function mount(root, ctx) {
     if (v && input.value.trim()) doAct('renameCity', [c.id, input.value]);
   }
 
+  // Бойната формация на града: къде застава всеки вид войска в тактическата битка.
+  function formationCard(c) {
+    const F = { ...FORMATION, ...(c.formation || {}) };
+    const POS = [['front', 'Отпред'], ['back', 'Отзад'], ['flank', 'Фланг']];
+    const rows = [['inf', 'Пехота'], ['spear', 'Копия'], ['ranged', 'Стрелци'], ['cav', 'Конница'], ['siege', 'Обсада'], ['hero', 'Героят']];
+    return h('details', { class: 'ee-card ee-form' },
+      h('summary', null, h('b', null, '⚔ Бойна формация'), h('small', { class: 'muted' }, ' – подредбата при отбрана и автоматични битки')),
+      rows.map(([cls, name]) => h('div', { class: 'ee-form-row' }, h('span', null, name),
+        h('div', { class: 'seg' }, POS.map(([pos, label]) => h('button', { type: 'button', class: F[cls] === pos ? 'on' : '', onclick: () => doAct('setFormation', [c.id, cls, pos]) }, label))))),
+      h('small', { class: 'muted' }, 'Пехотата и копията отпред пазят стрелците; конницата по фланговете удря стрелците на врага.'));
+  }
+
   // ---------- Армия ----------
   function statLine(u, c) {
     const st = E.unitStats(s, u, c);
@@ -662,7 +717,9 @@ export function mount(root, ctx) {
       h('div', { class: 'ee-summary' },
         h('div', null, h('small', null, 'Население'), h('b', null, `${used} / ${cap}`)),
         h('div', null, h('small', null, 'Издръжка'), h('b', null, s.race === 'undead' ? 'няма' : `${fmtN(E.upkeep(s, c) * s.speed)}/ч`)),
-        h('div', null, h('small', null, 'Сила у дома'), h('b', null, fmtN(power(E.defenders(s, c, env).side, E.wallBonus(E.lv(c, 'wall')).def))))),
+        h('div', null, h('small', null, 'Сила у дома'), h('b', null, fmtN(power(E.defenders(s, c, env).side, E.wallBonus(E.lv(c, 'wall')).def)))),
+        h('div', null, h('small', null, 'Лоялност'), h('b', { class: (c.loyalty ?? 100) < 50 ? 'bad' : '' }, `${Math.round(c.loyalty ?? 100)}%`))),
+      formationCard(c),
       c.train.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, 'Обучение'), queue),
       stationed.length > 0 && h('div', { class: 'ee-queue' }, h('h3', null, 'Подкрепления от съюзници'),
         stationed.map((st) => h('div', { class: 'ee-qrow' }, h('span', null, `${st.fromName}: ${st.groups.filter((g) => g.n > 0).map((g) => `${g.n} ${enemyName(g.key)}`).join(', ')}`),
@@ -677,7 +734,7 @@ export function mount(root, ctx) {
     const map = new Map();
     for (const camp of s.camps) map.set(tileKey(camp.x, camp.y), { type: 'camp', lvl: camp.lvl, down: !!camp.respawn, camp });
     for (const a of s.adventures) map.set(tileKey(a.x, a.y), { type: 'adventure', hard: a.diff === 'hard', adv: a });
-    for (const n of E.npcs(s)) map.set(tileKey(n.x, n.y), { type: 'npc', npc: n });
+    for (const n of E.activeNpcs(s, env)) map.set(tileKey(n.x, n.y), { type: 'npc', npc: n });
     for (const p of W.players()) {
       if (p.uid === uid) continue;
       const rel = W.relation(uid, p.uid) || 'neutral';
@@ -812,6 +869,7 @@ export function mount(root, ctx) {
         h('span', null, 'Клан'), h('b', { style: { color: info.clanInfo.color } }, `${info.clanInfo.name} [${info.clanInfo.tag}]`),
         h('span', null, 'Ниво'), h('b', null, Math.floor(info.lvl)),
         h('span', null, 'Стена'), h('b', null, info.wall),
+        h('span', null, 'Лоялност'), h('b', null, `${Math.round(info.loyalty)}%`),
         h('span', null, 'Морал'), h('b', null, `${Math.round(E.morale(E.score(s), info.score) * 100)}%`),
         h('span', null, 'Пакт'), h('b', null, pact ? `още ${fmtLeft(s.pacts[o.npc.clan] - now())}` : 'няма')));
       body.push(intelBox(`npc:${o.npc.id}`));
@@ -848,10 +906,11 @@ export function mount(root, ctx) {
     if (!data) return h('p', { class: 'muted' }, 'Няма данни.');
     return h('div', { class: 'ee-intel-d' },
       data.army && (data.army.length ? enemyChips(data.army) : h('p', { class: 'muted' }, 'Няма войска у дома.')),
-      (data.wall != null || data.traps != null || data.cranny != null) && h('div', { class: 'ee-kv' },
+      (data.wall != null || data.traps != null || data.cranny != null || data.loyalty != null) && h('div', { class: 'ee-kv' },
         data.wall != null && [h('span', null, 'Стена'), h('b', null, data.wall)],
         data.traps != null && [h('span', null, 'Капани'), h('b', null, data.traps)],
-        data.cranny != null && [h('span', null, 'Скривалище'), h('b', null, data.cranny)]),
+        data.cranny != null && [h('span', null, 'Скривалище'), h('b', null, data.cranny)],
+        data.loyalty != null && [h('span', null, 'Лоялност'), h('b', null, `${data.loyalty}%`)]),
       (data.res || data.pile) && typeof (data.res || data.pile) === 'object' && h('div', null, h('small', { class: 'muted' }, 'Ресурси'), rewardChips(data.res || data.pile)));
   }
 
@@ -862,7 +921,7 @@ export function mount(root, ctx) {
     const heroHere = E.heroHome(s, c);
     const pick = {};
     let withHero = kind === 'adventure';
-    const canTactic = kind === 'raid' || (kind === 'attack' && target.type !== 'player');
+    const canTactic = kind === 'raid' || kind === 'attack';
     let tactical = canTactic && !!ui.tactical;
     const avail = kind === 'scout' ? ['scout'] : kind === 'adventure' ? [] : kind === 'found' ? FIGHTERS.filter((u) => c.units[u] > 0) : FIGHTERS.filter((u) => c.units[u] > 0);
     for (const u of avail) pick[u] = kind === 'found' ? 0 : c.units[u];
@@ -985,6 +1044,11 @@ export function mount(root, ctx) {
     if (r.trapped) extras.push(`В капаните попаднаха ${r.trapped} нападатели`);
     if (r.raised) extras.push(`💀 ${r.raised} паднали врагове се вдигнаха като скелети`);
     if (r.annexed) extras.push('🌴 Оазисът е завладян!');
+    if (r.siege?.wall) extras.push(`🪨 Катапултите събориха ${r.siege.wall} нива от стената`);
+    if (r.siege?.buildings?.length) extras.push(`🪨 Повредени сгради: ${r.siege.buildings.join(', ')}`);
+    if (r.siege?.loyalty != null) extras.push(`👑 Лоялност на града: ${r.siege.loyalty}%`);
+    if (r.siege?.note) extras.push(r.siege.note);
+    if (r.tactical) extras.push('Битката е проведена на тактическата карта.');
     if (r.note) extras.push(r.note);
     let body;
     if (r.kind === 'scout') body = h('div', { class: 'ee-attack' }, r.intel ? intelView(r.intel) : h('p', { class: 'bad' }, 'Съгледвачите не успяха.'), r.scoutsLost > 0 && h('small', { class: 'muted' }, `Загубени съгледвачи: ${r.scoutsLost}`));
@@ -1046,7 +1110,7 @@ export function mount(root, ctx) {
     });
     const advs = s.adventures.map((a) => h('div', { class: 'ee-qrow' },
       h('span', null, a.diff === 'hard' ? '⚠ Опасно приключение' : '🧭 Приключение', h('small', { class: 'muted' }, ` (${a.x}|${a.y}) · ${dist(home, a).toFixed(1)} полета · изчезва след `), h('span', { class: 'ee-timer', dataset: { end: a.expires } })),
-      h('button', { class: 'btn btn-sm btn-primary', disabled: !E.heroHome(s, c), onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x: a.x, y: a.y, diff: a.diff, name: 'приключение' }, 'Приключение') }, 'Изпрати')));
+      h('button', { class: 'btn btn-sm btn-primary ee-adv-send', disabled: !E.heroHome(s, c), onclick: () => openSend('adventure', { type: 'adventure', id: a.id, x: a.x, y: a.y, diff: a.diff, name: 'приключение' }, 'Приключение') }, 'Изпрати')));
     return h('div', { class: 'ee-pane' },
       head, revive,
       h('div', { class: 'ee-grid' }, points,
@@ -1239,6 +1303,10 @@ export function mount(root, ctx) {
           h('div', { class: 'seg' },
             h('button', { type: 'button', class: notifyOn() ? 'on' : '', onclick: async (e) => { await enableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 0 && notifyOn())); } }, 'Включени'),
             h('button', { type: 'button', class: notifyOn() ? '' : 'on', onclick: async (e) => { await disableNotify(); e.target.parentElement.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === 1)); } }, 'Изключени'))),
+        h('div', { class: 'opt-group' }, h('span', null, 'Музика и звуци на града'),
+          h('div', { class: 'seg' },
+            h('button', { type: 'button', class: audioPrefs().music ? 'on' : '', onclick: (e) => { const on = !audioPrefs().music; setAudioPref('music', on); e.currentTarget.classList.toggle('on', on); } }, '🎵 Музика'),
+            h('button', { type: 'button', class: audioPrefs().ambient ? 'on' : '', onclick: (e) => { const on = !audioPrefs().ambient; setAudioPref('ambient', on); e.currentTarget.classList.toggle('on', on); } }, '🐦 Град'))),
         h('p', { class: 'muted' }, ONLINE ? 'Онлайн свят: всички играчи са в един свят, а сървърът проверява всяко действие.' : 'Локален свят: споделен само между акаунтите в този браузър.'),
         speedSel),
       actions: [{ label: 'Започни отначало', value: 'reset', danger: true }, ...(prot ? [{ label: 'Свали защитата', value: 'unprotect' }] : []), { label: 'Затвори', value: null, primary: true }],
@@ -1332,6 +1400,7 @@ export function mount(root, ctx) {
       window.removeEventListener('pagehide', onHide);
       window.removeEventListener('storage', onStorage);
       markSeen();
+      cityAudio(null);
       if (ONLINE) return;
       clearLease(uid);
       if (s) { E.advance(s, Date.now(), env); writeSave(uid, s); W.publish(E.snapshot(s)); }

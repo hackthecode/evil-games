@@ -22,7 +22,7 @@ async function session(db, uid, t, work) {
   if (mine) {
     for (const m of mine.state.marches || []) {
       const d = m.target?.uid;
-      if (m.target?.type === 'player' && (m.phase === 'go' || m.phase === 'wait') && m.arrive <= t && d && !saves.has(d)) {
+      if (m.target?.type === 'player' && ['go', 'wait', 'battle'].includes(m.phase) && m.arrive <= t && d && !saves.has(d)) {
         const ds = await db.getSave(d);
         if (ds) saves.set(d, { ...ds, dirty: false });
       }
@@ -38,7 +38,8 @@ async function session(db, uid, t, work) {
       d.dirty = true;
       return;
     }
-    // изоставен град: нападателят минава без плячка
+    // изоставен град (играчът вече го няма): нападателят минава без плячка
+    if (doc.players[defUid]) return;
     const inc = (doc.incoming[defUid] || []).find((x) => x.id === id);
     if (inc) {
       worldDirty = true;
