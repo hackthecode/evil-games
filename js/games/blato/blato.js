@@ -8,6 +8,8 @@ import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
 import { SUITS, next } from './engine.js';
+import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
+import { cardLines, illegalReason } from './help.js';
 import { txt } from '../../i18n.js';
 
 const BOT_NAMES = [null, txt('Georgi'), txt('Petar')];
@@ -169,7 +171,18 @@ export async function mount(root, ctx) {
     let picking = false;
     let selection = null;
     let lastFrom = null;
+    enableCardTips();
+    const offInfo = setCardInfo((card) => cardLines(card, { trump: v?.trump, hand: v?.hand, trick: v?.trick || [], legal: v?.decision?.type === 'card' ? v.decision.legal : null }));
     seats[ME].handEl.addEventListener('click', (e) => {
+      const off = e.target.closest('.card.disabled');
+      if (off && picking && !selection && v?.trick?.length) {
+        // explain why this card can't be played
+        toast(illegalReason(null, v.trick), 'error', 4200);
+        off.classList.remove('shake');
+        void off.offsetWidth;
+        off.classList.add('shake');
+        return;
+      }
       const el = e.target.closest('.card.playable');
       if (!el) return;
       if (selection) return selection.toggle(el.dataset.id);
@@ -506,6 +519,7 @@ export async function mount(root, ctx) {
     const offTakeover = online ? online.onTakeover((seat) => table.takeover(seat).catch(() => {})) : () => {};
 
     cleanup = () => {
+      offInfo();
       off();
       offEvents();
       offTakeover();

@@ -8,10 +8,12 @@ import {
   canAutoFinish, autoStep, foundCount, top,
 } from './engine.js';
 import { txt } from '../../i18n.js';
+import { enableCardTips } from '../cards/cardtips.js';
 
 const DRAW_NAMES = { 1: txt('1 card'), 3: txt('3 cards') };
 
 export async function mount(root, ctx) {
+  enableCardTips(); // hovering a card shows its name and suit
   const online = ctx.online || null;
   let destroyed = false;
   let game = null;

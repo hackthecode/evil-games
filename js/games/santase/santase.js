@@ -8,6 +8,8 @@ import { cardEl, sortHand, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, SUIT_NAMES } from '../cards/suits.js';
 import { order } from './engine.js';
+import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
+import { cardLines, illegalReason } from './help.js';
 import { txt } from '../../i18n.js';
 
 const TARGET = 11;
@@ -153,7 +155,20 @@ export async function mount(root, ctx) {
     // ---------- player decisions ----------
     let lastFrom = null;
     let picking = false;
+    enableCardTips();
+    const strict = () => !!v && (v.closedBy >= 0 || v.stock === 0);
+    const offInfo = setCardInfo((card) => cardLines(card, { trump: v?.trump, hand: v?.hand, lead: v?.lead?.card || null, strict: strict(), legal: v?.decision?.legal || null }));
     myHand.addEventListener('click', (e) => {
+      const off = e.target.closest('.card.disabled');
+      if (off && picking) {
+        // explain why this card can't be played
+        const card = v.hand.find((c) => c.id === off.dataset.id);
+        if (card) toast(illegalReason(card, v.hand, v.lead?.card, v.trump), 'error', 4200);
+        off.classList.remove('shake');
+        void off.offsetWidth;
+        off.classList.add('shake');
+        return;
+      }
       const el = e.target.closest('.card.playable');
       if (!el || !picking) return;
       picking = false;
@@ -408,6 +423,7 @@ export async function mount(root, ctx) {
     }) : () => {};
 
     cleanup = () => {
+      offInfo();
       off();
       offEvents();
       table.close();

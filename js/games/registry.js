@@ -1,5 +1,6 @@
 // Game registry. For a new game: add an entry here and a folder in js/games/<id>/.
 import { txt } from '../i18n.js';
+import { belotRules, santaseRules, blatoRules } from './cards/rules.js';
 
 export const GAMES = [
   {
@@ -66,7 +67,7 @@ export const GAMES = [
       botNames: [txt('Bot Ivan'), txt('Bot Georgi'), txt('Bot Maria'), txt('Bot Petar')],
       options: [{ key: 'target', label: txt('Play to'), value: 151, options: [[51, '51'], [101, '101'], [151, '151']] }],
     },
-    rules: txt('\n      <p>Played with 32 cards from 7 to ace, in pairs (you and the player opposite you). Play goes counter-clockwise.</p>\n      <ul>\n        <li><b>Bidding:</b> 5 cards are dealt to each player. Bids are Clubs &lt; Diamonds &lt; Hearts &lt; Spades &lt; No trumps &lt; All trumps. You can Double (x2) and Redouble (x4). After three passes the bidding ends. If everyone passes – a new deal.</li>\n        <li>After the bidding everyone gets 3 more cards.</li>\n        <li><b>Play:</b> you must follow suit. If you can\'t – you must trump (unless your partner is winning the trick). In trumps and all trumps you must play higher.</li>\n        <li><b>Declarations</b> (in the first trick): tierce 20, quarte 50, quint 100, four of a kind 100 (four jacks 200, four nines 150), belot (queen and king of trumps) 20. Declarations are automatic.</li>\n        <li><b>Points:</b> trumps – jack 20, nine 14, ace 11, ten 10, king 4, queen 3. Non-trumps – ace 11, ten 10, king 4, queen 3, jack 2. The last trick is worth 10. Capot (all tricks) – 90.</li>\n        <li>If the bidding team has fewer points it is "inside" and all points go to the opponents. On a tie the points "hang" for the next deal.</li>\n        <li>The first team to reach the target wins (151 by default).</li>\n      </ul>'),
+    get rules() { return belotRules(); },
   },
   {
     id: 'blato',
@@ -82,7 +83,7 @@ export const GAMES = [
       botNames: [txt('Bot Ivan'), txt('Bot Georgi'), txt('Bot Petar')],
       options: [{ key: 'target', label: txt('Play to'), value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
     },
-    rules: txt('\n      <p>Played by three with 52 cards. Each player gets 16 cards and 4 stay in the <b>swamp</b>. Play goes counter-clockwise.</p>\n      <ul>\n        <li><b>Goal:</b> the dealer must take <b>8</b> tricks, the next player – <b>5</b>, the third – <b>3</b>.</li>\n        <li>The dealer takes the swamp, names trumps (no "no trumps") and discards 4 cards.</li>\n        <li>The player after the dealer leads. You must follow suit; if you can\'t – play anything (you don\'t have to trump).</li>\n        <li>The trick is won by the highest trump, or if there are no trumps – by the highest card of the suit led. The ace is highest.</li>\n        <li><b>Points:</b> each trick above the goal is +1, each below is −1. The first to reach the chosen score (e.g. +10) wins.</li>\n        <li><b>Exchange:</b> in the next deal everyone who took more than their goal gives as many cards as they took in excess to those who fell short (to each – as many as they lacked). The receiver returns their strongest card of the same suit for each card.</li>\n      </ul>'),
+    get rules() { return blatoRules(); },
   },
   {
     id: 'santase',
@@ -93,7 +94,7 @@ export const GAMES = [
     load: () => import('./santase/santase.js'),
     online: {
       referee: true, seats: 2, minHumans: 2, bots: false, seatNames: [txt('Player 1'), txt('Player 2')], options: [] },
-    rules: txt('\n      <p>Played with 24 cards (9, jack, queen, king, 10, ace). The goal is to be the first to collect 66 points in the deal.</p>\n      <ul>\n        <li><b>Values:</b> ace 11, ten 10, king 4, queen 3, jack 2, nine 0.</li>\n        <li>While there is a stock you don\'t have to follow suit. The trick winner draws first.</li>\n        <li><b>Twenty/forty:</b> when it is your turn and you hold the queen and king of a suit, playing one of them declares 20 points (40 for trumps). The points count once you have won at least one trick.</li>\n        <li><b>Exchanging the 9:</b> the nine of trumps can be exchanged for the face-up trump while the stock has more than 2 cards.</li>\n        <li><b>Closing:</b> on your turn you can close the stock. Then (and when the stock runs out) you must follow suit, play higher and trump.</li>\n        <li><b>Match points:</b> 3 if the opponent has no tricks, 2 if they have under 33 points, 1 otherwise. If the closer doesn\'t reach 66 – the opponent gets 3. If nobody reaches 66, the winner of the last trick wins.</li>\n        <li>The match is to 11 points.</li>\n      </ul>'),
+    get rules() { return santaseRules(); },
   },
   {
     id: 'ludo',
