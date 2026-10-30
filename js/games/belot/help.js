@@ -1,7 +1,7 @@
 // Belot help for beginners: what to do on your turn, why a card can't be played, what a bid means,
 // card details for the tooltips and the computer's suggestion (bid or card).
 import { txt } from '../../i18n.js';
-import { RANKS, CONTRACT_NAMES, isTrump, order, cardPoints, trickWinner, teamOf, legalCards, aiBid, aiPlay } from './engine.js';
+import { RANKS, CONTRACT_NAMES, isTrump, order, cardPoints, trickWinner, teamOf, legalCards, aiBid, aiChoose } from './engine.js';
 import { cardName, suitName, suitChip } from '../cards/cardtips.js';
 
 const isSuit = (c) => c.length === 1;
@@ -42,7 +42,7 @@ export function illegalReason(card, hand, trick, contract, me) {
 }
 
 /** What to do on your turn – one short sentence (HTML: the suits as coloured chips). */
-export function turnHint(hand, trick, contract, me) {
+export function turnHint(hand, trick, contract, me, played = [], bidTeam = teamOf(me)) {
   if (!trick.length) return txt('You lead: play any card. The others must follow its suit.');
   const led = trick[0].card.s;
   const winner = trickWinner(trick, contract);
@@ -53,7 +53,10 @@ export function turnHint(hand, trick, contract, me) {
     return higher ? txt('Follow suit with a higher {0} card – in trumps you must go higher.', L) : txt('Follow suit: play a {0} card.', L);
   }
   if (isSuit(contract) && !partner && hand.some((c) => c.s === contract)) return txt('You have no {0} – you must trump with a {1} card.', L, T);
-  return partner ? txt('You have no {0} and your partner is winning – play any card (one with points is good).', L) : txt('You have no {0} – play any card (a weak one).', L);
+  if (!partner) return txt('You have no {0} – play any card (a weak one).', L);
+  // is the trick surely ours? (the same judgement as the hint)
+  const sure = aiChoose({ hand, trick, contract, me, played, bidTeam }).why === 'smear';
+  return sure ? txt('You have no {0} and the trick is surely yours – give your partner a card with points.', L) : txt('You have no {0}; your partner is winning, but an opponent can still beat them – give a weak card.', L);
 }
 
 /** What a bid means – shown on the bidding buttons. */
@@ -75,8 +78,25 @@ export function bidAdvice(hand, bidding, me) {
   return txt('💡 Tip: bid {0} – {1}.', isSuit(bid) ? suitChip(bid) : CONTRACT_NAMES[bid], why);
 }
 
-/** The card the computer would play. */
-export const playAdvice = (hand, trick, contract, me, played, bidTeam) => aiPlay({ hand, trick, contract, me, played, bidTeam });
+/** The suggested card and a sentence explaining why: { card, text }. */
+export function playAdvice(hand, trick, contract, me, played, bidTeam) {
+  const { card, why } = aiChoose({ hand, trick, contract, me, played, bidTeam });
+  const name = cardName(card), p = cardPoints(card, contract);
+  const text = {
+    only: txt('{0} – it is the only card you may play.', name),
+    'lead-trump': txt('{0} – your strongest trump: it pulls out the opponents\' trumps.', name),
+    'lead-master': txt('{0} – nobody has a stronger card of this suit, so it takes the trick.', name),
+    'lead-low': txt('{0} – a weak card: you keep the strong ones for later.', name),
+    smear: p ? txt('{0} – the trick is surely yours, so give your partner points ({1}).', name, p) : txt('{0} – the trick is yours; you have no card with points to give.', name),
+    'partner-unsafe': txt('{0} – your partner is winning, but an opponent can still beat them, so don\'t risk points.', name),
+    'win-last': txt('{0} – you play last and it takes the trick with the cheapest card that wins.', name),
+    'win-master': txt('{0} – the strongest card left in this suit: it takes the trick.', name),
+    'win-points': txt('{0} – there are many points on the table: take them.', name),
+    'cheap-win': txt('{0} – it takes the trick without risking points.', name),
+    'lose-low': txt('{0} – you can\'t take this trick, so give the weakest card.', name),
+  }[why];
+  return { card, text };
+}
 
 /** "Petar took the trick with the ace of spades (a trump)." */
 export function trickNote(name, card, contract, ledSuit) {

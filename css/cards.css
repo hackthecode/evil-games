@@ -289,3 +289,6 @@
 .rules-targets { display: flex; gap: 10px; margin: 6px 0; }
 .rules-targets span { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-weight: 900; font-size: 22px; color: #fff; }
 .rules-targets .t8 { background: #c0392b; } .rules-targets .t5 { background: #d68910; } .rules-targets .t3 { background: #229954; }
+.ct-coach .coach-text { display: flex; flex-direction: column; gap: 4px; }
+.ct-coach .coach-why { color: #ffd36e; font-size: 13px; line-height: 1.35; }
+.ct-coach .coach-why[hidden] { display: none; }

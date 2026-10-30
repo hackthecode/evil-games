@@ -1,6 +1,20 @@
 // Bulgarian dictionary: English source string → Bulgarian translation (see js/i18n.js).
 // New UI strings: add the English text in the code with t('…') and its translation here.
 export const BG = {
+  '{0} – it is the only card you may play.': '{0} – това е единствената карта, която може да изиграете.',
+  '{0} – your strongest trump: it pulls out the opponents\' trumps.': '{0} – най-силният ви коз: изтегля козовете на противниците.',
+  '{0} – nobody has a stronger card of this suit, so it takes the trick.': '{0} – никой няма по-силна карта от тази боя, затова тя взема ръката.',
+  '{0} – a weak card: you keep the strong ones for later.': '{0} – слаба карта: пазите силните за по-късно.',
+  '{0} – the trick is surely yours, so give your partner points ({1}).': '{0} – ръката със сигурност е ваша, затова дайте точки на партньора ({1}).',
+  '{0} – the trick is yours; you have no card with points to give.': '{0} – ръката е ваша, но нямате карта с точки, която да дадете.',
+  '{0} – your partner is winning, but an opponent can still beat them, so don\'t risk points.': '{0} – партньорът засега взема, но противник още може да го бие, затова не рискувайте точки.',
+  '{0} – you play last and it takes the trick with the cheapest card that wins.': '{0} – играете последни и това е най-евтината карта, която взема ръката.',
+  '{0} – the strongest card left in this suit: it takes the trick.': '{0} – най-силната останала карта в боята: взема ръката.',
+  '{0} – there are many points on the table: take them.': '{0} – на масата има много точки: вземете ги.',
+  '{0} – it takes the trick without risking points.': '{0} – взема ръката, без да рискувате точки.',
+  '{0} – you can\'t take this trick, so give the weakest card.': '{0} – не може да вземете тази ръка, затова дайте най-слабата карта.',
+  'You have no {0} and the trick is surely yours – give your partner a card with points.': 'Нямате {0} и ръката със сигурност е ваша – дайте на партньора карта с точки.',
+  'You have no {0}; your partner is winning, but an opponent can still beat them – give a weak card.': 'Нямате {0}; партньорът засега взема, но противник още може да го бие – дайте слаба карта.',
   'Help for beginners': 'Помощ за начинаещи',
   'All suits are trumps': 'Всички бои са коз',
   '★ Trumps beat the other suits': '★ Козът бие другите бои',

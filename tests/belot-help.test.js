@@ -26,3 +26,19 @@ test('belot help: partner winning – any card', () => {
   eq(legalCards(hand, trick, 'C', 3).length, hand.length);
   ok(/partner/.test(turnHint(hand, trick, 'C', 3)));
 });
+
+test('belot advice: a sure trick for the partner – give points, not the weakest card', async () => {
+  const { playAdvice } = await import('../js/games/belot/help.js');
+  // player 3 plays last; player 1 (the partner) is winning with the ace of diamonds
+  const trick = [{ p: 0, card: c('8D') }, { p: 1, card: c('AD') }, { p: 2, card: c('7D') }];
+  const { card } = playAdvice(hand, trick, 'C', 3, trick.map((t) => t.card.id), 1);
+  eq(card.id, 'KS', 'a card with points (keeping trumps and the ace of hearts for later)');
+});
+
+test('belot advice: the partner can still be beaten – a weak card', async () => {
+  const { playAdvice } = await import('../js/games/belot/help.js');
+  // player 1 (the partner) is winning with the queen of diamonds; player 0 still plays after me
+  const trick = [{ p: 1, card: c('QD') }, { p: 2, card: c('8D') }];
+  const { card } = playAdvice(hand, trick, 'C', 3, ['QD', '8D'], 1);
+  eq(card.id, '7H');
+});

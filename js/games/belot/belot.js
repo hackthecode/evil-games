@@ -236,11 +236,14 @@ export async function mount(root, ctx) {
       coach.hidden = !beginner || !d || over || d.type === 'bid';
       if (coach.hidden) return;
       const hintBtn = h('button', { class: 'btn btn-sm', onclick: () => {
-        const card = playAdvice(v.hand, v.trick, v.contract, ME, played, teamOf(v.bidding.current?.player ?? ME));
+        const { card, text } = playAdvice(v.hand, v.trick, v.contract, ME, played, teamOf(v.bidding.current?.player ?? ME));
         seats[ME].handEl.querySelectorAll('.suggest').forEach((x) => x.classList.remove('suggest'));
         seats[ME].handEl.querySelector(`[data-id="${card.id}"]`)?.classList.add('suggest');
+        why.textContent = '💡 ' + text;
+        why.hidden = false;
       } }, txt('💡 Hint'));
-      coach.replaceChildren(h('span', { html: turnHint(v.hand, v.trick, v.contract, ME) }), hintBtn);
+      const why = h('small', { class: 'coach-why', hidden: true });
+      coach.replaceChildren(h('div', { class: 'coach-text' }, h('span', { html: turnHint(v.hand, v.trick, v.contract, ME, played, teamOf(v.bidding.current?.player ?? ME)) }), why), hintBtn);
     }
 
     function showDecision() {
