@@ -7,7 +7,7 @@ import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted, loadP
 import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed } from '../cards/suits.js';
-import { CONTRACT_NAMES, teamOf, cardPoints, RANKS } from './engine.js';
+import { CONTRACT_NAMES, teamOf, cardPoints, RANKS, resolveDeclarations } from './engine.js';
 import { lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, bidMeaning, bidAdvice, playAdvice, trickNote } from './help.js';
@@ -93,6 +93,8 @@ export async function mount(root, ctx) {
     // the last finished trick and the card points taken in this deal (per team, US/THEM)
     let lastTrick = null;
     let dealPts = [0, 0];
+    let decls = [[], [], [], []]; // the declarations announced in the first trick, per player
+    let belotPts = [0, 0]; // per team, US/THEM
     const lastBtn = lastTrickButton(() => lastTrick, (p) => (p === ME ? txt('You') : names[p]));
     const tools = h('div', { class: 'ct-tools' },
       lastBtn.el,
@@ -132,15 +134,22 @@ export async function mount(root, ctx) {
 
     // Card points taken so far and what the bidding team still needs not to be "inside".
     function pointsBox(cur) {
-      const all = ['C', 'D', 'H', 'S'].reduce((a, s) => a + RANKS.reduce((b, r) => b + cardPoints({ r, s }, cur.contract), 0), 0) + 10;
-      const left = Math.max(0, all - dealPts[0] - dealPts[1]);
+      // card points (+10 for the last trick), declarations (only the team with the best sequence
+      // scores its sequences – the same rule as the scoring) and belot
+      const cards = ['C', 'D', 'H', 'S'].reduce((a, s) => a + RANKS.reduce((b, r) => b + cardPoints({ r, s }, cur.contract), 0), 0) + 10;
+      const dp = resolveDeclarations(decls).pts;
+      const extra = [dp[US] + belotPts[0], dp[THEM] + belotPts[1]];
+      const total = [dealPts[0] + extra[0], dealPts[1] + extra[1]];
+      const all = cards + extra[0] + extra[1];
+      const left = Math.max(0, cards - dealPts[0] - dealPts[1]);
       const bidUs = teamOf(cur.player) === US;
-      const mine = bidUs ? dealPts[0] : dealPts[1];
+      const mine = bidUs ? total[0] : total[1];
       const need = Math.max(0, Math.floor(all / 2) + 1 - mine);
       const pct = (x) => `${Math.round((x / all) * 100)}%`;
-      return h('div', { class: 'deal-points', title: `${txt('Card points in this deal (without declarations)')} · ${txt('{0} points still in play', left)}` },
-        h('span', null, txt('Points: us {0} · them {1}', dealPts[0], dealPts[1])),
-        h('div', { class: 'bar' }, h('i', { style: { width: pct(dealPts[0]) } }), h('i', { class: 'them', style: { width: pct(dealPts[1]) } })),
+      return h('div', { class: 'deal-points', title: `${txt('Points in this deal: cards, declarations and belot')} · ${txt('{0} points still in play', left)}` },
+        h('span', null, txt('Points: us {0} · them {1}', total[0], total[1])),
+        (extra[0] || extra[1]) ? h('small', { class: 'goal' }, txt('incl. declarations: us {0} · them {1}', extra[0], extra[1])) : null,
+        h('div', { class: 'bar' }, h('i', { style: { width: pct(total[0]) } }), h('i', { class: 'them', style: { width: pct(total[1]) } })),
         h('div', { class: `need ${need ? '' : 'ok'}` }, need
           ? (bidUs ? txt('You bid: {0} more points and you are safe', need) : txt('They bid: they need {0} more points', need))
           : (bidUs ? txt('✔ You have more than half – not "inside"') : txt('They have more than half of the points'))));
@@ -351,6 +360,8 @@ export async function mount(root, ctx) {
     async function animDeal(e, nv) {
       played = [];
       dealPts = [0, 0];
+      decls = [[], [], [], []];
+      belotPts = [0, 0];
       lastTrick = null;
       lastBtn.update();
       slots.forEach((s) => s.replaceChildren());
@@ -382,6 +393,8 @@ export async function mount(root, ctx) {
       const p = e.seat;
       const { card, notes } = e.pub;
       played.push(card.id);
+      if (e.pub.decl) decls[p] = e.pub.decl;
+      if (e.pub.belot) belotPts[teamOf(p) === US ? 0 : 1] += 20;
       const prevTrick = (v?.trick || []).slice();
       const ledSuit = (v?.trick?.length ? v.trick[0].card.s : card.s);
       const from = p === ME

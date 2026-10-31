@@ -1,6 +1,6 @@
 import { h, s, sleep } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
+import { setupScreen, showResult, confirmDialog, sound, muteButton, loadPrefs } from '../common.js';
 import { variantEngine } from './variants.js';
 import { rollDice3d, preloadDice } from './dice3d.js';
 import { offlineNet } from '../../net/room.js';
@@ -52,7 +52,7 @@ export async function mount(root, ctx) {
 
   const start = async () => {
     root.replaceChildren();
-    if (online) return match(online, 'online', Number(online.opts.target) || 3);
+    if (online) return match(online, 'online', Number(online.opts.target) || 3, loadPrefs(variant, { help: 'on' }).help !== 'off');
     const opts = await setupScreen(root, {
       gameId: variant,
       title: txt('New game of {0}', VARIANTS[variant].name),
@@ -60,12 +60,13 @@ export async function mount(root, ctx) {
       groups: [
         { key: 'level', label: txt('Difficulty'), value: 'medium', options: Object.entries(LEVEL_NAMES) },
         { key: 'target', label: txt('Match to'), value: 3, options: [[1, txt('1 point')], [3, txt('3 points')], [5, txt('5 points')]] },
+        { key: 'help', label: txt('Help for beginners'), value: 'on', options: [['on', txt('On')], ['off', txt('Off')]] },
       ],
     });
-    if (!destroyed) match(offlineNet([ctx.user.displayName, txt('Computer')]), opts.level, Number(opts.target));
+    if (!destroyed) match(offlineNet([ctx.user.displayName, txt('Computer')]), opts.level, Number(opts.target), opts.help !== 'off');
   };
 
-  function match(net, level, target) {
+  function match(net, level, target, beginner = true) {
     if (!online) ctx.newMatch();
     const me = net.seat; // 0 = white, 1 = black
     const opp = 1 - me;
@@ -108,6 +109,8 @@ export async function mount(root, ctx) {
     const undoBtn = h('button', { class: 'btn', onclick: undoMove }, icon('undo', 16), txt('Undo'));
     const resignBtn = h('button', { class: 'btn btn-danger', onclick: resign }, icon('flag', 16), txt('Resign'));
     const newBtn = h('button', { class: 'btn', onclick: newGame }, icon('refresh', 16), txt('New'));
+    const hintBtn = beginner ? h('button', { class: 'btn', onclick: showHint }, txt('💡 Hint')) : null;
+    let hintTo = null; // the suggested destination (highlighted)
     const scoreEl = h('div', { class: 'tb-score' });
 
     root.replaceChildren(
@@ -115,7 +118,7 @@ export async function mount(root, ctx) {
         scoreEl,
         h('div', { class: 'tb-board-wrap' }, svg),
         statusEl,
-        h('div', { class: 'g-toolbar' }, rollBtn, undoBtn, resignBtn, !online && newBtn, muteButton()),
+        h('div', { class: 'g-toolbar' }, rollBtn, hintBtn, undoBtn, resignBtn, !online && newBtn, muteButton()),
       ),
     );
 
@@ -182,14 +185,15 @@ export async function mount(root, ctx) {
       }
       if (selected !== null) {
         for (const m of firsts.filter((m) => m.from === selected)) {
+          const hint = hintTo !== null && String(m.to) === String(hintTo);
           if (m.to === 'off') {
-            hiLayer.append(s('rect', { x: TRAY_X + 2, y: me === 0 ? H / 2 + 10 : F + 2, width: 86, height: H / 2 - 30, rx: 10, class: 'tb-dst', 'data-to': 'off' }));
+            hiLayer.append(s('rect', { x: TRAY_X + 2, y: me === 0 ? H / 2 + 10 : F + 2, width: 86, height: H / 2 - 30, rx: 10, class: `tb-dst ${hint ? 'hint' : ''}`, 'data-to': 'off' }));
           } else {
             const x = pointX(m.to);
             const tri = isTop(m.to)
               ? `M${x} ${F} L${x + PW / 2} ${F + TRI_H} L${x + PW} ${F} Z`
               : `M${x} ${H - F} L${x + PW / 2} ${H - F - TRI_H} L${x + PW} ${H - F} Z`;
-            hiLayer.append(s('path', { d: tri, class: 'tb-dst', 'data-to': String(m.to) }));
+            hiLayer.append(s('path', { d: tri, class: `tb-dst ${hint ? 'hint' : ''}`, 'data-to': String(m.to) }));
           }
         }
       }
@@ -251,6 +255,7 @@ export async function mount(root, ctx) {
       renderHighlights();
       renderDice();
       rollBtn.disabled = over || !rollResolver;
+      if (hintBtn) hintBtn.disabled = over || busy || !turnResolver;
       rollBtn.classList.toggle('pulse', !rollBtn.disabled);
       undoBtn.disabled = over || busy || !turnResolver || !turnHistory.length;
       resignBtn.disabled = over;
@@ -306,6 +311,32 @@ export async function mount(root, ctx) {
       await Promise.all(anims.map((a) => a.catch(() => {})));
     }
 
+    // ---------- hint for beginners ----------
+    const ptLabel = (x) => (x === 'bar' ? txt('the bar') : x === 'off' ? txt('off the board') : String(me === 0 ? x + 1 : 24 - x));
+    function showHint() {
+      if (!turnResolver || busy) return;
+      const left = diceList().filter((d, i) => !used[i]);
+      const best = chooseSequence(st, me, left, 'hard');
+      if (!best?.moves?.length) return;
+      const first = toReal(me, best.moves[0]);
+      const after = applySingle(st, me, best.moves[0]);
+      const plan = best.moves.map((m) => { const r = toReal(me, m); return `${ptLabel(r.from)} → ${ptLabel(r.to)}`; }).join(', ');
+      let why;
+      if (first.from === 'bar') why = txt('first you must bring the checker on the bar back into play');
+      else if (first.to === 'off') why = txt('all your checkers are home, so you bear them off');
+      else if (after.hit) why = txt('it hits an opponent\'s single checker and sends it to the bar');
+      else if (E.stacks(best.state)[first.to]?.filter((o) => o === me).length >= 2) why = txt('it makes a point with 2 or more checkers – the opponent can\'t land there');
+      else {
+        // single checkers ("blots") can be hit – say "safely" only if the move adds none
+        const blots = (state) => E.stacks(state).filter((x) => x.length === 1 && x[0] === me).length;
+        why = blots(best.state) > blots(st) ? txt('the computer judges this the best use of your dice') : txt('it moves forward safely');
+      }
+      selected = first.from;
+      hintTo = first.to;
+      renderHighlights();
+      statusEl.textContent = txt('💡 Move the checker from {0} to {1} – {2}. Whole move: {3}.', ptLabel(first.from), ptLabel(first.to), why, plan);
+    }
+
     function markDieUsed(die) {
       const idx = diceList().findIndex((d, i) => d === die && !used[i]);
       if (idx >= 0) used[idx] = true;
@@ -326,6 +357,7 @@ export async function mount(root, ctx) {
         .map((q) => ({ ...q, moves: q.moves.slice(1) }));
       markDieUsed(raw.die);
       selected = null;
+      hintTo = null;
       await animateMove(prev, { ...toReal(me, raw), hit: res.hit }, me);
       busy = false;
       if (!seqs.some((q) => q.moves.length)) {
@@ -362,6 +394,7 @@ export async function mount(root, ctx) {
         }
       }
       const isSource = firsts.some((m) => m.from === loc);
+      if (loc !== selected) hintTo = null;
       selected = isSource ? loc : null;
       if (isSource) sound('notify');
       renderHighlights();

@@ -78,10 +78,13 @@ export default {
       const hand = h.hands[p];
       const card = hand.find((c) => c.id === data);
       const notes = [];
+      let decl;
       if (h.t === 0) {
         const ds = findDeclarations(hand, h.contract);
         h.decls[p] = ds;
         notes.push(...ds.map((d) => d.name));
+        // the declarations are public – the players' counters add them up
+        decl = ds.map(({ type, len, high, rank, points }) => ({ type, len, high, rank, points }));
       }
       const belot = isBelot(card, hand, h.trick, h.contract);
       if (belot) {
@@ -91,7 +94,7 @@ export default {
       h.hands[p] = hand.filter((c) => c !== card);
       h.trick.push({ p, card });
       h.played.push(card.id);
-      const pub = { card, notes };
+      const pub = { card, notes, decl, belot: belot || undefined };
       if (h.trick.length < 4) {
         h.turn = (p + 1) % 4;
         return pub;

@@ -7,6 +7,7 @@ import {
 } from './engine.js';
 import { search, LEVELS } from './ai.js';
 import { txt } from '../../i18n.js';
+import { PIECES, threats, blunder, blunderText, suggest } from './help.js';
 
 const LEVEL_NAMES = { easy: txt('Easy'), medium: txt('Medium'), hard: txt('Hard') };
 const PIECE_VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
@@ -45,7 +46,7 @@ export async function mount(root, ctx) {
 
   const startGame = async () => {
     root.replaceChildren();
-    if (net) return play(net.seat === 0 ? 'w' : 'b', 'online');
+    if (net) return play(net.seat === 0 ? 'w' : 'b', 'online', loadPrefs('chess', { help: 'on' }).help !== 'off');
     const opts = await setupScreen(root, {
       gameId: 'chess',
       title: txt('New game'),
@@ -53,14 +54,15 @@ export async function mount(root, ctx) {
       groups: [
         { key: 'color', label: txt('You play'), value: 'w', options: [['w', txt('White')], ['b', txt('Black')], ['r', txt('Random')]] },
         { key: 'level', label: txt('Difficulty'), value: 'medium', options: Object.entries(LEVEL_NAMES) },
+        { key: 'help', label: txt('Help for beginners'), value: 'on', options: [['on', txt('On')], ['off', txt('Off')]] },
       ],
     });
     if (destroyed) return;
     const human = opts.color === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : opts.color;
-    play(human, opts.level);
+    play(human, opts.level, opts.help !== 'off');
   };
 
-  function play(human, level) {
+  function play(human, level, beginner = true) {
     ctx.newMatch();
     let st = fromFEN(START_FEN);
     let history = []; // {st, move, san}
@@ -92,6 +94,10 @@ export async function mount(root, ctx) {
     const meBar = playerBar(ctx.user.displayName, human);
     const movesEl = h('ol', { class: 'cb-moves' });
     const statusEl = h('div', { class: 'g-status' });
+    // help for beginners: the selected piece, pieces in danger and a suggested move
+    const helpEl = beginner ? h('div', { class: 'cb-help' }) : null;
+    let hint = null; // { move, text }
+    let infoSq = -1; // the piece whose explanation is shown
 
     const undoBtn = h('button', { class: 'btn', onclick: undo }, icon('undo', 16), txt('Undo'));
     const flipBtn = h('button', { class: 'btn', onclick: () => { flipped = !flipped; renderAll(); } }, icon('flip', 16), txt('Flip'));
@@ -110,6 +116,7 @@ export async function mount(root, ctx) {
         h('div', { class: 'cb-col' }, aiBar.el, frame, meBar.el),
         h('aside', { class: 'cb-side glass' },
           statusEl,
+          helpEl,
           h('div', { class: 'cb-moves-wrap' }, movesEl),
           h('div', { class: 'g-toolbar' }, tools),
         ),
@@ -135,6 +142,9 @@ export async function mount(root, ctx) {
 
     function renderSquares() {
       const checkSq = inCheck(st) ? kingSquare(st.board, st.turn) : -1;
+      const myThreats = beginner && !over ? threats(st, human) : [];
+      const danger = new Set(myThreats.map((t) => t.sq));
+      renderHelp(myThreats);
       const targets = new Map();
       if (selected >= 0) for (const m of legal) if (m.from === selected) targets.set(m.to, !!m.captured);
       for (let sq = 0; sq < 64; sq++) {
@@ -146,6 +156,8 @@ export async function mount(root, ctx) {
         if (sq === selected) el.classList.add('sel');
         if (sq === checkSq) el.classList.add('check');
         if (targets.has(sq)) el.classList.add(targets.get(sq) ? 'cap' : 'dot');
+        if (danger.has(sq)) el.classList.add('danger');
+        if (hint && (sq === hint.move.from || sq === hint.move.to)) el.classList.add(sq === hint.move.from ? 'hint-from' : 'hint-to');
         el.dataset.sq = sq;
       }
       [...filesEl.children].forEach((x, i) => (x.textContent = 'abcdefgh'[flipped ? 7 - i : i]));
@@ -226,6 +238,24 @@ export async function mount(root, ctx) {
       }
     }
 
+    function renderHelp(myThreats) {
+      if (!helpEl) return;
+      const sq = infoSq >= 0 ? infoSq : selected;
+      const p = sq >= 0 ? st.board[sq] : null;
+      const info = p ? PIECES[p.toLowerCase()] : null;
+      const myTurn = !over && !thinking && st.turn === human;
+      helpEl.replaceChildren(...[
+        info ? h('div', { class: 'cb-help-piece' }, h('img', { src: pieceSrc(p), alt: '' }), h('div', null, h('b', null, info.name), h('p', null, info.moves)))
+          : h('p', { class: 'muted' }, txt('Tap or point at a piece to see how it moves. The dots show where it can go.')),
+        myThreats.length ? h('p', { class: 'cb-help-danger' }, txt('⚠ In danger: {0}', myThreats.map((t) => `${PIECES[t.piece.toLowerCase()].name} ${'abcdefgh'[t.sq & 7]}${8 - (t.sq >> 3)}`).join(', '))) : null,
+        myTurn && h('button', { class: 'btn btn-sm', onclick: () => {
+          hint = suggest(st);
+          renderSquares();
+        } }, txt('💡 Hint')),
+        hint && myTurn && h('p', { class: 'cb-help-hint' }, '💡 ' + hint.text),
+      ].filter(Boolean));
+    }
+
     function renderAll() {
       renderSquares();
       rebuildPieces();
@@ -234,6 +264,7 @@ export async function mount(root, ctx) {
 
     // ---------- moves ----------
     function applyMove(m, animate = true) {
+      hint = null;
       const san = toSAN(st, m, legal);
       history.push({ st, move: m, san });
       // piece animation
@@ -368,6 +399,13 @@ export async function mount(root, ctx) {
         if (!promo) return false;
         m = cands.find((x) => x.promo === promo);
       }
+      if (beginner) {
+        // warn before a move that loses material or allows a mate in one
+        const b = blunder(st, m);
+        if (b && !(await confirmDialog(txt('⚠ Careful!'), blunderText(b), txt('Play it anyway')))) return false;
+      }
+      hint = null;
+      infoSq = -1;
       if (net) {
         if (!moveResolver) return false;
         localAnim = animate;
@@ -429,6 +467,11 @@ export async function mount(root, ctx) {
     });
 
     board.addEventListener('pointermove', (e) => {
+      if (helpEl && !drag && e.pointerType === 'mouse') {
+        const sq = sqFromPoint(e.clientX, e.clientY);
+        const nsq = sq >= 0 && st.board[sq] ? sq : -1;
+        if (nsq !== infoSq) { infoSq = nsq; renderHelp(beginner && !over ? threats(st, human) : []); }
+      }
       if (!drag) return;
       const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
       if (!drag.moved && Math.hypot(dx, dy) < 4) return;
@@ -456,6 +499,7 @@ export async function mount(root, ctx) {
       if (!isLegal || !(await tryHumanMove(d.sq, to, false))) placeEl(d.el, d.sq);
     };
     board.addEventListener('pointerup', endDrag);
+    board.addEventListener('pointerleave', () => { if (helpEl && infoSq >= 0) { infoSq = -1; renderHelp(threats(st, human)); } });
     board.addEventListener('pointercancel', endDrag);
 
     // ---------- buttons ----------

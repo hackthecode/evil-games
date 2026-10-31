@@ -71,3 +71,5 @@
   .tb-layout .g-toolbar { gap: 6px; padding: 6px; }
   .tb-layout .g-toolbar .btn { padding: 0 10px; font-size: 13px; }
 }
+/* the destination suggested by the hint */
+.tb-dst.hint { fill: rgba(95, 224, 160, .55); stroke: #5fe0a0; stroke-width: 7; }

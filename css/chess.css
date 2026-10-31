@@ -132,3 +132,16 @@
 .look-box .seg { flex-wrap: wrap; }
 .look-pieces { display: flex; justify-content: center; gap: 6px; padding: 10px; border-radius: 14px; background: linear-gradient(135deg, #ecdfd2 50%, #9a4f5b 50%); }
 .look-pieces img { width: 48px; height: 48px; filter: drop-shadow(0 3px 2px rgba(0,0,0,.45)); }
+
+/* ===== Help for beginners ===== */
+.cb-help { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 13.5px; line-height: 1.4; }
+.cb-help p { margin: 0; }
+.cb-help .btn { align-self: flex-start; }
+.cb-help-piece { display: flex; gap: 10px; align-items: flex-start; }
+.cb-help-piece img { width: 40px; height: 40px; flex: none; }
+.cb-help-piece p { color: var(--muted, #b0b0bc); margin-top: 2px; }
+.cb-help-danger { color: #ff8f98; font-weight: 600; }
+.cb-help-hint { color: #ffd36e; }
+.cb-sq.danger { box-shadow: inset 0 0 0 4px rgba(255, 77, 94, 0.85); }
+.cb-sq.hint-from, .cb-sq.hint-to { box-shadow: inset 0 0 0 4px rgba(95, 224, 160, 0.95); }
+.cb-sq.hint-to { background-image: radial-gradient(circle, rgba(95, 224, 160, 0.55) 22%, transparent 24%); }

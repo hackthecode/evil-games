@@ -560,9 +560,16 @@ function isMaster(card, contract, seen) {
 }
 
 // knowledge: { played: Set(id), hand, me, contract, bidTeam }
-function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
+const aiPlay = (k) => aiChoose(k).card;
+
+/**
+ * The card to play and why (for the beginners' hint): { card, why }.
+ * why: only | lead-trump | lead-master | lead-low | smear | partner-unsafe | win-last | win-master |
+ *      win-points | cheap-win | lose-low
+ */
+function aiChoose({ hand, trick, contract, me, played, bidTeam }) {
   const legal = legalCards(hand, trick, contract, me);
-  if (legal.length === 1) return legal[0];
+  if (legal.length === 1) return { card: legal[0], why: 'only' };
   const seen = new Set(played);
   hand.forEach((c) => seen.add(c.id));
   const pts = (c) => cardPoints(c, contract);
@@ -577,18 +584,18 @@ function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
       const outstanding = RANKS.filter((r) => !seen.has(r + contract)).length;
       if (myTrumps.length && outstanding > 0) {
         const master = myTrumps.find((c) => isMaster(c, contract, seen));
-        if (master) return master;
+        if (master) return { card: master, why: 'lead-trump' };
       }
     }
     const masters = legal.filter((c) => isMaster(c, contract, seen) && !(trumpLike(c) && teamOf(me) !== bidTeam));
-    if (masters.length) return high(masters);
+    if (masters.length) return { card: high(masters), why: 'lead-master' };
     // a low card from the longest non-trump suit, without leading tens/aces
     const nonTrump = legal.filter((c) => !trumpLike(c));
     const pool = nonTrump.length ? nonTrump : legal;
     const bySuit = {};
     for (const c of pool) (bySuit[c.s] ||= []).push(c);
     const longest = Object.values(bySuit).sort((a, b) => b.length - a.length)[0];
-    return low(longest);
+    return { card: low(longest), why: 'lead-low' };
   }
 
   const winner = trickWinner(trick, contract);
@@ -598,23 +605,34 @@ function aiPlay({ hand, trick, contract, me, played, bidTeam }) {
   const trickPts = trick.reduce((a, t) => a + pts(t.card), 0);
 
   if (partnerWins) {
-    const secure = last || isMaster(winner.card, contract, seen) && !(isSuitContract(contract) && winner.card.s !== contract && trick.length === 1);
-    if (secure) {
-      const nonMasters = legal.filter((c) => !trumpLike(c) && !(isMaster(c, contract, seen) && c.s !== trick[0].card.s));
-      return high(nonMasters.length ? nonMasters : legal.filter((c) => !trumpLike(c)).length ? legal.filter((c) => !trumpLike(c)) : legal);
+    // Is the trick surely ours? Last to play – yes. Otherwise the partner's card must be the
+    // highest one left, and nobody after me should be able to trump it.
+    const led = trick[0].card.s;
+    const unseenLed = RANKS.filter((r) => !seen.has(r + led)).length;
+    const canBeTrumped = isSuitContract(contract) && led !== contract && winner.card.s !== contract && unseenLed < 2;
+    const safe = last || (isMaster(winner.card, contract, seen) && !canBeTrumped);
+    if (safe) {
+      // give points ("smear"), but keep trumps and cards that can win a trick of their own
+      const keep = (c) => trumpLike(c) || (isMaster(c, contract, seen) && c.s !== led);
+      const give = legal.filter((c) => !keep(c));
+      const pool = give.length ? give : legal.filter((c) => !trumpLike(c)).length ? legal.filter((c) => !trumpLike(c)) : legal;
+      const best = high(pool);
+      if (pts(best) > 0) return { card: best, why: 'smear' };
     }
-    return low(legal);
+    return { card: low(legal), why: safe ? 'smear' : 'partner-unsafe' };
   }
   if (beats.length) {
-    if (last) return low(beats);
+    if (last) return { card: low(beats), why: 'win-last' };
     const masterBeats = beats.filter((c) => isMaster(c, contract, seen));
-    if (masterBeats.length && (trickPts >= 10 || !trumpLike(masterBeats[0]))) return low(masterBeats);
-    if (trickPts >= 10) return low(beats);
+    if (masterBeats.length && (trickPts >= 10 || !trumpLike(masterBeats[0]))) return { card: low(masterBeats), why: 'win-master' };
+    if (trickPts >= 10) return { card: low(beats), why: 'win-points' };
+    const cheap = beats.filter((c) => pts(c) === 0 && !trumpLike(c));
+    if (cheap.length) return { card: low(cheap), why: 'cheap-win' };
   }
-  return low(legal);
+  return { card: low(legal), why: 'lose-low' };
 }
 
-return { RANKS, CONTRACTS, CONTRACT_NAMES, teamOf, partnerOf, isTrump, order, cardPoints, handOrder, trickWinner, legalCards, findDeclarations, resolveDeclarations, isBelot, scoreDeal, legalBids, applyBid, aiBid, aiPlay };
+return { RANKS, CONTRACTS, CONTRACT_NAMES, teamOf, partnerOf, isTrump, order, cardPoints, handOrder, trickWinner, legalCards, findDeclarations, resolveDeclarations, isBelot, scoreDeal, legalBids, applyBid, aiBid, aiPlay, aiChoose };
 })();
 
 __m['js/games/belot/referee.js'] = (() => {
@@ -695,10 +713,13 @@ const __default = {
       const hand = h.hands[p];
       const card = hand.find((c) => c.id === data);
       const notes = [];
+      let decl;
       if (h.t === 0) {
         const ds = findDeclarations(hand, h.contract);
         h.decls[p] = ds;
         notes.push(...ds.map((d) => d.name));
+        // the declarations are public – the players' counters add them up
+        decl = ds.map(({ type, len, high, rank, points }) => ({ type, len, high, rank, points }));
       }
       const belot = isBelot(card, hand, h.trick, h.contract);
       if (belot) {
@@ -708,7 +729,7 @@ const __default = {
       h.hands[p] = hand.filter((c) => c !== card);
       h.trick.push({ p, card });
       h.played.push(card.id);
-      const pub = { card, notes };
+      const pub = { card, notes, decl, belot: belot || undefined };
       if (h.trick.length < 4) {
         h.turn = (p + 1) % 4;
         return pub;
@@ -953,9 +974,16 @@ function aiDecideAction(d, p, seen) {
   return acts;
 }
 
-function aiPlay(d, p, seenIds) {
+const aiPlay = (d, p, seenIds) => aiChoose(d, p, seenIds).card;
+
+/**
+ * The card to play and why (for the beginners' hint): { card, why }.
+ * why: only | marriage | lead-trump-master | lead-master | lead-low | strict-win | strict-lose |
+ *      take-points | take-cheap | trump-take | throw
+ */
+function aiChoose(d, p, seenIds) {
   const legal = legalCards(d, p);
-  if (legal.length === 1) return legal[0];
+  if (legal.length === 1) return { card: legal[0], why: 'only' };
   const seen = new Set(seenIds);
   d.hands[p].forEach((c) => seen.add(c.id));
   const trump = d.trump;
@@ -969,41 +997,42 @@ function aiPlay(d, p, seenIds) {
     const marriages = legal.filter((c) => marriageFor(d, p, c));
     if (marriages.length) {
       marriages.sort((a, b) => (b.s === trump) - (a.s === trump) || (a.r === 'Q' ? -1 : 1));
-      return marriages[0];
+      return { card: marriages[0], why: 'marriage' };
     }
     if (isStrict(d)) {
       const masters = legal.filter((c) => !unseenHigher(c, d, p, seen));
       const trumpMasters = masters.filter((c) => c.s === trump);
-      if (trumpMasters.length) return trumpMasters.sort((a, b) => order(b) - order(a))[0];
-      if (masters.length) return masters.sort((a, b) => PTS[b.r] - PTS[a.r])[0];
-      return lowest(legal);
+      if (trumpMasters.length) return { card: trumpMasters.sort((a, b) => order(b) - order(a))[0], why: 'lead-trump-master' };
+      if (masters.length) return { card: masters.sort((a, b) => PTS[b.r] - PTS[a.r])[0], why: 'lead-master' };
+      return { card: lowest(legal), why: 'lead-low' };
     }
     const nonTrump = legal.filter((c) => c.s !== trump && !inMarriage(c));
-    return lowest(nonTrump.length ? nonTrump : legal);
+    return { card: lowest(nonTrump.length ? nonTrump : legal), why: 'lead-low' };
   }
 
   const L = d.lead.card;
   const winning = legal.filter((c) => beats(L, c, trump));
   const lpts = PTS[L.r];
   if (isStrict(d)) {
-    if (winning.length) return winning.sort((a, b) => val(a) - val(b))[0];
-    return lowest(legal);
+    if (winning.length) return { card: winning.sort((a, b) => val(a) - val(b))[0], why: 'strict-win' };
+    return { card: lowest(legal), why: 'strict-lose' };
   }
   const sameSuitWins = winning.filter((c) => c.s === L.s);
   if (sameSuitWins.length) {
     const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // take with the strongest (10 or ace bring points)
     const cheap = sameSuitWins.sort((a, b) => val(a) - val(b))[0];
-    return lpts >= 10 || PTS[best.r] >= 10 ? (PTS[best.r] >= 10 ? best : cheap) : cheap;
+    if (PTS[best.r] >= 10) return { card: best, why: 'take-points' };
+    return { card: cheap, why: 'take-cheap' };
   }
   const trumpWins = winning.filter((c) => c.s === trump && !inMarriage(c));
   if (trumpWins.length && (lpts >= 10 || total(d, p) + lpts >= 50)) {
-    return trumpWins.sort((a, b) => order(a) - order(b))[0];
+    return { card: trumpWins.sort((a, b) => order(a) - order(b))[0], why: 'trump-take' };
   }
   const throwAway = legal.filter((c) => c.s !== trump && !inMarriage(c));
-  return lowest(throwAway.length ? throwAway : legal);
+  return { card: lowest(throwAway.length ? throwAway : legal), why: 'throw' };
 }
 
-return { RANKS, PTS, order, newDeal, isStrict, legalCards, beats, marriageFor, canExchange, canClose, exchange, scoreOf, play, dealResult, aiDecideAction, aiPlay };
+return { RANKS, PTS, order, newDeal, isStrict, legalCards, beats, marriageFor, canExchange, canClose, exchange, scoreOf, play, dealResult, aiDecideAction, aiPlay, aiChoose };
 })();
 
 __m['js/games/santase/referee.js'] = (() => {
@@ -1217,28 +1246,34 @@ function aiDiscard(hand, trump) {
     .slice(0, 4);
 }
 
-function aiPlay({ hand, trick, trump, played }) {
+const aiPlay = (k) => aiChoose(k).card;
+
+/** The card to play and why (for the beginners' hint): { card, why }: only | lead-sure | lead-low | win-last | win-high | win-cheap | lose-low. */
+function aiChoose({ hand, trick, trump, played }) {
   const legal = legalCards(hand, trick);
   const byPow = (a, b) => power(a) - power(b);
+  if (legal.length === 1) return { card: legal[0], why: 'only' };
   if (!trick.length) {
     // leads with the highest safe card (no higher unplayed card in the suit), otherwise with the lowest
     const sure = legal.filter((c) => RANKS.slice(power(c) + 1).every((r) => played.has(r + c.s) || hand.some((x) => x.s === c.s && x.r === r)));
     const nonTrumpSure = sure.filter((c) => c.s !== trump);
-    if (nonTrumpSure.length) return nonTrumpSure.sort(byPow).pop();
-    if (sure.length) return sure.sort(byPow).pop();
+    if (nonTrumpSure.length) return { card: nonTrumpSure.sort(byPow).pop(), why: 'lead-sure' };
+    if (sure.length) return { card: sure.sort(byPow).pop(), why: 'lead-sure' };
     const nonTrump = legal.filter((c) => c.s !== trump);
-    return (nonTrump.length ? nonTrump : legal).sort(byPow)[0];
+    return { card: (nonTrump.length ? nonTrump : legal).sort(byPow)[0], why: 'lead-low' };
   }
   const winsWith = (c) => trickWinner([...trick, { p: -1, card: c }], trump) === -1;
   const winning = legal.filter(winsWith).sort(byPow);
   if (winning.length) {
     // last player or a sure win – takes with the cheapest winning card
-    return trick.length === 2 ? winning[0] : winning[winning.length - 1].s === trump ? winning[0] : winning[winning.length - 1];
+    if (trick.length === 2) return { card: winning[0], why: 'win-last' };
+    const top = winning[winning.length - 1];
+    return top.s === trump ? { card: winning[0], why: 'win-cheap' } : { card: top, why: 'win-high' };
   }
-  return legal.sort(byPow)[0];
+  return { card: legal.sort(byPow)[0], why: 'lose-low' };
 }
 
-return { RANKS, SUITS, power, next, targetOf, deal, legalCards, trickWinner, exchangePlan, returnCards, aiTrump, aiGive, aiDiscard, aiPlay };
+return { RANKS, SUITS, power, next, targetOf, deal, legalCards, trickWinner, exchangePlan, returnCards, aiTrump, aiGive, aiDiscard, aiPlay, aiChoose };
 })();
 
 __m['js/games/blato/referee.js'] = (() => {
