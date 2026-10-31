@@ -89,23 +89,29 @@ export function aiDiscard(hand, trump) {
     .slice(0, 4);
 }
 
-export function aiPlay({ hand, trick, trump, played }) {
+export const aiPlay = (k) => aiChoose(k).card;
+
+/** The card to play and why (for the beginners' hint): { card, why }: only | lead-sure | lead-low | win-last | win-high | win-cheap | lose-low. */
+export function aiChoose({ hand, trick, trump, played }) {
   const legal = legalCards(hand, trick);
   const byPow = (a, b) => power(a) - power(b);
+  if (legal.length === 1) return { card: legal[0], why: 'only' };
   if (!trick.length) {
     // leads with the highest safe card (no higher unplayed card in the suit), otherwise with the lowest
     const sure = legal.filter((c) => RANKS.slice(power(c) + 1).every((r) => played.has(r + c.s) || hand.some((x) => x.s === c.s && x.r === r)));
     const nonTrumpSure = sure.filter((c) => c.s !== trump);
-    if (nonTrumpSure.length) return nonTrumpSure.sort(byPow).pop();
-    if (sure.length) return sure.sort(byPow).pop();
+    if (nonTrumpSure.length) return { card: nonTrumpSure.sort(byPow).pop(), why: 'lead-sure' };
+    if (sure.length) return { card: sure.sort(byPow).pop(), why: 'lead-sure' };
     const nonTrump = legal.filter((c) => c.s !== trump);
-    return (nonTrump.length ? nonTrump : legal).sort(byPow)[0];
+    return { card: (nonTrump.length ? nonTrump : legal).sort(byPow)[0], why: 'lead-low' };
   }
   const winsWith = (c) => trickWinner([...trick, { p: -1, card: c }], trump) === -1;
   const winning = legal.filter(winsWith).sort(byPow);
   if (winning.length) {
     // last player or a sure win – takes with the cheapest winning card
-    return trick.length === 2 ? winning[0] : winning[winning.length - 1].s === trump ? winning[0] : winning[winning.length - 1];
+    if (trick.length === 2) return { card: winning[0], why: 'win-last' };
+    const top = winning[winning.length - 1];
+    return top.s === trump ? { card: winning[0], why: 'win-cheap' } : { card: top, why: 'win-high' };
   }
-  return legal.sort(byPow)[0];
+  return { card: legal.sort(byPow)[0], why: 'lose-low' };
 }

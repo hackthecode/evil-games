@@ -3,13 +3,14 @@
 // cards come from the view, and the others' are unknown.
 import { h, sleep, modal, toast, motion } from '../../ui.js';
 import { createTable } from '../../net/table.js';
-import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
+import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted, loadPrefs } from '../common.js';
 import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
 import { SUITS, next } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
-import { cardLines, illegalReason } from './help.js';
+import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
+import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
 import { txt } from '../../i18n.js';
 
 const BOT_NAMES = [null, txt('Georgi'), txt('Petar')];
@@ -29,20 +30,23 @@ export async function mount(root, ctx) {
     root.replaceChildren();
     if (online) {
       const r = online.referee;
-      return runMatch(createTable({ mode: r.mode, gameId: 'blato', key: r.key, seat: online.seat, seats: r.seats, opts: online.opts }), r.seats.map((s) => s.name), matchId);
+      return runMatch(createTable({ mode: r.mode, gameId: 'blato', key: r.key, seat: online.seat, seats: r.seats, opts: online.opts }), r.seats.map((s) => s.name), matchId, loadPrefs('blato', { help: 'on' }).help !== 'off');
     }
     const opts = await setupScreen(root, {
       gameId: 'blato',
       title: txt('New game of blato'),
       subtitle: txt('You against Georgi and Petar. The dealer takes 8 tricks, the next player 5, the third 3.'),
-      groups: [{ key: 'target', label: txt('Play to'), value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] }],
+      groups: [
+        { key: 'target', label: txt('Play to'), value: 10, options: [[5, '+5'], [10, '+10'], [15, '+15']] },
+        { key: 'help', label: txt('Help for beginners'), value: 'on', options: [['on', txt('On')], ['off', txt('Off')]] },
+      ],
     });
     if (destroyed) return;
     const seats = [ctx.user.displayName, ...BOT_NAMES.slice(1)].map((name, i) => ({ bot: i !== 0, name }));
-    runMatch(createTable({ mode: 'local', gameId: 'blato', seat: 0, seats, opts }), seats.map((s) => s.name), matchId);
+    runMatch(createTable({ mode: 'local', gameId: 'blato', seat: 0, seats, opts }), seats.map((s) => s.name), matchId, opts.help !== 'off');
   };
 
-  async function runMatch(table, names, myId) {
+  async function runMatch(table, names, myId, beginner = true) {
     if (!online) ctx.newMatch();
     const gone = () => destroyed || myId !== matchId;
     const ME = table.seat;
@@ -70,12 +74,19 @@ export async function mount(root, ctx) {
     const kittyEl = h('div', { class: 'blato-kitty' });
     const hud = h('div', { class: 'ct-hud' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
+    // help for beginners, the last trick and large cards
+    const coach = coachStrip(seats[ME].handEl);
+    let played = []; // cards played in this deal (for the hint)
+    let lastTrick = null;
+    const lastBtn = lastTrickButton(() => lastTrick, (p) => (p === ME ? txt('You') : names[p]));
     const tools = h('div', { class: 'ct-tools' },
+      lastBtn.el,
+      bigCardsButton(table$, () => renderHands(picking && v?.decision?.type === 'card' ? { playable: v.decision.legal } : {})),
       h('button', { class: 'btn', onclick: resign }, txt('Resign')),
       !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
     );
-    table$.append(center, kittyEl, hud, tools);
+    table$.append(center, kittyEl, hud, tools, coach.el);
     root.replaceChildren(table$);
 
     const order3 = [ME, next(ME), next(next(ME))];
@@ -236,9 +247,11 @@ export async function mount(root, ctx) {
       selection = null;
       picking = false;
       const d = v?.decision;
+      coach.hide();
       if (!d || over) return renderHands();
       if (d.type === 'card') {
         picking = true;
+        if (beginner) coach.show(turnHint(v, ME), () => playAdvice(v, played));
         return renderHands({ playable: d.legal });
       }
       renderHands();
@@ -248,6 +261,7 @@ export async function mount(root, ctx) {
     }
 
     async function send(type, data) {
+      coach.hide();
       renderHands();
       try {
         await table.submit(type, data);
@@ -267,6 +281,9 @@ export async function mount(root, ctx) {
       : handSnap(p));
 
     async function animDeal(e, nv) {
+      played = [];
+      lastTrick = null;
+      lastBtn.update();
       slots.forEach((s) => s.replaceChildren());
       kittyEl.replaceChildren();
       v = { ...nv, kitty: 0 };
@@ -383,6 +400,8 @@ export async function mount(root, ctx) {
     async function animCard(e, nv) {
       const p = e.seat;
       const card = e.pub.card;
+      played.push(card.id);
+      const prevTrick = (v?.trick || []).slice();
       const from = p === ME
         ? (lastFrom && !motion.fast ? lastFrom : snap(seats[ME].handEl.querySelector(`[data-id="${card.id}"]`) || seats[ME].handEl))
         : handSnap(p);
@@ -396,6 +415,8 @@ export async function mount(root, ctx) {
       await fly({ card, from, to: () => el, faceFrom: p === ME, duration: 380, spin: p === ME ? 0 : (Math.random() - 0.5) * 40 }).then(() => land(el));
       if (!e.pub.trick) return;
       const w = e.pub.trick.winner;
+      lastTrick = { cards: [...prevTrick.filter((t) => t.p !== p), { p, card }], winner: w }; // the view may already contain my card
+      lastBtn.update();
       slots[w].classList.add('win');
       await sleep(700);
       if (gone()) return;

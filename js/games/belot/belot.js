@@ -7,7 +7,8 @@ import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted, loadP
 import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed } from '../cards/suits.js';
-import { CONTRACT_NAMES, teamOf } from './engine.js';
+import { CONTRACT_NAMES, teamOf, cardPoints, RANKS } from './engine.js';
+import { lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, bidMeaning, bidAdvice, playAdvice, trickNote } from './help.js';
 import { txt } from '../../i18n.js';
@@ -89,7 +90,13 @@ export async function mount(root, ctx) {
     });
     const hud = h('div', { class: 'ct-hud' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
+    // the last finished trick and the card points taken in this deal (per team, US/THEM)
+    let lastTrick = null;
+    let dealPts = [0, 0];
+    const lastBtn = lastTrickButton(() => lastTrick, (p) => (p === ME ? txt('You') : names[p]));
     const tools = h('div', { class: 'ct-tools' },
+      lastBtn.el,
+      bigCardsButton(table$, () => renderHands(v?.decision?.type === 'card' && picking ? v.decision.legal : null)),
       h('button', { class: 'btn', onclick: resign }, txt('Resign')),
       !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
@@ -117,9 +124,26 @@ export async function mount(root, ctx) {
         h('div', { class: 'goal' }, txt('to {0}{1}', v?.target ?? '', v?.hanging ? txt(' · hanging {0}', v.hanging) : '')),
         playing && cur && h('div', { class: 'contract-badge', html: `${contractLabel(cur.contract)}${cur.mult > 1 ? ` ×${cur.mult}` : ''}` }),
         playing && cur && beginner && h('div', { class: 'goal contract-help' }, cur.contract === 'AT' ? txt('All suits are trumps') : cur.contract === 'NT' ? txt('No trumps') : txt('★ Trumps beat the other suits')),
-        playing && cur && h('div', { class: 'goal' }, txt('bid {0} · tricks {1}:{2}', p2name(cur.player), v.tricksWon[US], v.tricksWon[THEM])),
+        playing && cur && !beginner && h('div', { class: 'goal' }, txt('bid {0} · tricks {1}:{2}', p2name(cur.player), v.tricksWon[US], v.tricksWon[THEM])),
+        playing && cur && pointsBox(cur),
       ].filter(Boolean));
       seats.forEach((s, p) => s.el.classList.toggle('turn', v?.turn === p));
+    }
+
+    // Card points taken so far and what the bidding team still needs not to be "inside".
+    function pointsBox(cur) {
+      const all = ['C', 'D', 'H', 'S'].reduce((a, s) => a + RANKS.reduce((b, r) => b + cardPoints({ r, s }, cur.contract), 0), 0) + 10;
+      const left = Math.max(0, all - dealPts[0] - dealPts[1]);
+      const bidUs = teamOf(cur.player) === US;
+      const mine = bidUs ? dealPts[0] : dealPts[1];
+      const need = Math.max(0, Math.floor(all / 2) + 1 - mine);
+      const pct = (x) => `${Math.round((x / all) * 100)}%`;
+      return h('div', { class: 'deal-points', title: `${txt('Card points in this deal (without declarations)')} · ${txt('{0} points still in play', left)}` },
+        h('span', null, txt('Points: us {0} · them {1}', dealPts[0], dealPts[1])),
+        h('div', { class: 'bar' }, h('i', { style: { width: pct(dealPts[0]) } }), h('i', { class: 'them', style: { width: pct(dealPts[1]) } })),
+        h('div', { class: `need ${need ? '' : 'ok'}` }, need
+          ? (bidUs ? txt('You bid: {0} more points and you are safe', need) : txt('They bid: they need {0} more points', need))
+          : (bidUs ? txt('✔ You have more than half – not "inside"') : txt('They have more than half of the points'))));
     }
 
     function renderHands(playable = null) {
@@ -326,6 +350,9 @@ export async function mount(root, ctx) {
 
     async function animDeal(e, nv) {
       played = [];
+      dealPts = [0, 0];
+      lastTrick = null;
+      lastBtn.update();
       slots.forEach((s) => s.replaceChildren());
       table$.querySelector('.deal-deck')?.remove();
       v = { ...nv, hand: [], counts: [0, 0, 0, 0] };
@@ -355,6 +382,7 @@ export async function mount(root, ctx) {
       const p = e.seat;
       const { card, notes } = e.pub;
       played.push(card.id);
+      const prevTrick = (v?.trick || []).slice();
       const ledSuit = (v?.trick?.length ? v.trick[0].card.s : card.s);
       const from = p === ME
         ? (lastFrom && !motion.fast ? lastFrom : snap(seats[ME].handEl.querySelector(`[data-id="${card.id}"]`) || seats[ME].handEl))
@@ -370,6 +398,14 @@ export async function mount(root, ctx) {
       await fly({ card, from, to: () => el, faceFrom: p === ME, duration: 400 * speed, spin: p === ME ? 0 : (Math.random() - 0.5) * 40 }).then(() => land(el));
       if (!e.pub.trick) return;
       const w = e.pub.trick.winner;
+      // remember the trick and count its points (the last trick brings 10 more)
+      const cards = [...prevTrick.filter((t) => t.p !== p), { p, card }]; // the view may already contain my card
+      const contract = v.bidding?.current?.contract || v.contract;
+      const gained = cards.reduce((a, t) => a + cardPoints(t.card, contract), 0) + (nv.hand?.length === 0 ? 10 : 0);
+      dealPts[teamOf(w) === US ? 0 : 1] += gained;
+      lastTrick = { cards, winner: w };
+      lastBtn.update();
+      renderHud();
       slots[w].classList.add('win');
       const wCard = slots[w].firstElementChild?.dataset.id;
       if (beginner && wCard) message(trickNote(p2name(w) === txt('you') ? txt('You') : names[w], { id: wCard, r: wCard.slice(0, -1), s: wCard.slice(-1) }, v.contract, ledSuit), 1900);

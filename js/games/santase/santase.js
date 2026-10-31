@@ -3,13 +3,14 @@
 // cards come from the view, and the others' are unknown.
 import { h, sleep, modal, toast, motion } from '../../ui.js';
 import { createTable } from '../../net/table.js';
-import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted } from '../common.js';
+import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted, loadPrefs } from '../common.js';
 import { cardEl, sortHand, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, SUIT_NAMES } from '../cards/suits.js';
 import { order } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
-import { cardLines, illegalReason } from './help.js';
+import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
+import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
 import { txt } from '../../i18n.js';
 
 const TARGET = 11;
@@ -26,20 +27,23 @@ export async function mount(root, ctx) {
     root.replaceChildren();
     if (online) {
       const r = online.referee;
-      return runMatch(createTable({ mode: r.mode, gameId: 'santase', key: r.key, seat: online.seat, seats: r.seats, opts: online.opts }), r.seats.map((s) => s.name), matchId);
+      return runMatch(createTable({ mode: r.mode, gameId: 'santase', key: r.key, seat: online.seat, seats: r.seats, opts: online.opts }), r.seats.map((s) => s.name), matchId, undefined, loadPrefs('santase', { help: 'on' }).help !== 'off');
     }
     const opts = await setupScreen(root, {
       gameId: 'santase',
       title: txt('New game of santase'),
       subtitle: txt('Match to 11 points against the computer.'),
-      groups: [{ key: 'level', label: txt('Difficulty'), value: 'normal', options: [['easy', txt('Easy')], ['normal', txt('Normal')]] }],
+      groups: [
+        { key: 'level', label: txt('Difficulty'), value: 'normal', options: [['easy', txt('Easy')], ['normal', txt('Normal')]] },
+        { key: 'help', label: txt('Help for beginners'), value: 'on', options: [['on', txt('On')], ['off', txt('Off')]] },
+      ],
     });
     if (destroyed) return;
     const seats = [{ bot: false, name: ctx.user.displayName }, { bot: true, name: txt('Computer') }];
-    runMatch(createTable({ mode: 'local', gameId: 'santase', seat: 0, seats, opts }), seats.map((s) => s.name), matchId, opts.level);
+    runMatch(createTable({ mode: 'local', gameId: 'santase', seat: 0, seats, opts }), seats.map((s) => s.name), matchId, opts.level, opts.help !== 'off');
   };
 
-  async function runMatch(table, names, myId, level) {
+  async function runMatch(table, names, myId, level, beginner = true) {
     if (!online) ctx.newMatch();
     const gone = () => destroyed || myId !== matchId;
     const ME = table.seat, OP = 1 - ME;
@@ -64,12 +68,19 @@ export async function mount(root, ctx) {
     const hud = h('div', { class: 'ct-hud' });
     const actions = h('div', { class: 'santase-actions' });
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
+    // help for beginners, the last trick and large cards
+    const coach = coachStrip(myHand);
+    let seen = []; // cards played in this deal (for the hint)
+    let lastTrick = null;
+    const lastBtn = lastTrickButton(() => lastTrick, (p) => (p === ME ? txt('You') : names[p]));
     const tools = h('div', { class: 'ct-tools' },
+      lastBtn.el,
+      bigCardsButton(table$, () => renderHands(picking ? v?.decision?.legal : null)),
       h('button', { class: 'btn', onclick: resign }, txt('Resign')),
       !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
       muteBtn,
     );
-    table$.append(north, south, stockEl, center, hud, actions, tools);
+    table$.append(north, south, stockEl, center, hud, actions, tools, coach.el);
     root.replaceChildren(table$);
 
     const slotOf = (p) => slots[p === ME ? 0 : 1];
@@ -179,12 +190,14 @@ export async function mount(root, ctx) {
     function showDecision() {
       actions.replaceChildren();
       const dcs = v?.decision;
+      coach.hide();
       if (!dcs || over) {
         picking = false;
         return renderHands();
       }
       picking = true;
       renderHands(dcs.legal);
+      if (beginner) coach.show(turnHint(v), () => playAdvice(v, ME, seen));
       const pick = (kind) => () => {
         if (!picking) return;
         picking = false;
@@ -196,6 +209,7 @@ export async function mount(root, ctx) {
     }
 
     async function send(data) {
+      coach.hide();
       renderHands();
       try {
         await table.submit('act', data);
@@ -214,6 +228,9 @@ export async function mount(root, ctx) {
     const oppMid = () => snap(oppHand.children[oppHand.children.length >> 1] || oppHand);
 
     async function animDeal(e, nv) {
+      seen = [];
+      lastTrick = null;
+      lastBtn.update();
       v = { ...nv };
       slots.forEach((s) => s.replaceChildren());
       hideTrump = true;
@@ -273,6 +290,8 @@ export async function mount(root, ctx) {
 
     async function animCard(p, pub, nv) {
       const card = pub.card;
+      seen.push(card.id);
+      const leadBefore = v?.lead;
       const from = p === ME
         ? (lastFrom && !motion.fast ? lastFrom : snap(myHand.querySelector(`[data-id="${card.id}"]`) || myHand))
         : oppMid();
@@ -296,6 +315,10 @@ export async function mount(root, ctx) {
       }
       if (!pub.trick) return;
       const w = pub.trick.winner;
+      if (leadBefore && leadBefore.p !== p) {
+        lastTrick = { cards: [leadBefore, { p, card }], winner: w };
+        lastBtn.update();
+      }
       slotOf(w).classList.add('win');
       await sleep(750);
       if (gone()) return;

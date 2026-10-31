@@ -154,9 +154,16 @@ export function aiDecideAction(d, p, seen) {
   return acts;
 }
 
-export function aiPlay(d, p, seenIds) {
+export const aiPlay = (d, p, seenIds) => aiChoose(d, p, seenIds).card;
+
+/**
+ * The card to play and why (for the beginners' hint): { card, why }.
+ * why: only | marriage | lead-trump-master | lead-master | lead-low | strict-win | strict-lose |
+ *      take-points | take-cheap | trump-take | throw
+ */
+export function aiChoose(d, p, seenIds) {
   const legal = legalCards(d, p);
-  if (legal.length === 1) return legal[0];
+  if (legal.length === 1) return { card: legal[0], why: 'only' };
   const seen = new Set(seenIds);
   d.hands[p].forEach((c) => seen.add(c.id));
   const trump = d.trump;
@@ -170,36 +177,37 @@ export function aiPlay(d, p, seenIds) {
     const marriages = legal.filter((c) => marriageFor(d, p, c));
     if (marriages.length) {
       marriages.sort((a, b) => (b.s === trump) - (a.s === trump) || (a.r === 'Q' ? -1 : 1));
-      return marriages[0];
+      return { card: marriages[0], why: 'marriage' };
     }
     if (isStrict(d)) {
       const masters = legal.filter((c) => !unseenHigher(c, d, p, seen));
       const trumpMasters = masters.filter((c) => c.s === trump);
-      if (trumpMasters.length) return trumpMasters.sort((a, b) => order(b) - order(a))[0];
-      if (masters.length) return masters.sort((a, b) => PTS[b.r] - PTS[a.r])[0];
-      return lowest(legal);
+      if (trumpMasters.length) return { card: trumpMasters.sort((a, b) => order(b) - order(a))[0], why: 'lead-trump-master' };
+      if (masters.length) return { card: masters.sort((a, b) => PTS[b.r] - PTS[a.r])[0], why: 'lead-master' };
+      return { card: lowest(legal), why: 'lead-low' };
     }
     const nonTrump = legal.filter((c) => c.s !== trump && !inMarriage(c));
-    return lowest(nonTrump.length ? nonTrump : legal);
+    return { card: lowest(nonTrump.length ? nonTrump : legal), why: 'lead-low' };
   }
 
   const L = d.lead.card;
   const winning = legal.filter((c) => beats(L, c, trump));
   const lpts = PTS[L.r];
   if (isStrict(d)) {
-    if (winning.length) return winning.sort((a, b) => val(a) - val(b))[0];
-    return lowest(legal);
+    if (winning.length) return { card: winning.sort((a, b) => val(a) - val(b))[0], why: 'strict-win' };
+    return { card: lowest(legal), why: 'strict-lose' };
   }
   const sameSuitWins = winning.filter((c) => c.s === L.s);
   if (sameSuitWins.length) {
     const best = sameSuitWins.sort((a, b) => val(b) - val(a))[0]; // take with the strongest (10 or ace bring points)
     const cheap = sameSuitWins.sort((a, b) => val(a) - val(b))[0];
-    return lpts >= 10 || PTS[best.r] >= 10 ? (PTS[best.r] >= 10 ? best : cheap) : cheap;
+    if (PTS[best.r] >= 10) return { card: best, why: 'take-points' };
+    return { card: cheap, why: 'take-cheap' };
   }
   const trumpWins = winning.filter((c) => c.s === trump && !inMarriage(c));
   if (trumpWins.length && (lpts >= 10 || total(d, p) + lpts >= 50)) {
-    return trumpWins.sort((a, b) => order(a) - order(b))[0];
+    return { card: trumpWins.sort((a, b) => order(a) - order(b))[0], why: 'trump-take' };
   }
   const throwAway = legal.filter((c) => c.s !== trump && !inMarriage(c));
-  return lowest(throwAway.length ? throwAway : legal);
+  return { card: lowest(throwAway.length ? throwAway : legal), why: 'throw' };
 }
