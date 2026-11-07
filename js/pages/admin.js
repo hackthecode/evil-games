@@ -1,5 +1,5 @@
-// Administrator dashboard: who is online, players (search, ban), lobby reports,
-// resetting the Evil Empires world. The rights are checked on the server for every action.
+// Administrator dashboard: who is online, players (search, ban) and lobby reports.
+// The rights are checked on the server for every action.
 import { session, navigate } from '../app.js';
 import { social } from '../net/social.js';
 import { admin } from '../net/admin.js';
@@ -7,11 +7,6 @@ import { h, toast, modal, avatar } from '../ui.js';
 import { txt, LOCALE } from '../i18n.js';
 
 const when = (v) => (v ? new Date(v).toLocaleString(LOCALE, { dateStyle: 'short', timeStyle: 'short' }) : '—');
-const ago = (ms) => {
-  if (!ms) return '—';
-  const m = Math.round((Date.now() - ms) / 60000);
-  return m < 1 ? txt('now') : m < 60 ? txt('{0} min ago', m) : m < 1440 ? txt('{0} h ago', Math.round(m / 60)) : txt('{0} days ago', Math.round(m / 1440));
-};
 
 export async function renderAdmin(view) {
   if (!(await admin.isAdmin())) {
@@ -34,8 +29,6 @@ export async function renderAdmin(view) {
       stats.replaceChildren(
         card(txt('Online on the portal'), social.present().size),
         card(txt('Accounts'), o.users, o.users7 ? txt('+{0} in 7 days', o.users7) : null),
-        card(txt('Empires'), o.empires, txt('{0} active (15 min)', o.active15)),
-        card(txt('Alliances'), o.alliances),
         card(txt('Matches in 24 h'), o.matches24),
         card(txt('Lobby messages (24 h)'), o.lobby24),
         card(txt('New reports'), o.reports),
@@ -56,7 +49,7 @@ export async function renderAdmin(view) {
     const hours = h('select', { class: 'lobby-input' }, [[24, txt('1 day')], [72, txt('3 days')], [168, txt('1 week')], [720, txt('30 days')], [87600, txt('forever')]].map(([v, l]) => h('option', { value: v }, l)));
     const ok = await modal({
       title: txt('Ban: {0}', p.display_name),
-      body: h('div', { class: 'adm-form' }, reason, hours, h('p', { class: 'muted' }, txt('A banned player cannot play Evil Empires or write in the lobby.'))),
+      body: h('div', { class: 'adm-form' }, reason, hours, h('p', { class: 'muted' }, txt('A banned player cannot write in the lobby.'))),
       actions: [{ label: txt('Cancel'), value: false }, { label: txt('Ban'), value: true, danger: true }],
     });
     if (!ok) return;
@@ -67,11 +60,11 @@ export async function renderAdmin(view) {
     try {
       const rows = await admin.players(search.value.trim());
       playersBox.replaceChildren(rows.length ? h('table', null,
-        h('thead', null, h('tr', null, [txt('Player'), txt('Empire'), txt('Points'), txt('Active'), txt('Registered'), ''].map((t) => h('th', null, t)))),
+        h('thead', null, h('tr', null, [txt('Player'), txt('Registered'), ''].map((t) => h('th', null, t)))),
         h('tbody', null, rows.map((p) => h('tr', { class: p.banned_until ? 'banned' : '' },
           h('td', null, h('b', null, p.display_name), h('small', { class: 'muted' }, ` @${p.username}`), p.is_admin ? h('small', { class: 'lobby-tag' }, txt('admin')) : null,
             social.isOnline(p.id) ? h('small', { class: 'adm-dot', title: txt('online now') }, '●') : null),
-          h('td', null, p.empire || '—'), h('td', null, p.score ?? '—'), h('td', null, ago(p.last_active)), h('td', null, when(p.created_at)),
+          h('td', null, when(p.created_at)),
           h('td', null, p.banned_until
             ? h('button', { class: 'btn btn-sm', title: txt('{0} · until {1}', p.ban_reason || '', when(p.banned_until)), onclick: async () => { try { await admin.unban(p.id); toast(txt('The ban has been lifted.'), 'success'); loadPlayers(); loadOverview(); } catch (e) { toast(e.message, 'error'); } } }, txt('Unban'))
             : !p.is_admin && p.id !== session.user.id && h('button', { class: 'btn btn-sm btn-ghost', onclick: () => banDialog(p) }, txt('Ban'))))))) : h('p', { class: 'muted' }, txt('No players found.')));
@@ -92,29 +85,15 @@ export async function renderAdmin(view) {
     } catch (e) { reportsBox.replaceChildren(h('p', { class: 'muted' }, e.message)); }
   }
 
-  async function resetWorld() {
-    const inp = h('input', { class: 'lobby-input', placeholder: 'RESET', 'aria-label': txt('Confirmation') });
-    const ok = await modal({
-      title: txt('Reset the Evil Empires world'),
-      body: h('div', { class: 'adm-form' }, h('p', null, txt('All empires, alliances and the map are deleted forever. The players start over.')), h('p', { class: 'muted' }, txt('Type RESET to confirm:')), inp),
-      actions: [{ label: txt('Cancel'), value: false }, { label: txt('Reset'), value: true, danger: true }],
-    });
-    if (!ok) return;
-    try { await admin.resetWorld(inp.value.trim()); toast(txt('The world has been reset.'), 'success'); loadOverview(); loadPlayers(); } catch (e) { toast(e.message, 'error'); }
-  }
-
   const off = social.on((e) => { if (e.type === 'presence') { drawOnline(); } });
   view.append(
-    h('section', { class: 'page-head' }, h('h1', null, txt('Administration')), h('p', { class: 'muted' }, txt('Overview of the portal, players, reports and the Evil Empires world.'))),
+    h('section', { class: 'page-head' }, h('h1', null, txt('Administration')), h('p', { class: 'muted' }, txt('Overview of the portal, players and reports.'))),
     stats,
     h('div', { class: 'adm-grid' },
       h('div', { class: 'panel glass' }, h('h2', null, txt('Players')), search, playersBox),
       h('div', { class: 'adm-side' },
         h('div', { class: 'panel glass' }, h('h2', null, txt('Reports')), reportsBox),
-        h('div', { class: 'panel glass' }, h('h2', null, txt('Online now')), onlineBox),
-        h('div', { class: 'panel glass adm-danger' }, h('h2', null, txt('Danger zone')),
-          h('p', { class: 'muted' }, txt('A new Evil Empires world – e.g. for a new season.')),
-          h('button', { class: 'btn btn-danger', onclick: resetWorld }, txt('Reset the world'))))));
+        h('div', { class: 'panel glass' }, h('h2', null, txt('Online now')), onlineBox))));
   loadOverview();
   loadPlayers();
   loadReports();

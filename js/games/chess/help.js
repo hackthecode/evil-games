@@ -8,7 +8,7 @@ const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
 const val = (p) => VAL[p.toLowerCase()];
 const other = (c) => (c === 'w' ? 'b' : 'w');
 
-// the piece names clash with card and Evil Empires words ("King" = a playing card), so they are chosen here
+// the piece names clash with card words ("King" = a playing card), so they are chosen here
 const NAME = lang === 'bg'
   ? { k: 'Цар', q: 'Царица', r: 'Топ', b: 'Офицер', n: 'Кон', p: 'Пешка' }
   : { k: 'King', q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn' };

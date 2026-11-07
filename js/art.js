@@ -1,7 +1,6 @@
 // Illustrations for the game cards on the portal: spotlight, deep shadows
 // and edges that fade into black (OLED). Each illustration has its own ids.
 import { SUIT_PATHS } from './games/cards/suits.js';
-import { buildingSvg, tile, PALETTE, defs as eeDefs } from './games/empires/art.js';
 import { txt } from './i18n.js';
 
 const suit = (s, x, y, size, fill) =>
@@ -150,24 +149,4 @@ export const ART = {
   blato: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="bl-felt" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#5a3fa0"/><stop offset=".7" stop-color="#21134a"/><stop offset="1" stop-color="#08041a"/></radialGradient>\n      <linearGradient id="bl-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#bl-felt)"/>\n    {2}\n    {3}\n    {4}\n    {5}\n    <text x="248" y="100" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="34" font-weight="800" fill="url(#bl-gold)" filter="url(#bl-glow)">3·5·8</text>\n    <text x="248" y="126" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#e2d6ff">BLATO</text>\n  </svg>', defs('bl'), cardGrad('bl'), miniCard('bl', 70, 100, -18, 'A', 'S'), miniCard('bl', 106, 92, -4, 'K', 'H'), miniCard('bl', 142, 100, 12, '8', 'D'), overlay('bl')),
 
   santase: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="sa-felt" cx=".45" cy=".42" r=".75"><stop offset="0" stop-color="#8a2140"/><stop offset=".7" stop-color="#3a0a18"/><stop offset="1" stop-color="#120206"/></radialGradient>\n      <linearGradient id="sa-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#sa-felt)"/>\n    {2}\n    {3}\n    {4}\n    <text x="250" y="110" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="54" font-weight="800" fill="url(#sa-gold)" filter="url(#sa-glow)">66</text>\n    <text x="250" y="136" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#ffc9d3">SANTASE</text>\n  </svg>', defs('sa'), cardGrad('sa'), miniCard('sa', 104, 96, -14, 'K', 'H'), miniCard('sa', 152, 92, 8, 'Q', 'H'), overlay('sa')),
-  empires: (() => {
-    const at = (x, y, sc, id, race, L) => `<g transform="translate(${x} ${y}) scale(${sc})">${tile(PALETTE[race], 'built')}${buildingSvg(id, race, L)}</g>`;
-    return `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
-    ${eeDefs(PALETTE.vesheri)}
-    <defs>${defs('ee')}
-      <radialGradient id="eep-sky" cx=".5" cy=".15" r=".9"><stop offset="0" stop-color="#3b1f5c"/><stop offset=".55" stop-color="#140a22"/><stop offset="1" stop-color="#000"/></radialGradient>
-      <radialGradient id="eep-moon" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff1d6"/><stop offset=".6" stop-color="#ffcf8a"/><stop offset="1" stop-color="#ff8a3c" stop-opacity="0"/></radialGradient>
-    </defs>
-    <rect width="320" height="180" fill="url(#eep-sky)"/>
-    <circle cx="252" cy="40" r="34" fill="url(#eep-moon)" opacity=".9"/>
-    <circle cx="252" cy="40" r="16" fill="#fff4dc"/>
-    <polygon points="160,74 290,139 160,204 30,139" fill="#120d19"/>
-    ${at(98, 128, 0.62, 'houses', 'humans', 4)}
-    ${at(226, 128, 0.62, 'unique', 'vesheri', 3)}
-    ${at(160, 108, 0.8, 'hall', 'undead', 6)}
-    ${at(122, 150, 0.6, 'barracks', 'orcs', 3)}
-    ${at(198, 152, 0.6, 'altar', 'vesheri', 2)}
-    ${overlay('ee')}
-  </svg>`;
-  })(),
 };

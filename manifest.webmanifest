@@ -1,7 +1,7 @@
 {
   "name": "Evil Games",
   "short_name": "Evil Games",
-  "description": "Backgammon, chess, belot, santase and the Evil Empires strategy in the browser.",
+  "description": "Backgammon, chess, belot, santase, blato, ludo and solitaire in the browser.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -31,9 +31,9 @@
   "id": "./",
   "shortcuts": [
     {
-      "name": "Evil Empires",
-      "short_name": "Empires",
-      "url": "./#/play/empires",
+      "name": "Belot",
+      "short_name": "Belot",
+      "url": "./#/play/belot",
       "icons": [
         {
           "src": "assets/icons/icon-192.png",

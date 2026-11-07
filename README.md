@@ -1,7 +1,7 @@
 # Evil Games — game portal
 
 A portal of classic games in the browser – against the computer or online against real people:
-**Backgammon, Tapa, Gulbara, Chess, Belot, Blato, Santase, Ludo, Solitaire** and the strategy game **Evil Empires**.
+**Backgammon, Tapa, Gulbara, Chess, Belot, Blato, Santase, Ludo and Solitaire**.
 It has sign-up, statistics (games, wins, time per game), a ranking with an Elo rating, friends, invitations,
 a shared lobby with chat and quick matchmaking, and an administrator dashboard.
 It works on computers and phones and can be installed as an app (PWA).
@@ -35,7 +35,7 @@ when `config.js` points to Supabase – this way no test accounts are created in
 index.html              entry point
 config.js               storage choice: 'local' or 'supabase'
 sw.js, manifest.webmanifest   offline support and installing (PWA)
-css/                    styles (app, cards, chess, tabla, solitaire, ludo, empires)
+css/                    styles (app, cards, chess, tabla, solitaire, ludo)
 js/app.js               router and portal shell
 js/i18n.js, js/i18n/    translations: txt() for UI text, tk() for server-side text, bg.js – the Bulgarian dictionary
 js/pages/               home, log in, profile, ranking, friends, lobby, online lobby, admin, game page
@@ -44,9 +44,8 @@ js/net/                 online: channels, rooms (room.js), refereed table (table
 js/net/referee/         the referee server: core.js (shared core), worker.js (local "server")
 js/games/registry.js    the list of games — new games are added here
 js/games/<game>/        engine.js (rules + AI), <game>.js (UI), referee.js (for the referee)
-js/games/empires/       Evil Empires (engine, world, server, tactics, graphics, audio, chat)
 supabase/*.sql          database for online mode
-supabase/functions/     Edge Functions: referee (card games) and empires (generated with tools/build-*.py)
+supabase/functions/     Edge Function: referee (card games, generated with tools/build-referee.py)
 tests/                  automatic tests (node tests/run.mjs, or tests/index.html in the browser)
 ```
 
@@ -140,18 +139,6 @@ For a ranking shared by all players:
 The workflow `.github/workflows/keep-supabase-awake.yml` makes a light request every 2 days so the free
 project is not paused, and `.github/workflows/tests.yml` runs the tests on every push.
 
-## Evil Empires – online server
-
-The strategy game works in two modes: **local** (the world is in the browser – for tests) and **online**
-(Supabase – a shared world, the server checks every action, push notifications).
-
-1. **SQL:** run `supabase/empires.sql` in the SQL Editor (tables `ee_world`, `ee_saves`, `ee_push` and the function `ee_commit`).
-2. **Function:** `python3 tools/build-empires.py` → create the Edge Function **empires** and paste the contents of `supabase/functions/empires/index.ts`. If the name differs, change `empiresFunction` in `config.js`.
-3. **Secrets** (Edge Functions → Secrets): `VAPID_PUBLIC`, `VAPID_PRIVATE`, `CRON_SECRET` – from the local file `supabase/empires-secrets.local.txt` (not committed to git). The public VAPID key is also in `config.js` (`empiresPush`).
-4. **Background process:** run `supabase/empires-cron.local.sql` (pg_cron every 2 minutes: moves the empires forward and sends notifications).
-
-The logic is the same in the browser and on the server (`js/games/empires/engine.js`); `tools/empires-sim.js` is a balance simulation.
-
 ## Technologies
 
 - Plain JavaScript (ES modules) without a build step, View Transitions API, CSS container queries, `color-mix()`, `<dialog>`.
@@ -165,5 +152,4 @@ The logic is the same in the browser and on the server (`js/games/empires/engine
 - Chess pieces: the *cburnett* set (Colin M.L. Burnett, GPLv2+/BSD) from the lichess project; additional sets from lichess (`assets/chess/`): *celtic* and *fantasy* (MIT), *rhosgfx* (CC0), *merida* (GPLv2+).
 - Face cards (jack, queen, king): *English pattern* by Dmitry Fomin (Wikimedia Commons, CC0), recoloured in the portal's palette (`assets/cards/`).
 - Dice sounds: Kenney "Casino Audio" (CC0).
-- Evil Empires buildings: **feudalwars** (OpenGameArt.org, CC0); **rubberduck** (OpenGameArt.org, CC0) – medieval buildings, props, tents and ruins; the mill, buildings 01 and 03 and the well: **Bleed** – http://remusprites.carbonmade.com/ (OpenGameArt.org, CC-BY 3.0). The files are in `assets/empires/`; the rest is drawn with SVG in `js/games/empires/art.js`.
-- Evil Empires music and sounds: see `assets/sounds/CREDITS.txt` (all CC0).
+- Dice sounds: see `assets/sounds/CREDITS.txt` (CC0).

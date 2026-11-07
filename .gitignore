@@ -2,6 +2,6 @@
 __pycache__/
 *.pyc
 
-# Evil Empires secrets (VAPID, CRON)
-supabase/empires-secrets.local.txt*
-supabase/empires-cron.local.sql
+# Local secrets (never committed)
+*.local.txt*
+*.local.sql

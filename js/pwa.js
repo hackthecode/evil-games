@@ -39,7 +39,7 @@ export async function install() {
         h('li', null, txt('Open the site in Safari.')),
         h('li', null, txt('Tap the "Share" button '), h('span', { class: 'install-ico', 'aria-hidden': 'true' }, '⬆︎'), txt(' in the bottom bar.')),
         h('li', null, txt('Choose "Add to Home Screen" and then "Add".')),
-        h('li', null, txt('Open the game from the new icon – full screen, like an app. Evil Empires notifications only work this way.'))),
+        h('li', null, txt('Open the game from the new icon – full screen, like an app.'))),
       actions: [{ label: txt('Got it'), value: true, primary: true }],
     });
   }
@@ -51,7 +51,7 @@ export function installBanner() {
   try { off = !!localStorage.getItem(DISMISS); } catch {}
   const el = h('section', { class: 'install-banner', hidden: true },
     h('img', { src: 'assets/icons/icon-192.png', alt: '', width: 44, height: 44 }),
-    h('div', null, h('b', null, txt('Evil Games as an app')), h('small', { class: 'muted' }, txt('Home screen icon, full screen and notifications for Evil Empires.'))),
+    h('div', null, h('b', null, txt('Evil Games as an app')), h('small', { class: 'muted' }, txt('Home screen icon and full screen, like an app.'))),
     h('button', { class: 'btn btn-primary btn-sm', onclick: () => install() }, txt('Install')),
     h('button', { class: 'icon-btn', 'aria-label': txt('Hide'), onclick: () => { try { localStorage.setItem(DISMISS, '1'); } catch {} el.remove(); } }, '✕'));
   const sync = () => { el.hidden = off || !canInstall(); };

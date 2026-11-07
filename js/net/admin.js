@@ -4,9 +4,11 @@ import { store } from '../store/index.js';
 import { txt } from '../i18n.js';
 
 const ONLINE = store.kind === 'supabase';
-const BANS = 'eg.admin.bans', REPORTS = 'eg.reports', LOBBY = 'eg.lobby.v1', WORLD = 'ee.world.v1';
+const BANS = 'eg.admin.bans', REPORTS = 'eg.reports', LOBBY = 'eg.lobby.v1';
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const keep = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+// the accounts of the local store (js/store/local.js)
+const localUsers = () => Object.values(load('kare.db.v1', {}).users || {}).map((u) => ({ id: u.id, username: u.username, name: u.displayName || u.username, createdAt: u.createdAt }));
 
 async function rpc(name, args) {
   const { data, error } = await store.client().rpc(name, args);
@@ -23,26 +25,21 @@ export const admin = {
 
   async overview() {
     if (ONLINE) return rpc('admin_overview');
-    const w = load(WORLD, {});
-    const cutoff = Date.now() - 15 * 60000;
-    const players = Object.values(w.players || {});
     return {
-      users: players.length, users7: 0, empires: players.length, active15: players.filter((p) => p.t > cutoff).length,
-      alliances: Object.keys(w.alliances || {}).length, matches24: 0,
+      users: localUsers().length, users7: 0, matches24: 0,
       lobby24: load(LOBBY, []).filter((m) => Date.parse(m.created_at) > Date.now() - 864e5).length,
       reports: load(REPORTS, []).filter((r) => !r.resolved).length,
       bans: Object.values(load(BANS, {})).filter((b) => Date.parse(b.until) > Date.now()).length,
-      worldCreated: w.created || null,
     };
   },
 
   async players(q = '') {
     if (ONLINE) return rpc('admin_players', { p_query: q });
     const bans = load(BANS, {});
-    return Object.values(load(WORLD, {}).players || {})
+    return localUsers()
       .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()))
-      .map((p) => ({ id: p.uid, username: p.uid.slice(0, 8), display_name: p.name, created_at: null, empire: p.name, score: p.score, last_active: p.t,
-        banned_until: Date.parse(bans[p.uid]?.until) > Date.now() ? bans[p.uid].until : null, ban_reason: bans[p.uid]?.reason || null, is_admin: false }));
+      .map((p) => ({ id: p.id, username: p.username, display_name: p.name, created_at: p.createdAt,
+        banned_until: Date.parse(bans[p.id]?.until) > Date.now() ? bans[p.id].until : null, ban_reason: bans[p.id]?.reason || null, is_admin: false }));
   },
 
   async ban(uid, reason, hours) {
@@ -73,12 +70,6 @@ export const admin = {
   async deleteMessage(id) {
     if (ONLINE) return rpc('admin_delete_message', { p_id: id });
     keep(LOBBY, load(LOBBY, []).filter((m) => m.id !== id));
-  },
-
-  async resetWorld(confirm) {
-    if (ONLINE) return rpc('admin_reset_world', { p_confirm: confirm });
-    if (confirm !== 'RESET') throw new Error(txt('Type RESET to confirm.'));
-    for (const k of Object.keys(localStorage)) if (k === WORLD || k.startsWith('ee.save.')) localStorage.removeItem(k);
   },
 
   /** A player's report about a lobby message. */

@@ -1,13 +1,2 @@
-Sounds and music (all CC0 – public domain, OpenGameArt.org):
+Sounds (CC0 – public domain, OpenGameArt.org):
 - dice/            – Kenney „Casino Audio“ (kenney.nl)
-- battle/          – StarNinjas „20 Sword Sound Effects (Attacks and Clashes)“
-- music/bards-tale – RandomMind „Medieval: The Bard's Tale“ (humans)
-- music/undead     – kindland „Forgoten tomb ambience“ (undead)
-- music/orcs       – William Hector „Horde War Drums loop“ (orcs)
-- music/vesheri    – congusbongus „Cathedral in the forest (ambient loop)“ (witchers)
-- music/battle     – Emma_MA „Determined Pursuit (epic orchestra loop)“ (battles)
-- ambient/anvil    – themightyglider „Hammer on Anvil“
-
-Building images (assets/empires/, CC0, rubberduck, OpenGameArt.org):
-- isometric medieval buildings #1 and #2, isometric props and tents, free isometric ruins.
-  orc-camp, crypt and altar are assembled from these parts; props/ – separate props.

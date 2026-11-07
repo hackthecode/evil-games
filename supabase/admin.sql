@@ -1,5 +1,5 @@
--- Administrator dashboard: administrators, banned accounts, reports and resetting the world.
--- Run once in Supabase → SQL Editor (after schema.sql, empires.sql and lobby.sql).
+-- Administrator dashboard: administrators, banned accounts and reports.
+-- Run once in Supabase → SQL Editor (after schema.sql and lobby.sql).
 -- Everything goes through functions that first check whether the caller is an administrator –
 -- no secret key is needed in the browser.
 
@@ -106,51 +106,38 @@ security definer
 set search_path = public
 as $$ begin if not is_admin() then raise exception 'You don''t have administrator rights.'; end if; end $$;
 
--- Overview: accounts, empires, active, reports, banned, messages.
+-- Overview: accounts, matches, reports, banned, messages.
 create or replace function public.admin_overview()
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  w jsonb;
-  cutoff bigint := (extract(epoch from now()) * 1000)::bigint - 15 * 60 * 1000;
 begin
   perform admin_check();
-  select doc into w from ee_world where id = 1;
   return jsonb_build_object(
     'users', (select count(*) from profiles),
     'users7', (select count(*) from profiles where created_at > now() - interval '7 days'),
-    'empires', (select count(*) from ee_saves),
-    'active15', (select count(*) from jsonb_each(coalesce(w->'players', '{}'::jsonb)) p where (p.value->>'t')::bigint > cutoff),
-    'alliances', (select count(*) from jsonb_object_keys(coalesce(w->'alliances', '{}'::jsonb))),
     'matches24', (select count(*) from matches where created_at > now() - interval '24 hours'),
     'lobby24', (select count(*) from lobby_messages where created_at > now() - interval '24 hours'),
     'reports', (select count(*) from reports where not resolved),
-    'bans', (select count(*) from bans where until > now()),
-    'worldCreated', w->'created'
+    'bans', (select count(*) from bans where until > now())
   );
 end;
 $$;
 
--- Players (search by name): profile, empire, last activity, ban.
+-- Players (search by name): profile and ban.
+drop function if exists public.admin_players(text);
 create or replace function public.admin_players(p_query text default '')
-returns table (id uuid, username text, display_name text, created_at timestamptz, empire text, score int, last_active bigint, banned_until timestamptz, ban_reason text, is_admin boolean)
+returns table (id uuid, username text, display_name text, created_at timestamptz, banned_until timestamptz, ban_reason text, is_admin boolean)
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  w jsonb;
 begin
   perform admin_check();
-  select doc into w from ee_world where id = 1;
   return query
     select p.id, p.username, p.display_name, p.created_at,
-      w->'players'->(p.id::text)->>'name',
-      (w->'players'->(p.id::text)->>'score')::int,
-      (w->'players'->(p.id::text)->>'t')::bigint,
       b.until, b.reason,
       exists (select 1 from admins a where a.user_id = p.id)
     from profiles p
@@ -218,20 +205,7 @@ security definer
 set search_path = public
 as $$ begin perform admin_check(); delete from lobby_messages where id = p_id; end $$;
 
--- Resetting the Evil Empires world: deletes all empires and the map (the server creates a new world).
-create or replace function public.admin_reset_world(p_confirm text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  perform admin_check();
-  if p_confirm is distinct from 'RESET' then raise exception 'Type RESET to confirm.'; end if;
-  delete from ee_saves where true;
-  delete from ee_world where true;
-end;
-$$;
+drop function if exists public.admin_reset_world(text);
 
 revoke all on function public.admin_check() from public, anon;
 revoke all on function public.admin_overview() from public, anon;
@@ -241,10 +215,8 @@ revoke all on function public.admin_unban(uuid) from public, anon;
 revoke all on function public.admin_reports() from public, anon;
 revoke all on function public.admin_resolve(bigint) from public, anon;
 revoke all on function public.admin_delete_message(bigint) from public, anon;
-revoke all on function public.admin_reset_world(text) from public, anon;
 grant execute on function public.is_admin(), public.admin_overview(), public.admin_players(text), public.admin_ban(uuid, text, int),
-  public.admin_unban(uuid), public.admin_reports(), public.admin_resolve(bigint), public.admin_delete_message(bigint),
-  public.admin_reset_world(text) to authenticated;
+  public.admin_unban(uuid), public.admin_reports(), public.admin_resolve(bigint), public.admin_delete_message(bigint) to authenticated;
 
 -- ---------- make yourself an administrator ----------
 -- Replace YOUR_USERNAME with your portal username and run this line (after signing up on the portal):
