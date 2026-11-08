@@ -1,6 +1,9 @@
 // Bulgarian dictionary: English source string → Bulgarian translation (see js/i18n.js).
 // New UI strings: add the English text in the code with t('…') and its translation here.
 export const BG = {
+  'Full screen': 'Цял екран',
+  'Exit full screen': 'Изход от цял екран',
+  'Show the menu': 'Покажи менюто',
   'your turn': 'на ход',
   'Trumps': 'Коз',
   'Capot!': 'Валат!',
@@ -61,7 +64,6 @@ export const BG = {
   '{0} – the cheapest trump that takes the trick.': '{0} – най-евтиният коз, който взема ръката.',
   'Last trick': 'Последна ръка',
   '✔ took the trick': '✔ взе ръката',
-  '↺ Last trick': '↺ Последна ръка',
   'Large cards': 'Едри карти',
   'Card points in this deal (without declarations)': 'Точки от картите в това раздаване (без анонсите)',
   'Points: us {0} · them {1}': 'Точки: ние {0} · те {1}',

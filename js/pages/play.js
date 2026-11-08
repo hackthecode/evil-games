@@ -81,17 +81,62 @@ export async function renderPlay(view, gameId, query) {
     },
   };
 
+  // Full screen: hides the portal header and this bar so only the game is left (and uses the
+  // browser's full screen where it exists). The bar slides back in from the handle at the top.
+  let fsApi = false, hideBarTimer = 0;
+  const fsBtn = h('button', { class: 'icon-btn', onclick: () => setFocus(!document.body.classList.contains('focus-mode')) });
+  const drawFsBtn = () => {
+    const on = document.body.classList.contains('focus-mode');
+    fsBtn.replaceChildren(icon(on ? 'shrink' : 'expand'));
+    fsBtn.title = on ? txt('Exit full screen') : txt('Full screen');
+    fsBtn.setAttribute('aria-label', fsBtn.title);
+  };
+  const showBar = (on) => {
+    clearTimeout(hideBarTimer);
+    section.classList.toggle('bar-open', on);
+    if (on) hideBarTimer = setTimeout(() => showBar(false), 4000);
+  };
+  function setFocus(on) {
+    document.body.classList.toggle('focus-mode', on);
+    showBar(false);
+    drawFsBtn();
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    const full = () => document.fullscreenElement || document.webkitFullscreenElement;
+    if (on && req && !full()) {
+      fsApi = true;
+      Promise.resolve(req.call(el, { navigationUI: 'hide' })).catch(() => { fsApi = false; });
+    } else if (!on && full()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document)?.catch?.(() => {});
+    }
+    // the games lay themselves out again for the new size
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  }
+  const onFsChange = () => {
+    // Esc or the system "back" leaves the browser's full screen – leave our mode too
+    if (fsApi && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      fsApi = false;
+      if (document.body.classList.contains('focus-mode')) setFocus(false);
+    }
+  };
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  drawFsBtn();
+  const grab = h('button', { class: 'fs-grab', 'aria-label': txt('Show the menu'), title: txt('Show the menu'), onclick: () => showBar(!section.classList.contains('bar-open')) }, h('i'));
+
   const root = h('div', { class: `game-root game-${gameId}` });
   const bar = h('div', { class: 'play-bar' },
         h('a', { href: roomId ? `#/online/${gameId}` : '#/', class: 'icon-btn', 'aria-label': txt('Back') }, icon('back')),
         h('h1', { class: 'play-title' }, game.name, roomId && h('span', { class: 'online-badge' }, txt('online'))),
         h('span', { class: 'clock', title: txt('Time played (this session)') }, icon('clock', 16), clockEl),
+        fsBtn,
         h('button', {
           class: 'icon-btn', 'aria-label': txt('Rules'), title: txt('Rules'),
           onclick: () => modal({ title: txt('Rules – {0}', game.name), body: h('div', { class: 'rules', html: game.rules }), className: 'modal-wide' }),
         }, icon('help')),
   );
-  view.append(h('section', { class: 'play', style: { '--accent-g': game.accent } }, bar, root));
+  const section = h('section', { class: 'play', style: { '--accent-g': game.accent } }, grab, bar, root);
+  view.append(section);
 
   let instance;
   let online = null;
@@ -115,6 +160,10 @@ export async function renderPlay(view, gameId, query) {
     window.removeEventListener('pagehide', flush);
     window.removeEventListener('pointerdown', onInput, true);
     window.removeEventListener('keydown', onInput, true);
+    document.removeEventListener('fullscreenchange', onFsChange);
+    document.removeEventListener('webkitfullscreenchange', onFsChange);
+    clearTimeout(hideBarTimer);
+    if (document.body.classList.contains('focus-mode')) setFocus(false);
     instance?.destroy?.();
     social.setWhere(null);
     await online?.cleanup();

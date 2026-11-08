@@ -8,7 +8,7 @@ import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed } from '../cards/suits.js';
 import { CONTRACT_NAMES, teamOf, cardPoints, RANKS, resolveDeclarations } from './engine.js';
-import { lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
+import { lastTrickButton, bigCardsButton, toolButton } from '../cards/tablehelp.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { cardLines, illegalReason, turnHint, bidMeaning, bidAdvice, playAdvice, trickNote } from './help.js';
@@ -100,8 +100,8 @@ export async function mount(root, ctx) {
     const tools = h('div', { class: 'ct-tools' },
       lastBtn.el,
       bigCardsButton(table$, () => renderHands(v?.decision?.type === 'card' && picking ? v.decision.legal : null)),
-      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
-      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
+      toolButton('⚑', txt('Resign'), resign),
+      !online && toolButton('↻', txt('New'), newGame),
       muteBtn,
     );
     // help for beginners: what to do now, plus a hint button

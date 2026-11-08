@@ -544,3 +544,24 @@ button.tab.active { background: var(--text); }
 .lobby-msg:hover .lobby-report, .lobby-report:focus { opacity: .8; }
 @media (hover: none) { .lobby-report { opacity: .5; } }
 @media (max-width: 860px) { .adm-grid { grid-template-columns: 1fr; } }
+
+/* ===== Full screen (focus mode): only the game; the bar slides in from the handle ===== */
+.fs-grab { display: none; }
+body.focus-mode .app-header { display: none; }
+body.focus-mode .play { position: relative; height: 100dvh; padding-top: max(14px, env(safe-area-inset-top)); background: #000; }
+body.focus-mode .play-bar {
+  position: absolute; z-index: 120; top: 0; left: 0; right: 0;
+  padding-top: max(8px, env(safe-area-inset-top));
+  transform: translateY(-100%); transition: transform .25s var(--ease);
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+}
+body.focus-mode .play.bar-open .play-bar { transform: none; }
+body.focus-mode .fs-grab {
+  display: grid; place-items: center; position: absolute; z-index: 110; top: max(0px, calc(env(safe-area-inset-top) - 14px)); left: 50%; transform: translateX(-50%);
+  width: 76px; height: 14px; padding: 0; border: 0; background: none; cursor: pointer;
+}
+.fs-grab i { display: block; width: 44px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.35); transition: background .2s; }
+.fs-grab:hover i, .fs-grab:focus-visible i { background: rgba(255,255,255,.7); }
+/* long game names stay on one line in the game bar */
+.play-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 720px) { .play-title { font-size: 17px; } .play-bar { gap: 4px; } .clock { padding: 0 2px; } }

@@ -225,7 +225,7 @@
 /* ===== Blato ===== */
 .game-blato { container-type: size; }
 .blato-table { --felt: #3b2a6b; --felt-2: #1a1036; }
-.blato-table .my-hand .card + .card { margin-left: 0; }
+.blato-table .my-hand .card + .card { margin-left: calc(var(--hand-cw) * -0.38); }
 .blato-kitty { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); display: flex; z-index: 3; }
 .blato-kitty .card { --cw: var(--cw-small); }
 .blato-kitty .card + .card { margin-left: calc(var(--cw-small) * -0.55); }
@@ -375,3 +375,24 @@
   .seat.turn .seat-name, .seat.turn .sn-turn { animation: none; }
 }
 .trump-mark.announce { z-index: 1000; }
+
+/* ===== Table tools and the narrow (phone) layout ===== */
+.ct-tools .btn { gap: 6px; }
+.tb-ic { font-size: 15px; line-height: 1; }
+.game-santase .ct-coach { bottom: calc(var(--hand-cw) * 1.4 + 112px); }
+@container (max-width: 560px) {
+  /* a row of icon buttons on top, the score, the top player and the trump sign below it */
+  .ct-tools { left: 6px; justify-content: flex-end; }
+  .ct-tools .tb-lb { display: none; }
+  .ct-tools .btn { width: 36px; height: 32px; padding: 0; justify-content: center; }
+  .ct-hud { top: 46px; max-width: 128px; min-width: 0; gap: 3px; }
+  .ct-hud .row { gap: 8px; }
+  .ct-hud .contract-badge { font-size: 11.5px; padding: 3px 7px; }
+  .ct-hud .contract-help, .deal-points small { display: none; }
+  .deal-points .need { font-size: 10.5px; }
+  .seat.north { top: 48px; }
+  .trump-mark { top: 46px; }
+  .ct-coach { left: 8px; right: 8px; transform: none; max-width: none; font-size: 13px; padding: 7px 8px 7px 10px; }
+  .ct-table.big-cards .my-hand .card + .card { margin-left: calc(var(--hand-cw) * -0.6); }
+  .bubble { font-size: 13px; padding: 5px 10px; }
+}

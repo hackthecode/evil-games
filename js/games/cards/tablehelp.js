@@ -30,6 +30,11 @@ export function coachStrip(handEl) {
   };
 }
 
+/** A table tool: an icon and a label; on a narrow table only the icon is shown. */
+export function toolButton(icon, label, onclick) {
+  return h('button', { class: 'btn', title: label, 'aria-label': label, onclick }, h('span', { class: 'tb-ic' }, icon), h('span', { class: 'tb-lb' }, label));
+}
+
 /**
  * "Last trick" button: shows the cards of the last finished trick, who played them and who took it.
  * get() → { cards: [{ p, card }], winner } | null; nameOf(p) → name.
@@ -46,7 +51,7 @@ export function lastTrickButton(get, nameOf) {
           h('figcaption', null, h('b', null, nameOf(p)), h('small', null, cardName(card)), p === t.winner ? h('span', { class: 'lt-win' }, txt('✔ took the trick')) : null)))),
       actions: [{ label: txt('Close'), value: true, primary: true }],
     });
-  } }, txt('↺ Last trick'));
+  } }, h('span', { class: 'tb-ic' }, '↺'), h('span', { class: 'tb-lb' }, txt('Last trick')));
   return { el: btn, update: () => { btn.disabled = !get(); } };
 }
 

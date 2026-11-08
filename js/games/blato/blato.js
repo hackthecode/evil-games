@@ -10,7 +10,7 @@ import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
 import { SUITS, next } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
-import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
+import { coachStrip, lastTrickButton, bigCardsButton, toolButton } from '../cards/tablehelp.js';
 import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { txt } from '../../i18n.js';
 
@@ -83,8 +83,8 @@ export async function mount(root, ctx) {
     const tools = h('div', { class: 'ct-tools' },
       lastBtn.el,
       bigCardsButton(table$, () => renderHands(picking && v?.decision?.type === 'card' ? { playable: v.decision.legal } : {})),
-      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
-      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
+      toolButton('⚑', txt('Resign'), resign),
+      !online && toolButton('↻', txt('New'), newGame),
       muteBtn,
     );
     table$.append(center, kittyEl, hud, tools, coach.el);
@@ -135,19 +135,9 @@ export async function mount(root, ctx) {
       });
       flipHand(mine, () => {
         mine.replaceChildren(...els);
-        squeeze(mine);
+        layoutFan(mine, { spreadDeg: 2.6, lift: 0.4 });
       });
       mine.classList.toggle('active', !!(playable || select));
-      layoutFan(mine, { spreadDeg: 2.6, lift: 0.4 });
-    }
-
-    function squeeze(mine) {
-      const cards = [...mine.children];
-      if (cards.length < 2) return;
-      const cw = cards[0].offsetWidth;
-      const avail = table$.clientWidth - 24;
-      const step = Math.min(cw * 0.62, (avail - cw) / (cards.length - 1));
-      cards.forEach((c, i) => (c.style.marginLeft = i ? `${step - cw}px` : '0'));
     }
 
     function renderTrick() {

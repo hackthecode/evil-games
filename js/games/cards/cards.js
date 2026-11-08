@@ -80,7 +80,8 @@ export function sortHand(hand, rankOrder, suitOrder = ['S', 'H', 'C', 'D']) {
   });
 }
 
-// Lays out the cards in the hand as a fan.
+// Lays out the cards in the hand as a fan; on a narrow screen the cards overlap more so the
+// whole fan (including the tilted edge cards) stays on the screen.
 export function layoutFan(container, { spreadDeg = 5, lift = 0.6 } = {}) {
   const cards = [...container.children];
   const n = cards.length;
@@ -89,5 +90,15 @@ export function layoutFan(container, { spreadDeg = 5, lift = 0.6 } = {}) {
     el.style.setProperty('--rot', `${t * spreadDeg * (n > 6 ? 6 / n : 1)}deg`);
     el.style.setProperty('--lift', `${Math.abs(t) * Math.abs(t) * lift}px`);
     el.style.zIndex = i + 1;
+    el.style.marginLeft = '';
   });
+  if (n < 2) return;
+  const cw = cards[0].offsetWidth;
+  const avail = (container.parentElement || container).clientWidth - 12; // the hand itself is only as wide as its cards
+  if (!cw || !avail) return;
+  const step = cw + parseFloat(getComputedStyle(cards[1]).marginLeft || 0);
+  const need = cw * 1.3 + step * (n - 1);
+  if (need <= avail) return;
+  const fit = Math.max(cw * 0.16, (avail - cw * 1.3) / (n - 1));
+  cards.forEach((el, i) => { if (i) el.style.marginLeft = `${fit - cw}px`; });
 }

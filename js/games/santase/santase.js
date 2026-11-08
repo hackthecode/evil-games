@@ -10,7 +10,7 @@ import { suitSvg, SUIT_NAMES } from '../cards/suits.js';
 import { order, PTS } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
-import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
+import { coachStrip, lastTrickButton, bigCardsButton, toolButton } from '../cards/tablehelp.js';
 import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { txt } from '../../i18n.js';
 
@@ -77,8 +77,8 @@ export async function mount(root, ctx) {
     const tools = h('div', { class: 'ct-tools' },
       lastBtn.el,
       bigCardsButton(table$, () => renderHands(picking ? v?.decision?.legal : null)),
-      h('button', { class: 'btn', onclick: resign }, txt('Resign')),
-      !online && h('button', { class: 'btn', onclick: newGame }, txt('New')),
+      toolButton('⚑', txt('Resign'), resign),
+      !online && toolButton('↻', txt('New'), newGame),
       muteBtn,
     );
     table$.append(north, south, stockEl, center, hud, actions, tools, coach.el);
