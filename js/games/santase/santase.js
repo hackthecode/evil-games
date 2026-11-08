@@ -7,10 +7,11 @@ import { setupScreen, showResult, confirmDialog, sound, isMuted, setMuted, loadP
 import { cardEl, sortHand, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, SUIT_NAMES } from '../cards/suits.js';
-import { order } from './engine.js';
+import { order, PTS } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
 import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
+import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { txt } from '../../i18n.js';
 
 const TARGET = 11;
@@ -55,9 +56,9 @@ export async function mount(root, ctx) {
 
     // ---------- DOM ----------
     const table$ = h('div', { class: 'ct-table' });
-    const oppName = h('span', { class: 'seat-name' }, names[OP]);
+    const oppName = seatLabel(names[OP]);
     const oppHand = h('div', { class: 'opp-hand' });
-    const myName = h('span', { class: 'seat-name' }, names[ME]);
+    const myName = seatLabel(names[ME], { me: true });
     const myHand = h('div', { class: 'my-hand' });
     const north = h('div', { class: 'seat north' }, oppName, oppHand);
     const south = h('div', { class: 'seat south' }, myHand, myName);
@@ -82,6 +83,7 @@ export async function mount(root, ctx) {
     );
     table$.append(north, south, stockEl, center, hud, actions, tools, coach.el);
     root.replaceChildren(table$);
+    const trumpMk = trumpMark(table$);
 
     const slotOf = (p) => slots[p === ME ? 0 : 1];
     const nameOf = (p) => (p === ME ? myName : oppName);
@@ -99,6 +101,7 @@ export async function mount(root, ctx) {
       ].filter(Boolean));
       north.classList.toggle('turn', v?.turn === OP);
       south.classList.toggle('turn', v?.turn === ME);
+      trumpMk.set(v?.hand && v.trump && !hideTrump ? v.trump : null);
     }
 
     function renderStock() {
@@ -136,7 +139,7 @@ export async function mount(root, ctx) {
       })));
       myHand.classList.toggle('active', !!playable);
       myHand.classList.toggle('n-few', hand.length <= 4);
-      layoutFan(myHand, { spreadDeg: 3.5, lift: 1.6 });
+      layoutFan(myHand, { spreadDeg: 6, lift: 2.6 });
     }
 
     function renderTable() {
@@ -152,15 +155,8 @@ export async function mount(root, ctx) {
     };
 
     function bubble(anchor, text, gold = true, ms = 1700) {
-      if (motion.fast) return;
-      const r = anchor.getBoundingClientRect();
-      const tr = table$.getBoundingClientRect();
-      const b = h('div', { class: `bubble ${gold ? 'gold' : ''}` }, text);
-      table$.append(b);
-      const top = anchor === oppName ? r.bottom - tr.top + 8 : r.top - tr.top - b.offsetHeight - myHand.offsetHeight - 10;
-      b.style.left = Math.max(6, r.left - tr.left + r.width / 2 - b.offsetWidth / 2) + 'px';
-      b.style.top = Math.max(6, top) + 'px';
-      setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 300); }, ms);
+      const mine = anchor === myName;
+      speak(table$, anchor, text, { side: mine ? 'above' : 'below', gold, ms, above: mine ? myHand.offsetHeight : 0 });
     }
 
     // ---------- player decisions ----------
@@ -326,6 +322,8 @@ export async function mount(root, ctx) {
       sound('deal');
       await collectTrick(slots.map((s) => s.firstElementChild).filter(Boolean), slotOf(w).firstElementChild, nameOf(w));
       slots.forEach((s) => { s.replaceChildren(); s.classList.remove('win'); });
+      const gained = leadBefore ? PTS[leadBefore.card.r] + PTS[card.r] : 0;
+      flashWinner(nameOf(w), gained ? `+${gained}` : '');
       if (pub.drew) {
         // they draw one card each: the winner first; the last one may be the face-up trump
         v = nv;
@@ -347,6 +345,8 @@ export async function mount(root, ctx) {
     }
 
     async function animScore(pub) {
+      if (pub.reason !== 'closedFail' && pub.reason !== 'last') bubble(nameOf(pub.winner), txt('66 – enough!'), true, 1800);
+      if (!motion.fast) await sleep(900);
       const reason = pub.reason === 'closedFail' ? txt('the closed stock didn\'t bring 66') : pub.reason === 'last' ? txt('last trick taken') : txt('66 points');
       renderHud();
       if (motion.fast || v.phase === 'over') return;

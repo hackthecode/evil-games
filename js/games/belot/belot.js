@@ -10,6 +10,7 @@ import { suitSvg, isRed } from '../cards/suits.js';
 import { CONTRACT_NAMES, teamOf, cardPoints, RANKS, resolveDeclarations } from './engine.js';
 import { lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
+import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { cardLines, illegalReason, turnHint, bidMeaning, bidAdvice, playAdvice, trickNote } from './help.js';
 import { txt } from '../../i18n.js';
 
@@ -76,7 +77,7 @@ export async function mount(root, ctx) {
     // ---------- DOM ----------
     const table$ = h('div', { class: 'ct-table' });
     const seats = [0, 1, 2, 3].map((p) => {
-      const nameEl = h('span', { class: 'seat-name' }, names[p]);
+      const nameEl = seatLabel(names[p], { me: p === ME });
       const handEl = p === ME ? h('div', { class: 'my-hand' }) : h('div', { class: 'opp-hand' });
       const el = h('div', { class: `seat ${SEATS[V(p)]}` }, p === ME ? [handEl, nameEl] : [nameEl, handEl]);
       table$.append(el);
@@ -106,6 +107,7 @@ export async function mount(root, ctx) {
     // help for beginners: what to do now, plus a hint button
     const coach = h('div', { class: 'ct-coach', hidden: true });
     table$.append(center, hud, tools, coach);
+    const trumpMk = trumpMark(table$);
     root.replaceChildren(table$);
     enableCardTips();
     let played = []; // cards played in this deal (for the computer's suggestion)
@@ -130,6 +132,7 @@ export async function mount(root, ctx) {
         playing && cur && pointsBox(cur),
       ].filter(Boolean));
       seats.forEach((s, p) => s.el.classList.toggle('turn', v?.turn === p));
+      trumpMk.set(playing && cur ? cur.contract : null);
     }
 
     // Card points taken so far and what the bidding team still needs not to be "inside".
@@ -177,7 +180,7 @@ export async function mount(root, ctx) {
       })));
       mine.classList.toggle('active', !!playable);
       mine.classList.toggle('n-few', v.hand.length <= 4);
-      layoutFan(mine, { spreadDeg: 3, lift: 1.4 });
+      layoutFan(mine, { spreadDeg: 5, lift: 2.2 });
     }
 
     function renderTrick() {
@@ -185,25 +188,9 @@ export async function mount(root, ctx) {
       for (const t of v?.trick || []) slots[t.p].append(cardEl(t.card));
     }
 
+    const SIDE = ['above', 'left', 'below', 'right'];
     function bubble(p, html, gold = false, ms = 1600) {
-      if (motion.fast) return;
-      const vv = V(p);
-      const r = seats[p].nameEl.getBoundingClientRect();
-      const tr = table$.getBoundingClientRect();
-      const b = h('div', { class: `bubble ${gold ? 'gold' : ''}`, html });
-      table$.append(b);
-      const bw = b.offsetWidth, bh = b.offsetHeight;
-      let x = r.left - tr.left + r.width / 2 - bw / 2;
-      let y = r.bottom - tr.top + 8;
-      if (vv === 1) { x = r.left - tr.left - bw - 8; y = r.top - tr.top; }
-      if (vv === 3) { x = r.right - tr.left + 8; y = r.top - tr.top; }
-      if (vv === 0) y = tr.height - seats[ME].handEl.offsetHeight - bh - 40;
-      b.style.left = Math.max(6, Math.min(x, tr.width - bw - 6)) + 'px';
-      b.style.top = Math.max(6, y) + 'px';
-      setTimeout(() => {
-        b.classList.add('out');
-        setTimeout(() => b.remove(), 300);
-      }, ms * speed);
+      speak(table$, seats[p].nameEl, html, { side: SIDE[V(p)], gold, ms: ms * speed, above: p === ME ? seats[ME].handEl.offsetHeight : 0 });
     }
 
     function message(text, ms = 1500) {
@@ -428,6 +415,7 @@ export async function mount(root, ctx) {
       sound('deal');
       await collectTrick(slots.map((s) => s.firstElementChild).filter(Boolean), slots[w].firstElementChild, seats[w].nameEl, { duration: 680 * speed });
       slots.forEach((s) => { s.replaceChildren(); s.classList.remove('win'); });
+      flashWinner(seats[w].nameEl, gained ? `+${gained}` : '');
     }
 
     async function showSummary(pub) {
@@ -467,6 +455,12 @@ export async function mount(root, ctx) {
       if (e.type === 'score') {
         v = nv;
         renderHud();
+        // a capot: the player who took the last trick shouts it
+        if (e.pub.res.capot >= 0 && lastTrick && teamOf(lastTrick.winner) === e.pub.res.capot) {
+          bubble(lastTrick.winner, txt('Capot!'), true, 2000);
+          sound('notify');
+          await wait(1200);
+        }
         if (!motion.fast && nv.phase !== 'over') await showSummary(e.pub);
         if (nv.phase === 'over') {
           endMatch(nv.score[US] > nv.score[THEM] ? 'win' : 'loss', txt('Final result: Us {0} – Them {1}', nv.score[US], nv.score[THEM]));

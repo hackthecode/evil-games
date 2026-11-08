@@ -1,6 +1,11 @@
 // Bulgarian dictionary: English source string → Bulgarian translation (see js/i18n.js).
 // New UI strings: add the English text in the code with t('…') and its translation here.
 export const BG = {
+  'your turn': 'на ход',
+  'Trumps': 'Коз',
+  'Capot!': 'Валат!',
+  '66 – enough!': '66 – стигат ми!',
+  'I have my {0}!': 'Имам си {0}-те!',
   'A banned player cannot write in the lobby.': 'Блокираният не може да пише в лобито.',
   'Home screen icon and full screen, like an app.': 'Икона на началния екран и цял екран, като приложение.',
   'Open the game from the new icon – full screen, like an app.': 'Отваряйте играта от новата икона – на цял екран, като приложение.',

@@ -321,3 +321,57 @@
 .deal-points .need { font-size: 11.5px; line-height: 1.3; }
 /* the score box gets taller during a deal – keep the left player below it */
 .ct-table:not(.blato-table) .seat.west { top: 62%; }
+
+/* ===== Table effects (js/games/cards/tablefx.js) ===== */
+/* name plates with an avatar */
+.seat-name { padding: 3px 10px 3px 3px; }
+.sn-av { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--av); color: #111; font-size: 11.5px; font-weight: 900; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+.sn-extra { padding: 0 6px; border-radius: 6px; background: rgba(255,255,255,.14); font-size: 11px; font-variant-numeric: tabular-nums; }
+.sn-extra[hidden] { display: none; }
+.sn-turn { display: none; padding: 0 7px; border-radius: 6px; background: #ffd978; color: #2a1d00; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.seat.turn .sn-turn { display: inline-block; animation: turn-chip 1.6s ease-in-out infinite; }
+@keyframes turn-chip { 50% { opacity: .55; } }
+/* whose turn: a pulsing golden ring around the name, and a glow under my hand */
+.seat.turn .seat-name { animation: turn-ring 1.6s ease-in-out infinite; }
+.seat.turn .sn-av { box-shadow: 0 0 0 2px #ffd978, 0 0 12px rgba(255, 217, 120, .8); }
+@keyframes turn-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 217, 120, .55), 0 0 14px rgba(255, 217, 120, .3); } 50% { box-shadow: 0 0 0 6px rgba(255, 217, 120, 0), 0 0 22px rgba(255, 217, 120, .5); } }
+.seat.south .my-hand { position: relative; }
+.seat.south .my-hand::before { content: ''; position: absolute; left: 10%; right: 10%; bottom: -10px; height: 70%; border-radius: 50%; background: radial-gradient(ellipse at 50% 100%, rgba(255, 217, 120, .28), transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; z-index: -1; }
+.seat.south.turn .my-hand::before { opacity: 1; }
+/* the player who took the trick */
+.seat-name.took { animation: took .9s var(--ease); }
+@keyframes took { 25% { transform: scale(1.18); background: rgba(255, 217, 120, .45); box-shadow: 0 0 26px rgba(255, 217, 120, .8); } }
+.took-pop { position: fixed; z-index: 950; pointer-events: none; transform: translate(-50%, -100%); font-weight: 900; font-size: 18px; color: #ffe08a; text-shadow: 0 2px 8px rgba(0,0,0,.8); animation: took-pop 1.3s ease-out forwards; }
+@keyframes took-pop { from { opacity: 0; translate: 0 6px; } 20% { opacity: 1; } to { opacity: 0; translate: 0 -34px; } }
+/* speech bubbles with a tail towards the speaker */
+.bubble::after { content: ''; position: absolute; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); border-radius: 2px; }
+.bubble.gold::after { background: #f0a23f; }
+.bubble.tail-below::after { top: -5px; left: calc(var(--tail-x, 50%) - 6px); }
+.bubble.tail-above::after { bottom: -5px; left: calc(var(--tail-x, 50%) - 6px); }
+.bubble.gold.tail-below::after { background: #ffe08a; }
+.bubble.tail-left::after { right: -5px; top: calc(50% - 6px); }
+.bubble.tail-right::after { left: -5px; top: calc(50% - 6px); }
+/* the fan: the cards that can't be played sink a little */
+.my-hand.active .card.disabled { transform: translateY(calc(var(--lift, 0px) + 10px)) rotate(var(--rot, 0)); filter: brightness(.5) saturate(.5); }
+.my-hand.active .card.playable:hover, .my-hand.active .card.playable:focus-visible { transform: translateY(calc(var(--lift, 0px) - 20px)) rotate(var(--rot, 0)) scale(1.05); }
+/* the trump sign in the corner */
+.trump-mark { position: absolute; z-index: 7; right: 14px; top: 56px; display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; }
+.trump-mark[hidden] { display: none; }
+.tm-face { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(160deg, #ffffff, #efe7d6); box-shadow: 0 0 0 2px #ffd978, 0 8px 22px rgba(0,0,0,.5), 0 0 26px rgba(255, 217, 120, .35); color: #19202e; }
+.tm-face .suit { width: 34px; height: 34px; fill: #19202e; }
+.tm-face .suit.red { fill: #cf2f36; }
+.tm-all { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.tm-all .suit { width: 18px; height: 18px; }
+.tm-none { font-size: 30px; font-weight: 900; color: #8a8f9c; line-height: 1; }
+.trump-mark small { padding: 1px 8px; border-radius: 999px; background: rgba(0,0,0,.55); font-size: 11px; font-weight: 700; color: #ffe7a6; white-space: nowrap; }
+@container (max-width: 560px) {
+  .trump-mark { top: 44px; right: 8px; }
+  .tm-face { width: 42px; height: 42px; border-radius: 12px; }
+  .tm-face .suit { width: 26px; height: 26px; }
+  .tm-all .suit { width: 14px; height: 14px; }
+  .sn-av { width: 18px; height: 18px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat.turn .seat-name, .seat.turn .sn-turn { animation: none; }
+}
+.trump-mark.announce { z-index: 1000; }

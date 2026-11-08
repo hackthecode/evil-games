@@ -11,6 +11,7 @@ import { SUITS, next } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
 import { coachStrip, lastTrickButton, bigCardsButton } from '../cards/tablehelp.js';
+import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { txt } from '../../i18n.js';
 
 const BOT_NAMES = [null, txt('Georgi'), txt('Petar')];
@@ -59,7 +60,7 @@ export async function mount(root, ctx) {
     // ---------- DOM ----------
     const table$ = h('div', { class: 'ct-table blato-table' });
     const seats = [0, 1, 2].map((p) => {
-      const nameEl = h('span', { class: 'seat-name' }, names[p]);
+      const nameEl = seatLabel(names[p], { me: p === ME });
       const handEl = p === ME ? h('div', { class: 'my-hand' }) : h('div', { class: 'opp-hand' });
       const el = h('div', { class: `seat ${POS[V(p)]}` }, p === ME ? [handEl, nameEl] : [nameEl, handEl]);
       table$.append(el);
@@ -88,6 +89,7 @@ export async function mount(root, ctx) {
     );
     table$.append(center, kittyEl, hud, tools, coach.el);
     root.replaceChildren(table$);
+    const trumpMk = trumpMark(table$);
 
     const order3 = [ME, next(ME), next(next(ME))];
     const sign = (x) => (x > 0 ? '+' : '') + x;
@@ -100,9 +102,10 @@ export async function mount(root, ctx) {
         v?.trump && h('div', { class: 'contract-badge', html: txt('Trumps: {0} {1}', suitSvg(v.trump, 'suit' + (isRed(v.trump) ? ' red' : '')), SUIT_NAMES[v.trump]) }),
       ].filter(Boolean));
       seats.forEach((s, p) => {
-        s.nameEl.textContent = names[p] + (v?.targets ? ` · ${v.tricks[p]}/${v.targets[p]}` : '');
+        s.nameEl.setExtra(v?.targets ? `${v.tricks[p]}/${v.targets[p]}` : '');
         s.el.classList.toggle('turn', v?.turn === p);
       });
+      trumpMk.set(v?.trump || null);
     }
 
     function renderKitty() {
@@ -135,7 +138,7 @@ export async function mount(root, ctx) {
         squeeze(mine);
       });
       mine.classList.toggle('active', !!(playable || select));
-      layoutFan(mine, { spreadDeg: 1.6, lift: 0.5 });
+      layoutFan(mine, { spreadDeg: 2.6, lift: 0.4 });
     }
 
     function squeeze(mine) {
@@ -152,23 +155,9 @@ export async function mount(root, ctx) {
       for (const t of v?.trick || []) slots[t.p].append(cardEl(t.card));
     }
 
+    const SIDE = ['above', 'left', 'right'];
     function bubble(p, html, gold = false, ms = 1700) {
-      if (motion.fast) return;
-      const vv = V(p);
-      const r = seats[p].nameEl.getBoundingClientRect();
-      const tr = table$.getBoundingClientRect();
-      const b = h('div', { class: `bubble ${gold ? 'gold' : ''}`, html });
-      table$.append(b);
-      const bw = b.offsetWidth, bh = b.offsetHeight;
-      let x = r.left - tr.left + r.width / 2 - bw / 2, y;
-      if (vv === 0) y = tr.height - seats[ME].handEl.offsetHeight - bh - 40;
-      else {
-        x = vv === 1 ? r.left - tr.left - bw - 8 : r.right - tr.left + 8;
-        y = r.top - tr.top;
-      }
-      b.style.left = Math.max(6, Math.min(x, tr.width - bw - 6)) + 'px';
-      b.style.top = Math.max(6, y) + 'px';
-      setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 300); }, ms);
+      speak(table$, seats[p].nameEl, html, { side: SIDE[V(p)], gold, ms, above: p === ME ? seats[ME].handEl.offsetHeight : 0 });
     }
 
     function message(text, ms = 1600) {
@@ -424,6 +413,9 @@ export async function mount(root, ctx) {
       sound('deal');
       await collectTrick(slots.map((s) => s.firstElementChild).filter(Boolean), slots[w].firstElementChild, seats[w].nameEl, { duration: 560 });
       slots.forEach((s) => { s.replaceChildren(); s.classList.remove('win'); });
+      flashWinner(seats[w].nameEl, v.targets ? `${v.tricks[w]}/${v.targets[w]}` : '+1');
+      // the moment a player reaches their goal they say so
+      if (v.targets && v.tricks[w] === v.targets[w] && w !== ME) bubble(w, txt('I have my {0}!', v.targets[w]), true);
     }
 
     async function showSummary(pub) {
