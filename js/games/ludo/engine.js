@@ -70,15 +70,9 @@ export function moves(st, p, d) {
     if (occ && occ[0] === p) continue;
     res.push({ t, from: s, to, capture: occ });
   }
-  // with a six bringing out a piece is mandatory if possible
-  const enter = res.filter((m) => m.from === -1);
-  if (enter.length) return enter.slice(0, 1);
-  // the start square must be cleared while there are pieces in the yard
-  if (mine.includes(-1)) {
-    const fromStart = res.filter((m) => m.from === 0);
-    if (fromStart.length) return fromStart;
-  }
-  return res;
+  // the player chooses freely; bringing out a piece is one option (all pieces in the yard are equal)
+  const enter = res.findIndex((m) => m.from === -1);
+  return res.filter((m, i) => m.from !== -1 || i === enter);
 }
 
 export function apply(st, p, m) {

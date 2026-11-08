@@ -1,6 +1,6 @@
 // Service worker: offline support and fast loading.
 // When files change, bump VERSION so the cache is refreshed.
-const VERSION = 'evil-v35';
+const VERSION = 'evil-v36';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

@@ -4,3 +4,4 @@ import './tabla.test.js';
 import './chess.test.js';
 import './referee.test.js';
 export { run } from './harness.js';
+import './ludo.test.js';
