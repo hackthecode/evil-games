@@ -30,6 +30,23 @@ export function coachStrip(handEl) {
   };
 }
 
+/**
+ * The score box in the corner. On a phone it shrinks to one line with the score; a tap opens
+ * the details (contract, points in the deal…) and they close again by themselves.
+ */
+export function scoreBox() {
+  let timer = 0;
+  const el = h('div', { class: 'ct-hud', role: 'button', tabindex: 0, title: txt('Score – tap for details'), 'aria-label': txt('Score – tap for details') });
+  const toggle = () => {
+    clearTimeout(timer);
+    const open = el.classList.toggle('open');
+    if (open) timer = setTimeout(() => el.classList.remove('open'), 6000);
+  };
+  el.addEventListener('click', toggle);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  return el;
+}
+
 /** A table tool: an icon and a label; on a narrow table only the icon is shown. */
 export function toolButton(icon, label, onclick) {
   return h('button', { class: 'btn', title: label, 'aria-label': label, onclick }, h('span', { class: 'tb-ic' }, icon), h('span', { class: 'tb-lb' }, label));

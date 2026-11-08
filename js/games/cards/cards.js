@@ -97,8 +97,9 @@ export function layoutFan(container, { spreadDeg = 5, lift = 0.6 } = {}) {
   const avail = (container.parentElement || container).clientWidth - 12; // the hand itself is only as wide as its cards
   if (!cw || !avail) return;
   const step = cw + parseFloat(getComputedStyle(cards[1]).marginLeft || 0);
-  const need = cw * 1.3 + step * (n - 1);
+  const edge = cw * 1.7; // the first and the last card, with room for their tilt
+  const need = edge + step * (n - 1);
   if (need <= avail) return;
-  const fit = Math.max(cw * 0.16, (avail - cw * 1.3) / (n - 1));
+  const fit = Math.max(cw * 0.16, (avail - edge) / (n - 1));
   cards.forEach((el, i) => { if (i) el.style.marginLeft = `${fit - cw}px`; });
 }

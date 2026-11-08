@@ -10,7 +10,7 @@ import { suitSvg, isRed, SUIT_NAMES } from '../cards/suits.js';
 import { SUITS, next } from './engine.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { cardLines, illegalReason, turnHint, playAdvice } from './help.js';
-import { coachStrip, lastTrickButton, bigCardsButton, toolButton } from '../cards/tablehelp.js';
+import { coachStrip, lastTrickButton, bigCardsButton, toolButton, scoreBox } from '../cards/tablehelp.js';
 import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { txt } from '../../i18n.js';
 
@@ -73,7 +73,7 @@ export async function mount(root, ctx) {
       return s;
     });
     const kittyEl = h('div', { class: 'blato-kitty' });
-    const hud = h('div', { class: 'ct-hud' });
+    const hud = scoreBox();
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
     // help for beginners, the last trick and large cards
     const coach = coachStrip(seats[ME].handEl);

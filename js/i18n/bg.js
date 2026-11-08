@@ -1,6 +1,7 @@
 // Bulgarian dictionary: English source string → Bulgarian translation (see js/i18n.js).
 // New UI strings: add the English text in the code with t('…') and its translation here.
 export const BG = {
+  'Score – tap for details': 'Резултат – натиснете за подробности',
   'Full screen': 'Цял екран',
   'Exit full screen': 'Изход от цял екран',
   'Show the menu': 'Покажи менюто',

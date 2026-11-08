@@ -8,7 +8,7 @@ import { cardEl, layoutFan } from '../cards/cards.js';
 import { fly, snap, land, collectTrick, flipHand, deckEl, setDeckCount, shuffleDeck } from '../cards/fly.js';
 import { suitSvg, isRed } from '../cards/suits.js';
 import { CONTRACT_NAMES, teamOf, cardPoints, RANKS, resolveDeclarations } from './engine.js';
-import { lastTrickButton, bigCardsButton, toolButton } from '../cards/tablehelp.js';
+import { lastTrickButton, bigCardsButton, toolButton, scoreBox } from '../cards/tablehelp.js';
 import { enableCardTips, setCardInfo } from '../cards/cardtips.js';
 import { seatLabel, flashWinner, speak, trumpMark } from '../cards/tablefx.js';
 import { cardLines, illegalReason, turnHint, bidMeaning, bidAdvice, playAdvice, trickNote } from './help.js';
@@ -89,7 +89,7 @@ export async function mount(root, ctx) {
       center.append(s);
       return s;
     });
-    const hud = h('div', { class: 'ct-hud' });
+    const hud = scoreBox();
     const muteBtn = h('button', { class: 'btn', onclick: () => { setMuted(!isMuted()); muteBtn.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊');
     // the last finished trick and the card points taken in this deal (per team, US/THEM)
     let lastTrick = null;

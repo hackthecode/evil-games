@@ -396,3 +396,38 @@
   .ct-table.big-cards .my-hand .card + .card { margin-left: calc(var(--hand-cw) * -0.6); }
   .bubble { font-size: 13px; padding: 5px 10px; }
 }
+
+/* ===== The score box on a phone: one line in the tools row, details on tap ===== */
+.ct-hud { cursor: default; }
+@container (max-width: 560px) {
+  .ct-tools { left: auto; }
+  .ct-hud {
+    top: 6px; left: 6px; max-width: calc(100% - 230px); min-width: 0; height: 32px; padding: 0 22px 0 9px;
+    flex-direction: row; align-items: center; gap: 0; overflow: hidden; cursor: pointer; border-radius: 10px;
+  }
+  .ct-hud::after { content: '▾'; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-size: 11px; color: rgba(255,255,255,.6); }
+  .ct-hud > :not(.row) { display: none; }
+  .ct-hud .row { gap: 4px; align-items: baseline; white-space: nowrap; }
+  .ct-hud .row + .row::before { content: '·'; margin: 0 5px; color: rgba(255,255,255,.4); }
+  .ct-hud .row span { max-width: 52px; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: rgba(255,255,255,.75); }
+  .ct-hud .row b { font-size: 14px; }
+  /* opened: the full box drops down over the table */
+  .ct-hud.open {
+    z-index: 40; height: auto; max-width: 230px; padding: 10px 12px; flex-direction: column; align-items: stretch; gap: 5px;
+    background: rgba(8, 8, 12, .94); box-shadow: 0 14px 34px rgba(0,0,0,.6);
+  }
+  .ct-hud.open::after { content: '▴'; top: 14px; }
+  .ct-hud.open > :not(.row) { display: revert; }
+  .ct-hud.open > .contract-badge { display: inline-flex; }
+  .ct-hud.open > .deal-points { display: flex; }
+  .ct-hud.open .row + .row::before { content: none; }
+  .ct-hud.open .row { justify-content: space-between; }
+  .ct-hud.open .row span { max-width: none; font-size: 12.5px; }
+  .ct-hud.open .contract-help, .ct-hud.open .deal-points small { display: block; }
+}
+@container (max-width: 560px) {
+  .ct-tools { gap: 4px; }
+  .ct-tools .btn { width: 32px; }
+  .ct-hud:not(.open) { max-width: calc(100% - 196px); }
+  .blato-table .ct-hud:not(.open) .row span { max-width: 38px; }
+}
