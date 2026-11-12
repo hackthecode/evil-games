@@ -1,0 +1,250 @@
+/* ------------------------------------------------------------
+   Панел на домакина — управление, играчи и конзола на връзките
+
+   Следва езика на „Карта на играча": кремав модал със сърцевина от
+   тъмни блокчета, златни акценти. Затова вътрешните блокове изрично
+   обръщат мастилото към --text-light: иначе наследяват тъмния --ink
+   и текстът изчезва върху тъмния фон.
+   ------------------------------------------------------------ */
+/* Над завесата на паузата (610). Останалите модали нарочно се затварят
+   при пауза, но този трябва да остане достъпен — оттам се възобновява
+   играта. Потвърждението (660) стои над него. */
+#admin-modal { z-index: 620; }
+.modal.admin-modal {
+  max-width: min(720px, 95vw);
+  width: 100%;
+}
+
+/* --- Раздели --- */
+.admin-modal .admin-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0.8rem;
+  border-bottom: 1px solid rgba(230, 195, 107, 0.25);
+}
+.admin-modal .admin-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.admin-modal .admin-tab:hover { background: rgba(36, 48, 63, 0.07); }
+.admin-modal .admin-tab.is-active {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--gold-soft);
+}
+
+/* --- Управление --- */
+.admin-modal .admin-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.6rem;
+}
+.admin-modal .admin-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: left;
+  background: rgba(11, 22, 38, 0.92);
+  border: 1px solid rgba(230, 195, 107, 0.2);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-light);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s, background 0.15s;
+}
+.admin-modal .admin-action:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: rgba(17, 31, 51, 0.95);
+}
+.admin-modal .admin-action:active:not(:disabled) { transform: translateY(1px); }
+.admin-modal .admin-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.admin-modal .admin-action > span {
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+.admin-modal .admin-action > small {
+  color: var(--text-dim);
+  font-size: 0.71rem;
+  line-height: 1.35;
+}
+.admin-modal .admin-action.is-danger { border-color: rgba(214, 106, 96, 0.45); }
+.admin-modal .admin-action.is-danger:hover:not(:disabled) {
+  border-color: #d66a60;
+  background: rgba(58, 22, 22, 0.6);
+}
+
+/* --- Играчи --- */
+.admin-modal .admin-players {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.admin-modal .admin-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background: rgba(11, 22, 38, 0.92);
+  border: 1px solid rgba(230, 195, 107, 0.16);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.6rem;
+  color: var(--text-light);
+}
+.admin-modal .apr-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 190px;
+}
+.admin-modal .apr-token {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: block;
+}
+.admin-modal .apr-token svg { width: 100%; height: 100%; }
+.admin-modal .apr-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.admin-modal .apr-name b {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-modal .apr-name small {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+.admin-modal .apr-controls {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.admin-modal .apr-controls .btn-ghost {
+  font-size: 0.72rem;
+  padding: 0.28em 0.7em;
+}
+.admin-modal .apr-controls .btn-ghost.is-danger {
+  color: #ff9a90;
+  border-color: rgba(214, 106, 96, 0.45);
+}
+.admin-modal .apr-controls .btn-ghost.is-danger:hover:not(:disabled) {
+  border-color: #d66a60;
+  background: rgba(58, 22, 22, 0.5);
+}
+
+/* --- Конзола на връзките --- */
+.admin-modal .admin-console-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.admin-modal .admin-console-count {
+  color: var(--ink-soft);
+  font-size: 0.73rem;
+}
+.admin-modal .admin-console {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 46vh;
+  overflow-y: auto;
+  background: rgba(8, 16, 28, 0.95);
+  border: 1px solid rgba(230, 195, 107, 0.18);
+  border-radius: var(--radius-md);
+  padding: 0.45rem;
+  color: var(--text-light);
+}
+.admin-modal .admin-console .ps-note {
+  margin: 0.3rem 0.2rem;
+  color: var(--text-dim);
+}
+.admin-modal .console-row {
+  display: grid;
+  /* Икона · часовник · описание · адрес. Описанието поема остатъка,
+     затова адресът не се къса при дълги имена. */
+  grid-template-columns: 1.3rem auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  border-left: 2px solid transparent;
+}
+.admin-modal .console-row:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
+.admin-modal .console-row.is-disconnect { border-left-color: #d9a441; }
+.admin-modal .console-row.is-kick { border-left-color: #d66a60; }
+.admin-modal .console-row.is-leave { border-left-color: #8b93a4; }
+.admin-modal .console-row.is-join,
+.admin-modal .console-row.is-create { border-left-color: #58b08a; }
+.admin-modal .console-row.is-reconnect { border-left-color: #5b9bd5; }
+.admin-modal .cr-icon {
+  text-align: center;
+  font-size: 0.85rem;
+}
+.admin-modal .cr-time {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.admin-modal .cr-time b { font-size: 0.78rem; }
+.admin-modal .cr-time small {
+  color: var(--text-dim);
+  font-size: 0.64rem;
+}
+.admin-modal .cr-body {
+  min-width: 0;
+  color: var(--text-dim);
+}
+.admin-modal .cr-body b { color: var(--text-light); }
+.admin-modal .cr-body small {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+.admin-modal .cr-ip {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--gold-soft);
+  background: rgba(230, 195, 107, 0.09);
+  border-radius: 5px;
+  padding: 0.12rem 0.4rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .admin-modal .console-row {
+    /* На тесен екран адресът слиза под описанието, вместо да го смачква. */
+    grid-template-columns: 1.3rem auto 1fr;
+  }
+  .admin-modal .cr-ip {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+  .admin-modal .admin-player-row { align-items: flex-start; }
+}

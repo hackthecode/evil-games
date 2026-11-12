@@ -1,0 +1,372 @@
+/* ============================================================
+   Индикатори, чат, таймер, постройки и тестета
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Скрита фигурка при hover върху полето ѝ */
+.board-token.ghost { opacity: 0.12; }
+
+/* Индикатор за прекъсната връзка на играч */
+.player-card.disconnected { box-shadow: inset 0 0 0 1px rgba(208, 85, 69, 0.5); }
+.pc-reconnect {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #e59d92;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+.pc-reconnect.expired {
+  color: #ffce6b;
+  animation: unreadPulse 1s ease infinite alternate;
+}
+
+/* Бързи емоджи реакции в чата */
+.chat-reactions {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(26px, 1fr));
+  gap: 0.2rem;
+  padding: 0.35rem 0 0.15rem;
+}
+.chat-reactions button {
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid rgba(230, 195, 107, 0.28);
+  background: rgba(11, 22, 38, 0.5);
+  border-radius: 8px;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.2em;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.chat-reactions button:hover { transform: scale(1.18); background: rgba(230, 195, 107, 0.18); }
+.chat-reactions button.sent { animation: quickReactionSent 0.4s ease; }
+@keyframes quickReactionSent {
+  45% { transform: translateY(-5px) scale(1.18); background: rgba(87, 224, 143, 0.28); }
+}
+
+/* Брояч на непрочетени съобщения */
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  height: 1.4em;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  vertical-align: middle;
+  animation: unreadPulse 1s ease infinite alternate;
+}
+@keyframes unreadPulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+/* Бутони за групово строене в панела „Моите имоти" */
+.group-completion-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(230, 195, 107, 0.48);
+  border-radius: 9px;
+  background: rgba(230, 195, 107, 0.09);
+}
+.group-completion-goals > strong { color: #f0d887; font-size: 0.72rem; }
+.group-completion-goals button {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--territory-color) 58%, #556170);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #eef3f7;
+  text-align: left;
+  cursor: pointer;
+}
+.group-completion-goals button:hover { background: rgba(255, 255, 255, 0.11); }
+.group-completion-goals button > i { border-radius: 3px; background: var(--territory-color); }
+.group-completion-goals button span { display: flex; min-width: 0; flex-direction: column; }
+.group-completion-goals button b { color: color-mix(in srgb, var(--territory-color) 70%, #fff); font-size: 0.76rem; overflow-wrap: anywhere; }
+.group-completion-goals button small { color: #aeb9c5; font-size: 0.61rem; }
+.group-build-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed rgba(230, 195, 107, 0.25);
+}
+.group-build-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.5em 0.7em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 8px;
+  text-align: left;
+}
+.group-build-btn .gb-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Бутон за продажба на къща/хотел — ясно видим, кехлибарен акцент. */
+.btn-sell-house {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42em 0.7em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4a2f12;
+  background: linear-gradient(160deg, #f0c46a, #d99a3a);
+  border: 1px solid #b97e28;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.btn-sell-house:not(:disabled):hover { filter: brightness(1.06); }
+.btn-sell-house .sell-icon {
+  /* Червена къща с наклонена стрелка надолу — „маха се постройка". */
+  background: #c0392b;
+  margin: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+.group-sell-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.group-sell-actions { border-bottom-style: dashed; }
+
+/* Таймер на хода */
+.center-timer {
+  font-weight: 800;
+  font-size: clamp(0.75rem, 1.4vw, 1.15rem);
+  color: var(--gold);
+  letter-spacing: 0.03em;
+}
+.center-timer.warn {
+  color: #ff6b57;
+  text-shadow: 0 0 12px rgba(255, 76, 48, 0.6);
+  animation: timerBlink 0.6s ease infinite alternate;
+}
+@keyframes timerBlink {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0.7; transform: scale(1.14); }
+}
+
+/* ------------------------------------------------------------
+   Къщички и хотели (нива на застрояване)
+   ------------------------------------------------------------ */
+.mini-house, .mini-hotel {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.8em;
+  margin-right: 1px;
+  background: #1f9e4c;
+  clip-path: polygon(50% 0, 100% 40%, 100% 100%, 0 100%, 0 40%);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  vertical-align: middle;
+  transform: perspective(20px) rotateX(-9deg);
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.45));
+}
+.mini-hotel {
+  width: 1.35em;
+  height: 0.95em;
+  background: #c0392b;
+}
+.sp-level .mini-house, .sp-level .mini-hotel { filter: drop-shadow(0 0 1px #fff); }
+
+/* Значка с брой имоти до заглавието „Моите имоти" */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--copper);
+  color: #241608;
+  font-size: 0.78rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+.count-badge:empty { display: none; }
+
+/* ------------------------------------------------------------
+   Тестета с карти в центъра на таблото
+   ------------------------------------------------------------ */
+.deck-pile {
+  position: absolute;
+  width: 17%;
+  aspect-ratio: 3 / 2;
+  pointer-events: none;
+}
+.deck-community { top: 7%; left: 6%; transform: rotate(-14deg); }
+.deck-business { bottom: 7%; right: 6%; transform: rotate(14deg); }
+/* Двете тестета имат свой нюанс: лилаво за „Обществено събитие", медно за
+   „Бизнес възможност" — същото разделение, което носят и самите карти.
+   ghost-* е летящата карта при теглене; носи само нюанса, не позицията. */
+.deck-community, .ghost-community { --deck-tint: #8e5bd6; }
+.deck-business, .ghost-business { --deck-tint: #c08a1e; }
+.deck-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 8%;
+  /* Гръб на игрална карта: тониран кант, диагонална мрежа и светло поле в
+     средата. Всичко е статично — центърът на таблото нарочно не анимира. */
+  background:
+    linear-gradient(160deg, #fff8e9, #efdfbc);
+  border: 1.5px solid #9c6a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.8rem, 1.8vw, 1.5rem);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+/* Шарката е ::before ВЪТРЕ в картата, не нов брат: fan-out подредбата по-долу
+   се хваща за :nth-child и нов елемент в тестето би я разместил. */
+.deck-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--deck-tint, #9c6a2e) 26%, transparent) 0 1.5px,
+      transparent 1.5px 6px),
+    repeating-linear-gradient(-45deg,
+      color-mix(in srgb, var(--deck-tint, #9c6a2e) 18%, transparent) 0 1.5px,
+      transparent 1.5px 6px),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--deck-tint, #9c6a2e) 22%, transparent),
+      transparent 62%);
+}
+/* Светло поле под знака, за да не се губи в мрежата, плюс тънък кант.
+   Центърът е почти плътен: през полупрозрачен медальон мрежата минаваше
+   през самия знак и го правеше блед. */
+.deck-card::after {
+  content: "";
+  position: absolute;
+  inset: 11%;
+  border: 1px solid color-mix(in srgb, var(--deck-tint, #9c6a2e) 45%, transparent);
+  border-radius: 5%;
+  background: radial-gradient(circle at 50% 50%,
+    #fffdf6 0 44%, rgba(255, 250, 236, 0.9) 60%, transparent 78%);
+}
+.deck-card .sp-glyph { position: relative; z-index: 1; }
+/* Разместването на трите карти е дебелината на купчината. Стойностите са в
+   променливи, за да ги свива renderDecks според останалите карти. */
+.deck-card:nth-child(1) {
+  transform: translate(calc(-5% * var(--deck-spread, 1)), calc(-8% * var(--deck-spread, 1)))
+    rotate(calc(-3deg * var(--deck-spread, 1)));
+}
+.deck-card:nth-child(2) {
+  transform: translate(calc(3% * var(--deck-spread, 1)), calc(-4% * var(--deck-spread, 1)))
+    rotate(calc(2deg * var(--deck-spread, 1)));
+}
+.deck-card:nth-child(1), .deck-card:nth-child(2) { transition: transform 0.45s ease, opacity 0.3s ease; }
+/* Три степени: пълно, наполовина и почти изчерпано тесте. При празно се
+   вижда само една карта — следващото теглене разбърква изиграните. */
+.deck-pile.deck-medium { --deck-spread: 0.62; }
+.deck-pile.deck-low { --deck-spread: 0.28; }
+.deck-pile.deck-empty { --deck-spread: 0; }
+.deck-pile.deck-empty .deck-card:nth-child(1),
+.deck-pile.deck-empty .deck-card:nth-child(2) { opacity: 0; }
+/* Броят карти като значка върху купчината: остатък/общо. Стои тук, а не в
+   етикета — там третият ред изтласкваше надписа извън игралната маса. */
+.deck-count {
+  position: absolute;
+  z-index: 2;
+  top: -14%;
+  right: -12%;
+  padding: 0.1em 0.42em;
+  background: rgba(8, 16, 28, 0.92);
+  border: 1px solid rgba(230, 195, 107, 0.5);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: clamp(5px, 0.72vw, 9.5px);
+  font-weight: 800;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+.deck-count:empty { display: none; }
+/* Почти изчерпано тесте — значката предупреждава и с цвят. */
+.deck-pile.deck-low .deck-count,
+.deck-pile.deck-empty .deck-count {
+  color: #f3b8a8;
+  border-color: rgba(208, 85, 69, 0.75);
+}
+/* Горната карта се плъзва настрани при теглене — жестът показва откъде
+   тръгва летящата карта. Само тя няма собствен transform, затова кадрите
+   могат да са абсолютни. */
+.deck-card.is-dealing { animation: deckDeal 0.44s cubic-bezier(0.35, 0.75, 0.4, 1); }
+@keyframes deckDeal {
+  0% { transform: none; }
+  38% { transform: translate(16%, -24%) rotate(-9deg); }
+  100% { transform: none; }
+}
+.deck-card .sp-glyph { width: 62%; height: 62%; }
+.deck-ghost .sp-glyph { width: 26px; height: 26px; }
+.deck-label {
+  position: absolute;
+  top: 104%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(5px, 0.8vw, 10px);
+  color: var(--text-dim);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Карта, „излитаща" от тестето при теглене */
+.deck-ghost {
+  position: fixed;
+  width: 54px;
+  height: 38px;
+  margin: -19px 0 0 -27px;
+  border-radius: 5px;
+  background: linear-gradient(160deg, #fff8e9, #efdfbc);
+  border: 1.5px solid #9c6a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  z-index: 350;
+  pointer-events: none;
+  transition: all 0.7s cubic-bezier(0.3, 0.8, 0.4, 1);
+  opacity: 1;
+  overflow: hidden;
+}
+/* Същият гръб като на купчината — иначе от тестето с шарка излита гладка
+   карта. Мрежата е по-ситна заради малкия размер. */
+.deck-ghost::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--deck-tint, #9c6a2e) 26%, transparent) 0 1px,
+      transparent 1px 4px),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--deck-tint, #9c6a2e) 22%, transparent),
+      transparent 62%);
+}
+.deck-ghost .sp-glyph { position: relative; z-index: 1; }
+

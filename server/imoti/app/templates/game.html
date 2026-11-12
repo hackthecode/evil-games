@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ game_name }} — игра</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/css/base.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/lobby.css?v={{ static_version }}">
+  <!-- Игровият стил е разделен по домейн. РЕДЪТ Е ЗНАЧИМ: каскадата разчита
+       на него, а responsive.css трябва да остане последен. -->
+  <link rel="stylesheet" href="/static/css/game/layout.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/board.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/tokens.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/board-center.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/dice.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/players.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/space-card.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/hud.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/money.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/bank.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/notifications.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/auction.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/cards.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/trade.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/endgame.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/admin.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/game/responsive.css?v={{ static_version }}">
+</head>
+<body>
+
+  <!-- ================= ЛОБИ ================= -->
+  <div id="lobby-view" class="lobby-wrap hidden">
+    <div class="lobby-header">
+      <h1 class="logo"><img class="logo-img" src="/static/imoti_i_imperii_logo.png" alt="{{ game_name }}"></h1>
+      <div class="room-code-box">
+        <span class="connection-indicator is-connecting" role="status" aria-live="polite" title="Измерване на връзката">
+          <i aria-hidden="true"></i><span class="connection-label">Свързване…</span>
+        </span>
+        <span>Стая:</span>
+        <span class="code" id="room-code">······</span>
+        <button id="btn-copy-link" class="btn btn-secondary" style="padding:0.4em 0.9em">📋 Копирай кода</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Играчи</h3>
+      <div id="lobby-players" class="player-list"></div>
+
+      <div class="avatar-picker-heading">
+        <h3>Вашата фигурка</h3>
+        <div id="gender-picker" class="gender-picker" role="group" aria-label="Пол на фигурката">
+          <button type="button" data-gender="male" aria-pressed="true"><span class="gender-symbol" aria-hidden="true">♂</span><span>Мъж</span></button>
+          <button type="button" data-gender="female" aria-pressed="false"><span class="gender-symbol" aria-hidden="true">♀</span><span>Жена</span></button>
+        </div>
+      </div>
+      <div id="token-picker" class="token-picker"></div>
+
+      <div class="look-picker">
+        <div class="look-row">
+          <span class="look-label">Кожа</span>
+          <div id="skin-picker" class="look-swatches" role="group" aria-label="Тон на кожата"></div>
+        </div>
+        <div class="look-row">
+          <span class="look-label">Коса</span>
+          <div id="hair-picker" class="look-swatches" role="group" aria-label="Цвят на косата"></div>
+        </div>
+        <div class="look-row">
+          <span class="look-label">Прическа</span>
+          <div id="hairstyle-picker" class="hairstyle-picker" role="group" aria-label="Прическа"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.1rem;display:flex;gap:0.7rem;flex-wrap:wrap">
+        <button id="btn-ready" class="btn btn-primary hidden">Готов съм</button>
+        <button id="btn-leave" class="btn btn-ghost">Напусни стаята</button>
+      </div>
+    </div>
+
+    <div id="settings-panel" class="panel hidden">
+        <h3>Настройки на стаята</h3>
+        <div class="settings-grid">
+          <div class="set-group">Общи</div>
+          <label for="set-preset"><span>Режим на правилата</span><small class="set-hint">Готов набор от правила. „Класически“ и „Бърза игра“ попълват всичко наведнъж; всяка ръчна промяна превключва на „Персонализиран“.</small></label>
+          <select id="set-preset">
+            <option value="classic">Класически</option>
+            <option value="quick">Бърза игра</option>
+            <option value="custom">Персонализиран</option>
+          </select>
+          <label for="set-max-players"><span>Макс. играчи</span><small class="set-hint">Колко участници (заедно с ботовете) се допускат в стаята — от 2 до 10.</small></label>
+          <input type="number" id="set-max-players" min="2" max="10">
+          <div class="set-group">Пари</div>
+          <label for="set-cash"><span>Начална сума (€)</span><small class="set-hint">С колко пари в брой започва всеки играч.</small></label>
+          <input type="number" id="set-cash" min="500" max="5000" step="100">
+          <label for="set-income"><span>Доход от Начален площад (€)</span><small class="set-hint">Колко получава играч при преминаване или спиране на „Старт“.</small></label>
+          <input type="number" id="set-income" min="0" max="1000" step="50">
+          <label for="set-eu-subsidies"><span>Европейски субсидии при Старт</span><small class="set-hint">Добавя допълнителна еднократна сума към дохода при всяко минаване през „Старт“.</small></label>
+          <input type="checkbox" id="set-eu-subsidies">
+          <label for="set-eu-subsidy-amount"><span>Размер на субсидията (€)</span><small class="set-hint">Стойността на субсидията. Важи само ако горната настройка е включена.</small></label>
+          <input type="number" id="set-eu-subsidy-amount" min="0" max="2000" step="50">
+          <div class="set-group">Търговия</div>
+          <label for="set-trading"><span>Сделки</span><small class="set-hint">Позволява на играчите да си разменят имоти, пари и карти за освобождаване. Изключено — никакви сделки.</small></label>
+          <input type="checkbox" id="set-trading">
+          <label for="set-free-trading"><span>Свободна търговия (без такси и лимити)</span><small class="set-hint">Пари и имоти се прехвърлят свободно — без минимална цена, без данък върху надценката и без ипотечни такси. Позволява дори подаряване на активи.</small></label>
+          <input type="checkbox" id="set-free-trading">
+          <div class="set-group">Търгове</div>
+          <label for="set-auctions"><span>Търгове (класическо правило)</span><small class="set-hint">При отказ от покупка имотът отива на наддаване между останалите играчи; активите на фалирал също се разпродават на търг.</small></label>
+          <input type="checkbox" id="set-auctions">
+          <label for="set-auction-start-market"><span>Търгът започва от пазарната цена</span><small class="set-hint">Наддаването стартира от цената на имота. Изключено — започва от минималната стъпка по-долу.</small></label>
+          <input type="checkbox" id="set-auction-start-market">
+          <label for="set-auction-min-step"><span>Минимална стъпка (€)</span><small class="set-hint">С колко най-малко трябва да се вдигне всяка следваща оферта. По-голяма стъпка съкращава дългите наддавания.</small></label>
+          <input type="number" id="set-auction-min-step" min="1" max="100" step="1">
+          <label for="set-auction-seconds"><span>Време за търг (сек)</span><small class="set-hint">Срок за наддаване, който се подновява при всяка нова оферта.</small></label>
+          <input type="number" id="set-auction-seconds" min="10" max="120" step="5">
+
+          <div class="set-group">Банка</div>
+          <label for="set-loans"><span>Заеми от банката</span><small class="set-hint">Позволява теглене на пари при недостиг за покупка на имот, срещу залог на портфейла. Изключено — никакви заеми.</small></label>
+          <input type="checkbox" id="set-loans">
+          <label for="set-loan-max"><span>Таван на заема (% от активите)</span><small class="set-hint">Най-много колко може да дължи играч спрямо стойността на незаложените си имоти и сгради. Проверява се при отпускане. Ако дългът надрасне стойността на всички имоти, банката иска целия остатък наведнъж.</small></label>
+          <input type="number" id="set-loan-max" min="10" max="90" step="5">
+          <label for="set-loan-interest"><span>Лихва за обиколка (%)</span><small class="set-hint">Колко се плаща в брой при всяка пълна обиколка на длъжника през „Начален площад“. Лихвата не се капитализира, освен ако длъжникът няма средства. 0 = безлихвен заем.</small></label>
+          <input type="number" id="set-loan-interest" min="0" max="100" step="5">
+          <label for="set-sell-bank"><span>Обратно изкупуване от банката</span><small class="set-hint">Позволява продажба на имот обратно на банката. Имотът става свободен за всички; при дълг съветникът я ползва като последна мярка.</small></label>
+          <input type="checkbox" id="set-sell-bank">
+          <label for="set-sell-percent"><span>Цена при изкупуване (%)</span><small class="set-hint">Какъв дял от цената плаща банката. При ипотекиран имот се удържа и главницата.</small></label>
+          <input type="number" id="set-sell-percent" min="30" max="100" step="5">
+
+          <div class="set-group">Административна проверка</div>
+          <label for="set-jail-fee"><span>Такса за освобождаване (€)</span><small class="set-hint">Колко се плаща за незабавно излизане от проверка, вместо да се чака чифт.</small></label>
+          <input type="number" id="set-jail-fee" min="0" max="500" step="10">
+          <label for="set-jail-max-turns"><span>Ходове до автоматично освобождаване</span><small class="set-hint">След толкова неуспешни опита играчът излиза принудително, като плаща таксата.</small></label>
+          <input type="number" id="set-jail-max-turns" min="1" max="10" step="1">
+          <label for="set-doubles-to-jail"><span>Поредни чифта до проверка</span><small class="set-hint">Толкова чифта един след друг изпращат играча на проверка. Класическото правило е 3.</small></label>
+          <input type="number" id="set-doubles-to-jail" min="2" max="5" step="1">
+
+          <div class="set-group">Време и стая</div>
+          <label for="set-turn-limit"><span>Лимит на ход (сек, 0 = без)</span><small class="set-hint">Максимално време за един ход. При изтичане ходът приключва автоматично. 0 = без лимит.</small></label>
+          <input type="number" id="set-turn-limit" min="0" max="600" step="30">
+          <label for="set-disconnect-grace"><span>Време за повторно свързване (сек)</span><small class="set-hint">Колко се пази мястото на прекъснал играч, преди домакинът да може да го премахне. Таймерът спира при пауза.</small></label>
+          <input type="number" id="set-disconnect-grace" min="30" max="900" step="30">
+          <label for="set-victory"><span>Условие за победа</span><small class="set-hint">„Последен оцелял“ — играе се, докато остане един неразорен играч. „Лимит рундове“ — печели най-богатият след зададения брой рундове.</small></label>
+          <select id="set-victory">
+            <option value="last_standing">Последен оцелял</option>
+            <option value="round_limit">Лимит рундове</option>
+          </select>
+          <label for="set-rounds"><span>Брой рундове</span><small class="set-hint">След колко рунда завършва играта. Важи само при условие за победа „Лимит рундове“.</small></label>
+          <input type="number" id="set-rounds" min="10" max="200" step="10">
+          <label for="set-spectators"><span>Зрители</span><small class="set-hint">Позволява на хора без място в играта да гледат партията на живо.</small></label>
+          <input type="checkbox" id="set-spectators">
+          <label for="set-free-parking"><span>Фонд „Свободен престой“</span><small class="set-hint">Данъците и глобите се трупат в общ фонд, който получава играчът, стъпил на полето „Свободен престой“. Изключено — платеното отива в банката.</small></label>
+          <input type="checkbox" id="set-free-parking">
+          <label for="set-password"><span>Парола (празно = без)</span><small class="set-hint">Ограничава влизането в стаята само за хора, които знаят паролата.</small></label>
+          <input type="password" id="set-password" maxlength="32" autocomplete="new-password">
+        </div>
+        <button id="btn-apply-settings" class="btn btn-secondary" style="margin-top:0.8rem;width:100%">Запази настройките</button>
+        <div class="bot-controls">
+          <select id="bot-style" aria-label="Стил на компютърен играч">
+            <option value="balanced">Търговец</option>
+            <option value="cautious">Предпазлив</option>
+            <option value="aggressive">Агресивен</option>
+          </select>
+          <button id="btn-add-bot" class="btn btn-ghost" type="button">Добави бот</button>
+        </div>
+      </div>
+
+    <div class="panel chat-box">
+      <h3>Чат</h3>
+      <div id="chat-messages" class="chat-messages"></div>
+      <form id="chat-form" class="chat-form">
+        <button type="button" class="chat-emoji-toggle" data-emoji-target="chat-input" title="Добави емоджи" aria-label="Добави емоджи" aria-expanded="false">😊</button>
+        <input type="text" id="chat-input" maxlength="300" placeholder="Съобщение..." autocomplete="off">
+        <button type="submit" class="btn btn-secondary" style="padding:0.5em 1em">➤</button>
+      </form>
+    </div>
+
+    <div class="lobby-actions">
+      <span id="start-hint" style="color:var(--text-dim);align-self:center"></span>
+      <button id="btn-start" class="btn btn-primary hidden" style="font-size:1.15rem;padding:0.8em 2.4em">▶ Стартирай играта</button>
+    </div>
+  </div>
+
+  <!-- ================= ИГРА ================= -->
+  <div id="game-view" class="game-layout hidden">
+    <div class="game-topbar">
+      <h1 class="logo"><img class="logo-img" src="/static/imoti_i_imperii_logo.png" alt="{{ game_name }}"></h1>
+      <div class="topbar-right">
+        <span class="connection-indicator is-connecting" role="status" aria-live="polite" title="Измерване на връзката">
+          <i aria-hidden="true"></i><span class="connection-label">Свързване…</span>
+        </span>
+        <button id="btn-portfolio" class="icon-btn" title="Портфейл" aria-label="Портфейл">▤</button>
+        <button id="btn-notifications" class="icon-btn notification-button" title="Център за известия" aria-label="Център за известия">🔔<span id="notification-badge" class="notification-badge hidden">0</span></button>
+        <button id="btn-pause-game" class="icon-btn hidden" title="Постави играта на пауза" aria-label="Постави играта на пауза">⏸</button>
+        <button id="btn-admin-panel" class="icon-btn hidden" title="Панел на домакина" aria-label="Панел на домакина">🛡</button>
+        <button id="btn-history" class="icon-btn" title="История на ходовете" aria-label="История на ходовете">☷</button>
+        <button id="btn-turn-notify" class="icon-btn" title="Системно известие при твой ред"
+                aria-label="Системно известие при твой ред" aria-pressed="false">📣</button>
+        <button id="btn-enter-fullscreen" class="icon-btn" title="Цял екран" aria-label="Цял екран">⛶</button>
+        <button id="btn-exit-fullscreen" class="icon-btn hidden" title="Изход от цял екран" aria-label="Изход от цял екран">⤢</button>
+        <div class="volume-control">
+          <button id="btn-mute" class="icon-btn" title="Звук (вкл./изкл.)" aria-label="Звук">🔊</button>
+          <button id="btn-volume" class="volume-caret" title="Сила на звука"
+                  aria-label="Сила на звука" aria-expanded="false" aria-controls="volume-popover">▾</button>
+          <div id="volume-popover" class="volume-popover hidden" role="dialog" aria-label="Сила на звука">
+            <div class="volume-head volume-master">
+              <label for="volume-slider">Обща сила</label>
+              <output id="volume-value" for="volume-slider">70%</output>
+            </div>
+            <input id="volume-slider" type="range" min="0" max="100" step="1" value="70"
+                   aria-label="Обща сила на звука в проценти">
+            <p class="volume-hint">Личната ви настройка — важи само за вашия браузър. Отделните
+              плъзгачи по-долу се умножават с общата сила.</p>
+            <!-- По един плъзгач за всеки вид звук; попълва се от JS по IE.sound.CATALOG. -->
+            <div id="volume-mixer" class="volume-mixer"></div>
+            <div class="volume-actions">
+              <button id="btn-sound-preview" class="btn btn-ghost volume-preview">🎧 Прослушай</button>
+              <button id="btn-sound-reset" class="btn btn-ghost volume-preview"
+                      title="Връща всички отделни плъзгачи на 100%">↺ Нулирай</button>
+            </div>
+            <div id="volume-preview-label" class="volume-preview-label" aria-live="polite"></div>
+          </div>
+        </div>
+        <button id="btn-rules-game" class="icon-btn" title="Правила" aria-label="Правила">📖</button>
+        <button id="btn-leave-game" class="btn btn-ghost" style="padding:0.45em 1em">Напусни</button>
+      </div>
+    </div>
+
+    <!-- Лява колона -->
+    <div class="side-col left-col">
+      <div id="mission-panel" class="panel mission-panel hidden">
+        <div class="mission-kicker">🔒 САМО ЗА ВАС</div>
+        <h3 id="mission-title">Тайна мисия</h3>
+        <p id="mission-description"></p>
+        <div class="mission-progress"><span id="mission-progress-text"></span><strong id="mission-bonus"></strong></div>
+        <div class="mission-progress-track"><i id="mission-progress-bar"></i></div>
+      </div>
+      <div class="panel players-panel-wrap mobile-collapsible" data-mobile-panel="players">
+        <h3 class="mobile-panel-heading">Играчи <button type="button" class="mobile-panel-toggle" aria-label="Покажи или скрий играчите" aria-expanded="true">⌃</button></h3>
+        <!-- Дял от 22-та имота в цветовите групи (транспортът и комуналните
+             предприятия не влизат) — кой води, без да се броят плочки. -->
+        <div id="control-bar" class="control-bar hidden" role="group" aria-label="Дял от имотите"></div>
+        <div id="players-panel" class="players-panel"></div>
+      </div>
+      <div class="panel actions-panel-wrap mobile-collapsible" data-mobile-panel="actions">
+        <h3 class="mobile-panel-heading">Действия <button type="button" class="mobile-panel-toggle" aria-label="Покажи или скрий действията" aria-expanded="true">⌃</button></h3>
+        <div id="debt-banner" class="hidden" style="background:rgba(208,85,69,0.15);border:1px solid var(--accent-red);border-radius:10px;padding:0.6rem;margin-bottom:0.6rem;font-size:0.85rem">
+          <span id="debt-text"></span>
+          <div id="debt-advice" class="debt-advice"></div>
+        </div>
+        <div id="actions-panel" class="actions-panel"></div>
+      </div>
+      <div class="panel mobile-collapsible" data-mobile-panel="properties">
+        <h3 class="mobile-panel-heading">Моите имоти <span id="my-props-count" class="count-badge"></span> <button type="button" class="mobile-panel-toggle" aria-label="Покажи или скрий имотите" aria-expanded="true">⌃</button></h3>
+        <div id="my-props" class="my-props"></div>
+      </div>
+    </div>
+
+    <!-- Табло. Картите в ръката се показват само като икони под имената на
+         играчите в панела „Играчи". -->
+    <div class="board-wrap">
+      <div id="board"></div>
+      <div class="board-center">
+        <div id="pause-overlay" class="pause-overlay hidden" role="status" aria-live="polite">
+          <span class="pause-icon">⏸</span>
+          <strong>Партията е на пауза</strong>
+          <span id="pause-detail"></span>
+          <small id="pause-hint"></small>
+        </div>
+        <div class="deck-pile deck-community" id="deck-community" title="Обществено събитие" role="img" aria-label="Тесте „Обществено събитие“">
+          <div class="deck-card"></div><div class="deck-card"></div><div class="deck-card">❓</div>
+          <b class="deck-count" id="deck-count-community"></b>
+          <div class="deck-label">Обществено събитие</div>
+        </div>
+        <div class="deck-pile deck-business" id="deck-business" title="Бизнес възможност" role="img" aria-label="Тесте „Бизнес възможност“">
+          <div class="deck-card"></div><div class="deck-card"></div><div class="deck-card">💼</div>
+          <b class="deck-count" id="deck-count-business"></b>
+          <div class="deck-label">Бизнес възможност</div>
+        </div>
+        <div class="logo center-logo"><img class="logo-img" src="/static/imoti_i_imperii_logo.png" alt="{{ game_name }}"></div>
+        <div id="global-event-banner" class="global-event-banner hidden" role="status" aria-live="polite">
+          <span id="global-event-icon" class="global-event-icon"></span>
+          <div class="global-event-copy">
+            <strong id="global-event-title"></strong>
+            <span id="global-event-description"></span>
+          </div>
+          <span id="global-event-duration" class="global-event-duration"></span>
+        </div>
+        <!-- Оферта, адресирана лично до вас — стои над заровете, защото
+             панелът отстрани лесно се пропуска. -->
+        <button type="button" id="trade-alert" class="trade-alert hidden" aria-live="assertive">
+          <span class="ta-icon" aria-hidden="true">🤝</span>
+          <span class="ta-copy">
+            <strong id="trade-alert-title">Оферта за вас</strong>
+            <span id="trade-alert-detail"></span>
+          </span>
+          <span class="ta-cta">Виж</span>
+        </button>
+        <!-- Потвърждение за заем: балонче над заровете вместо системен диалог. -->
+        <div id="loan-prompt" class="loan-prompt hidden" role="dialog" aria-live="polite">
+          <div class="lp-head"><span aria-hidden="true">🏦</span><strong>Заем от банката</strong></div>
+          <div id="loan-prompt-body" class="lp-body"></div>
+          <div class="lp-actions">
+            <button type="button" id="loan-prompt-confirm" class="btn btn-primary">Вземи и купи</button>
+            <button type="button" id="loan-prompt-cancel" class="btn btn-ghost">Откажи</button>
+          </div>
+        </div>
+        <div class="dice-stage">
+          <div id="board-notification-stack" class="board-notification-stack" aria-live="polite">
+            <div id="landing-banner" class="landing-banner hidden">
+              <div class="landing-kicker" id="landing-kicker"></div>
+              <div class="landing-name" id="landing-name"></div>
+              <div class="landing-result" id="landing-result"></div>
+            </div>
+          </div>
+          <div class="dice-row" id="dice-area" title="Щракни, за да хвърлиш заровете">
+            <div class="die3d" id="die-1"></div>
+            <div class="die3d" id="die-2"></div>
+          </div>
+        </div>
+        <div class="center-turn" id="center-turn"></div>
+        <div id="center-actions" class="center-actions"></div>
+        <div class="center-timer" id="center-timer"></div>
+        <div class="center-round" id="center-round"></div>
+        <button type="button" class="center-bank-summary" id="bank-toggle" title="Отвори Българската народна банка">
+          <span class="center-bank-name">Българска народна банка</span>
+          <span class="center-stock" id="center-stock"></span>
+          <span class="center-bank-pot hidden" id="center-bank-pot"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Дясна колона -->
+    <div class="side-col right-col">
+      <div id="incoming-trades" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+      <div class="panel log-panel mobile-collapsible" data-mobile-panel="log">
+        <h3 class="mobile-panel-heading">Игрови лог <button type="button" class="mobile-panel-toggle" aria-label="Покажи или скрий игровия лог" aria-expanded="true">⌃</button></h3>
+        <div id="log-entries" class="log-entries"></div>
+      </div>
+      <div class="panel chat-box mobile-collapsible" data-mobile-panel="chat">
+        <h3 class="mobile-panel-heading">Чат <span id="chat-unread" class="unread-badge hidden">0</span> <button type="button" class="mobile-panel-toggle" aria-label="Покажи или скрий чата" aria-expanded="true">⌃</button></h3>
+        <div id="game-chat-messages" class="chat-messages"></div>
+        <div id="chat-reactions" class="chat-reactions" aria-label="Бързи реакции">
+          <button type="button" data-emoji="👍" title="Одобрение" aria-label="Изпрати одобрение">👍</button>
+          <button type="button" data-emoji="😂" title="Смях" aria-label="Изпрати смях">😂</button>
+          <button type="button" data-emoji="🎲" title="Късмет със заровете" aria-label="Изпрати зарове">🎲</button>
+          <button type="button" data-emoji="🤝" title="Сделка" aria-label="Изпрати ръкостискане">🤝</button>
+          <button type="button" data-emoji="💰" title="Пари" aria-label="Изпрати пари">💰</button>
+          <button type="button" data-emoji="🔥" title="Страхотен ход" aria-label="Изпрати огън">🔥</button>
+          <button type="button" data-emoji="😮" title="Изненада" aria-label="Изпрати изненада">😮</button>
+          <button type="button" data-emoji="😢" title="Съжаление" aria-label="Изпрати тъжна реакция">😢</button>
+        </div>
+        <form id="game-chat-form" class="chat-form">
+          <button type="button" class="chat-emoji-toggle" data-emoji-target="game-chat-input" title="Добави емоджи" aria-label="Добави емоджи" aria-expanded="false">😊</button>
+          <input type="text" id="game-chat-input" maxlength="300" placeholder="Съобщение..." autocomplete="off">
+          <button type="submit" class="btn btn-secondary" style="padding:0.5em 1em">➤</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Модални прозорци ============ -->
+
+  <!-- Информация за поле -->
+  <div id="info-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal deed-modal-shell">
+      <button type="button" class="icon-btn deed-close" data-close title="Затвори" aria-label="Затвори">&times;</button>
+      <div id="info-content"></div>
+      <p id="deed-build-note" class="deed-build-note hidden"></p>
+      <div class="modal-actions">
+        <button id="btn-deed-buy" class="btn btn-primary hidden" type="button">Купи</button>
+        <button id="btn-deed-build" class="btn btn-primary hidden" type="button">⬆ Развий</button>
+        <button id="btn-deed-trade" class="btn btn-primary hidden" type="button">🤝 Направи оферта</button>
+        <button class="btn btn-secondary" data-close>Затвори</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Портфейл на играча -->
+  <div id="portfolio-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal portfolio-modal">
+      <div class="portfolio-heading">
+        <div>
+          <div class="portfolio-kicker">ФИНАНСОВО ДОСИЕ</div>
+          <h3 id="portfolio-title">Портфейл</h3>
+        </div>
+        <button type="button" class="icon-btn" id="portfolio-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div id="portfolio-metrics" class="portfolio-metrics"></div>
+      <div class="portfolio-section-heading">
+        <h4>Парични наличности</h4>
+        <strong id="portfolio-cash-total">0 €</strong>
+      </div>
+      <div id="portfolio-banknotes" class="portfolio-banknotes"></div>
+      <div class="portfolio-section-heading">
+        <h4>Имоти и предприятия</h4>
+        <span id="portfolio-property-summary"></span>
+      </div>
+      <div id="portfolio-properties" class="portfolio-properties"></div>
+    </div>
+  </div>
+
+  <!-- Карта на играча: статистиката, събирана през цялата партия -->
+  <div id="player-stats-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal player-stats-modal">
+      <div class="portfolio-heading">
+        <div class="ps-identity">
+          <div class="ps-token" id="player-stats-token"></div>
+          <div>
+            <div class="portfolio-kicker">КАРТА НА ИГРАЧА</div>
+            <h3 id="player-stats-name">Играч</h3>
+          </div>
+        </div>
+        <button type="button" class="icon-btn" id="player-stats-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div id="player-stats-flags" class="ps-flags"></div>
+      <div id="player-stats-grid" class="ps-grid"></div>
+      <p class="ps-note">Данните се събират от началото на партията и се виждат от всички.</p>
+    </div>
+  </div>
+
+  <!-- Карта с избор: сигурен вариант или залог на зара -->
+  <div id="card-choice-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal choice-modal">
+      <div class="choice-head">
+        <span class="choice-icon" id="choice-icon">🎲</span>
+        <div>
+          <div class="portfolio-kicker">ВАШИЯТ ИЗБОР</div>
+          <h3 id="choice-deck">Обществено събитие</h3>
+        </div>
+      </div>
+      <p class="choice-text" id="choice-text"></p>
+      <div class="choice-options">
+        <button type="button" class="choice-option is-safe" id="choice-safe">
+          <span class="co-label" id="choice-safe-label"></span>
+          <span class="co-amount" id="choice-safe-amount"></span>
+          <small>Сигурно, без изненади</small>
+        </button>
+        <button type="button" class="choice-option is-risky" id="choice-risky">
+          <span class="co-label" id="choice-risky-label"></span>
+          <span class="co-amount" id="choice-risky-amount"></span>
+          <small id="choice-risky-note"></small>
+        </button>
+      </div>
+      <p class="ps-note" id="choice-waiting">Изборът е на играча, изтеглил картата.</p>
+    </div>
+  </div>
+
+  <!-- Панел на домакина: управление на партията и конзола на връзките -->
+  <div id="admin-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal admin-modal">
+      <div class="portfolio-heading">
+        <div>
+          <div class="portfolio-kicker">ПАНЕЛ НА ДОМАКИНА</div>
+          <h3>Управление на партията</h3>
+        </div>
+        <button type="button" class="icon-btn" id="admin-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+
+      <div class="admin-tabs" role="tablist">
+        <button type="button" class="admin-tab is-active" data-admin-tab="control" role="tab" aria-selected="true">Управление</button>
+        <button type="button" class="admin-tab" data-admin-tab="players" role="tab" aria-selected="false">Играчи</button>
+        <button type="button" class="admin-tab" data-admin-tab="console" role="tab" aria-selected="false">Конзола</button>
+      </div>
+
+      <section class="admin-pane" data-admin-pane="control">
+        <div id="admin-actions" class="admin-actions"></div>
+        <p class="ps-note">Действията важат за цялата стая и се виждат от всички играчи.</p>
+      </section>
+
+      <section class="admin-pane hidden" data-admin-pane="players">
+        <div id="admin-players" class="admin-players"></div>
+        <p class="ps-note">Пропускането важи само за играча на ход. Премахнатият губи имотите си — те се връщат на банката.</p>
+      </section>
+
+      <section class="admin-pane hidden" data-admin-pane="console">
+        <div class="admin-console-head">
+          <span id="admin-console-count" class="admin-console-count"></span>
+          <button type="button" class="btn-ghost" id="admin-console-refresh">↻ Обнови</button>
+        </div>
+        <div id="admin-console" class="admin-console" role="log"></div>
+        <p class="ps-note">Виждате я само вие като домакин — адресите не се изпращат на останалите играчи.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Подробна история -->
+  <div id="history-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal history-modal">
+      <div class="history-heading">
+        <div>
+          <div class="history-kicker">ПРОТОКОЛ НА ПАРТИЯТА</div>
+          <h3>История на ходовете</h3>
+        </div>
+        <button type="button" class="icon-btn" id="history-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div id="history-filters" class="history-filters">
+        <button type="button" class="active" data-history-filter="all">Всички</button>
+        <button type="button" data-history-filter="movement">Движение</button>
+        <button type="button" data-history-filter="money">Плащания</button>
+        <button type="button" data-history-filter="property">Имоти</button>
+        <button type="button" data-history-filter="cards">Карти</button>
+      </div>
+      <div id="turn-history" class="turn-history"></div>
+    </div>
+  </div>
+
+  <!-- Център за известия -->
+  <div id="notifications-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal notifications-modal">
+      <div class="notifications-heading">
+        <div>
+          <div class="notifications-kicker">ВАЖНО ОТ ПАРТИЯТА</div>
+          <h3>Център за известия</h3>
+        </div>
+        <button type="button" class="icon-btn" id="notifications-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div class="notifications-toolbar">
+        <span id="notifications-summary"></span>
+        <button type="button" id="notifications-read-all" class="btn btn-ghost">Маркирай всички като прочетени</button>
+      </div>
+      <div id="notifications-list" class="notifications-list"></div>
+    </div>
+  </div>
+
+  <!-- Балонче за картите под имената. Fixed, защото панелът с играчите реже. -->
+  <div id="chip-tip" class="chip-tip hidden" role="tooltip" aria-hidden="true">
+    <strong id="chip-tip-title"></strong>
+    <span id="chip-tip-hint"></span>
+    <em id="chip-tip-text"></em>
+  </div>
+
+  <!-- Подробности за сделка: всичко нужно за решението приемам/отказвам -->
+  <div id="trade-details-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal trade-details-modal">
+      <div class="td-head">
+        <div>
+          <div class="td-kicker">ПОДРОБНОСТИ ЗА СДЕЛКАТА</div>
+          <h3 id="trade-details-title">Оферта</h3>
+        </div>
+        <button type="button" class="icon-btn" id="trade-details-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div id="trade-details-body" class="td-body"></div>
+      <div id="trade-details-actions" class="td-actions"></div>
+    </div>
+  </div>
+
+  <!-- Българска народна банка -->
+  <div id="bank-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal bank-modal">
+      <div class="bank-modal-heading">
+        <div>
+          <div class="bank-modal-kicker">ИМОТИ &amp; ИМПЕРИИ</div>
+          <h3>Българска народна банка</h3>
+        </div>
+        <button type="button" class="icon-btn" id="bank-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div class="bank-vault">
+        <div class="bank-vault-item">
+          <span class="mini-house"></span>
+          <strong id="bank-houses">0</strong>
+          <span>къщи</span>
+        </div>
+        <div class="bank-vault-item">
+          <span class="mini-hotel"></span>
+          <strong id="bank-hotels">0</strong>
+          <span>хотели</span>
+        </div>
+        <div class="bank-vault-item bank-vault-fund" id="bank-pot-panel">
+          <span>Фонд „Свободен престой“</span>
+          <strong id="bank-pot-value">Изключен</strong>
+        </div>
+      </div>
+      <h4 class="bank-ledger-title">Последни транзакции</h4>
+      <div id="bank-transactions" class="bank-transactions"></div>
+      <!-- Заемът е най-долу, на собствен ред: свит до един бутон, който се
+           разгъва при нужда. Показва се само на длъжник. -->
+      <div id="bank-loan-panel" class="bank-loan hidden">
+        <button type="button" id="bank-loan-toggle" class="bank-loan-toggle"
+                aria-expanded="false" aria-controls="bank-loan-details">
+          <span class="bank-loan-toggle-label">🏦 Имате заем</span>
+          <strong id="bank-loan-chip">0 €</strong>
+          <span class="bank-loan-caret" aria-hidden="true">⌄</span>
+        </button>
+        <div id="bank-loan-details" class="bank-loan-details hidden">
+          <dl class="bank-loan-facts">
+            <div>
+              <dt>Оставащ дълг</dt>
+              <dd id="bank-loan-amount">0 €</dd>
+            </div>
+            <div>
+              <dt>Лихва за обиколка</dt>
+              <dd id="bank-loan-interest">0%</dd>
+            </div>
+            <div>
+              <dt>Лихва при следващата обиколка</dt>
+              <dd id="bank-loan-next">0 €</dd>
+            </div>
+            <div>
+              <dt>Пари в брой</dt>
+              <dd id="bank-loan-cash">0 €</dd>
+            </div>
+            <div>
+              <dt>Обезпечение (имоти)</dt>
+              <dd id="bank-loan-collateral">0 €</dd>
+            </div>
+          </dl>
+          <p id="bank-loan-note" class="bank-loan-note"></p>
+          <button type="button" id="bank-loan-repay" class="btn btn-secondary">Погаси</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Изтеглена карта -->
+  <div id="card-modal" class="modal-backdrop hidden">
+    <div class="modal" style="background:transparent;box-shadow:none;padding:0">
+      <!-- Две лица в общ носач: носачът се завърта, лицата се крият взаимно
+           с backface-visibility. Затова се вижда гърбът, той се обръща и
+           чак тогава се появява лицето. -->
+      <div class="card-flip" id="card-flip">
+        <div class="drawn-card dc-front" id="drawn-card">
+          <div class="dc-foil" id="card-foil" aria-hidden="true"></div>
+          <div class="dc-corner dc-corner-tl"><span class="dc-corner-icon" id="card-icon-tl"></span></div>
+          <div class="dc-corner dc-corner-br"><span class="dc-corner-icon" id="card-icon-br"></span></div>
+          <div class="dc-deck" id="card-deck-name"></div>
+          <div class="dc-emblem" id="card-icon">❓</div>
+          <div class="dc-text" id="card-text"></div>
+          <div class="dc-footer">Имоти и Империи</div>
+        </div>
+        <div class="dc-back" id="drawn-card-back" aria-hidden="true">
+          <div class="dcb-frame">
+            <div class="dcb-emblem" id="card-back-icon">❓</div>
+            <div class="dcb-title" id="card-back-title">Обществено събитие</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Правила (в играта) -->
+  <div id="game-rules-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal rules-modal" role="dialog" aria-modal="true" aria-labelledby="game-rules-title">
+      <div class="rules-heading">
+        <div>
+          <span class="rules-kicker">ОФИЦИАЛЕН НАРЪЧНИК</span>
+          <h3 id="game-rules-title">Правила на играта</h3>
+        </div>
+        <button type="button" class="rules-close" data-close aria-label="Затвори правилата" title="Затвори">&times;</button>
+      </div>
+      <p class="rules-lead"><strong>Цел:</strong> изградете най-силното портфолио и останете последният платежоспособен играч. При игра с лимит на рундовете печели играчът с най-висока нетна стойност.</p>
+      <div class="rules-grid">
+        <section class="rules-section"><h4>1. Подготовка и начало</h4><ul>
+          <li>Всеки играч започва с определената от домакина сума и жетон на Начален площад.</li>
+          <li>Редът на играчите се определя автоматично при стартиране на играта.</li>
+          <li>Преминаването през Старт носи зададения доход. Ако европейските субсидии са включени, банката добавя и избраната субсидия.</li>
+        </ul></section>
+        <section class="rules-section"><h4>2. Един ход</h4><ul>
+          <li>Хвърляте два зара, премествате жетона и изпълнявате действието на полето.</li>
+          <li>Чифт дава още един ход. Три поредни чифта ви изпращат на административна проверка.</li>
+          <li>След покупка, търг, карта или плащане приключете хода, когато бутонът стане активен.</li>
+        </ul></section>
+        <section class="rules-section"><h4>3. Имоти и наеми</h4><ul>
+          <li>Свободен имот може да бъде купен на обявената цена. Нотариалният акт показва всички наеми, ипотеката и цената за строеж.</li>
+          <li>При стъпване на чужд неипотекиран имот плащате наем на собственика.</li>
+          <li>Пълна цветова група удвоява основния наем на незастроените имоти.</li>
+          <li>Наемът за транспорт зависи от броя притежавани транспортни обекти, а този за предприятията се изчислява според заровете.</li>
+        </ul></section>
+        <section class="rules-section"><h4>4. Търгове</h4><ul>
+          <li>Ако домакинът е включил търговете, при отказ от покупка започва наддаване между активните играчи.</li>
+          <li>Наддаването продължава със зададената стъпка; при липса на оферти имотът остава свободен.</li>
+          <li>Активите на фалирал играч към банката също могат да се предложат на търг.</li>
+        </ul></section>
+        <section class="rules-section"><h4>5. Строеж и банков фонд</h4><ul>
+          <li>Строите само след придобиване на цяла цветова група и развивате имотите равномерно.</li>
+          <li>Нивата са Малък обект, Развит комплекс, Бизнес център, Регионален хъб и Гранд хотел.</li>
+          <li>Банката разполага с ограничен брой къщи (32) и хотели (12). При недостиг строежът е невъзможен.</li>
+          <li>Продажбата на подобрение връща половината от строителната му цена.</li>
+        </ul></section>
+        <section class="rules-section"><h4>6. Карти и специални полета</h4><ul>
+          <li>„Обществено събитие“ и „Бизнес възможност“ се изпълняват веднага, освен картите за освобождаване, които се пазят.</li>
+          <li>Картите могат да ви преместят, да ви донесат или отнемат пари, или да ви пратят на проверка.</li>
+          <li>Данъците се плащат на банката. Фондът „Свободен престой“ се използва само ако домакинът го е включил.</li>
+        </ul></section>
+        <section class="rules-section"><h4>7. Административна проверка</h4><ul>
+          <li>Докато сте на проверка, не се движите, но можете да събирате наеми и да управлявате портфейла си.</li>
+          <li>Освобождавате се с чифт, с карта или с плащане на зададената такса.</li>
+          <li>След максималния брой неуспешни опити таксата се плаща задължително и ходът продължава.</li>
+        </ul></section>
+        <section class="rules-section"><h4>8. Ипотеки и сделки</h4><ul>
+          <li>Имот без постройки в групата може да се ипотекира. Ипотекиран имот не носи наем.</li>
+          <li>Освобождаването на ипотека струва главницата плюс 10% лихва.</li>
+          <li>При сделка могат да се разменят пари, имоти и карти. Имоти с постройки в групата не се разменят.</li>
+        </ul></section>
+        <section class="rules-section"><h4>9. Дълг и фалит</h4><ul>
+          <li>При недостиг на пари първо продайте постройки или ипотекирайте активи.</li>
+          <li>Ако задължението остане неплатено, играчът фалира и напуска играта.</li>
+          <li>При дълг към играч активите преминават към кредитора; при дълг към банката се връщат на нея.</li>
+        </ul></section>
+        <section class="rules-section"><h4>10. Победа</h4><ul>
+          <li>В режим „Последен оцелял“ печели последният нефалирал играч.</li>
+          <li>При лимит на рундовете се сравнява нетната стойност: пари, имоти и стойност на подобренията.</li>
+          <li>Игровият лог и историята на ходовете пазят проверим запис на всички действия.</li>
+        </ul></section>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" data-close>Към играта</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Търг -->
+  <div id="auction-modal" class="modal-backdrop hidden">
+    <div class="modal auction-modal-shell">
+      <div class="auction-heading">
+        <div>
+          <div class="auction-kicker">ПУБЛИЧНО НАДДАВАНЕ</div>
+          <h3 id="auction-title">Търг</h3>
+        </div>
+        <span id="auction-kind" class="auction-kind">Имот</span>
+      </div>
+      <div id="auction-price" class="auction-price"></div>
+      <section id="auction-property-card" class="auction-property-card">
+        <div class="auction-property-identity">
+          <span class="auction-property-swatch" aria-hidden="true"></span>
+          <div>
+            <small id="auction-property-category"></small>
+            <strong id="auction-property-name"></strong>
+          </div>
+          <span id="auction-property-level" class="auction-property-level"></span>
+        </div>
+        <div class="auction-property-metrics">
+          <div><span>Пазарна стойност</span><b id="auction-market-value">—</b></div>
+          <div><span>Ипотечна стойност</span><b id="auction-mortgage-value">—</b></div>
+          <div><span>Текущ наем</span><b id="auction-rent-value">—</b><small id="auction-rent-label"></small></div>
+          <div><span>Цветова група</span><b id="auction-group-impact">—</b></div>
+        </div>
+      </section>
+      <div class="auction-status" id="auction-status">Сървърен таймер</div>
+      <div id="auction-current" class="auction-current" role="status" aria-live="polite">
+        <span class="auction-current-label">Водеща оферта</span>
+        <b id="auction-current-amount" class="auction-current-amount">—</b>
+        <span id="auction-current-bidder" class="auction-current-bidder">Все още няма оферти</span>
+      </div>
+      <div id="auction-participants" class="auction-participants"></div>
+      <div class="auction-history-heading">История на наддаванията</div>
+      <div id="auction-bid-history" class="auction-bid-history"></div>
+      <div id="auction-bid-controls">
+        <select id="auction-build-target" class="hidden" aria-label="Имот за постройката"></select>
+        <div class="auction-finance" id="auction-finance">
+          <div><span>Пари преди</span><b id="auction-cash-before">—</b></div>
+          <div><span>След офертата</span><b id="auction-cash-after">—</b></div>
+          <div><span>Минимална оферта</span><b id="auction-min-next">—</b></div>
+          <div><span>Максимално достъпни</span><b id="auction-max-bid">—</b></div>
+        </div>
+        <div class="auction-bid-row">
+          <input type="number" id="auction-bid-input" min="10" step="10">
+          <button id="btn-place-bid" class="btn btn-primary">Наддай</button>
+        </div>
+        <div class="auction-quick">
+          <button class="btn btn-secondary" data-bid-plus="10">+10</button>
+          <button class="btn btn-secondary" data-bid-plus="50">+50</button>
+          <button class="btn btn-secondary" data-bid-plus="100">+100</button>
+        </div>
+        <button id="btn-withdraw-auction" class="btn btn-ghost auction-withdraw">Отказвам се</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сделка -->
+  <div id="trade-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal trade-modal-shell">
+      <div class="trade-heading">
+        <div>
+          <div class="trade-kicker">ПАЗАР НА ИМОТИ</div>
+          <h3>Предложение за сделка</h3>
+        </div>
+        <button type="button" class="icon-btn" data-close title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <div class="trade-modal-body">
+        <div class="trade-filters">
+          <label>
+            <span>Собственик / получател</span>
+            <select id="trade-target"></select>
+          </label>
+          <label>
+            <span>Търсене на имот</span>
+            <input type="search" id="trade-property-search" placeholder="Име, група или собственик…" autocomplete="off">
+          </label>
+        </div>
+        <div id="trade-market-summary" class="trade-market-summary"></div>
+        <div class="trade-grid">
+          <div class="trade-side">
+            <h4>Вие давате</h4>
+            <div class="trade-cash-row">Пари: <input type="number" id="trade-offer-cash" min="0" value="0"></div>
+            <div class="trade-cash-row" style="margin-top:0.3rem">Карти освоб.: <input type="number" id="trade-offer-cards" min="0" max="5" value="0"></div>
+            <div id="trade-offer-props" class="trade-props"></div>
+          </div>
+          <div class="trade-side">
+            <h4>Вие искате <span id="trade-request-scope"></span></h4>
+            <div class="trade-cash-row">Пари: <input type="number" id="trade-request-cash" min="0" value="0"></div>
+            <div class="trade-cash-row" style="margin-top:0.3rem">Карти освоб.: <input type="number" id="trade-request-cards" min="0" max="5" value="0"></div>
+            <div id="trade-request-props" class="trade-props"></div>
+          </div>
+        </div>
+        <div id="trade-value-meter" class="trade-value-meter"></div>
+        <p class="trade-rule-note">Имоти с подобрения не могат да се разменят — първо продайте подобренията. Имот не може да се прехвърля срещу активи под изчислената му стойност.</p>
+      </div>
+      <div class="modal-actions trade-modal-actions">
+        <button class="btn btn-ghost" data-close style="color:#555;border-color:#aaa">Отказ</button>
+        <button id="btn-send-trade" class="btn btn-primary">Изпрати офертата</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Финансов преглед преди действие -->
+  <div id="action-preview-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal action-preview-modal">
+      <div class="action-preview-heading">
+        <div>
+          <div class="action-preview-kicker">ПРЕДИ ПОТВЪРЖДЕНИЕ</div>
+          <h3 id="action-preview-title">Преглед на действието</h3>
+        </div>
+        <button type="button" class="icon-btn" id="action-preview-close" title="Затвори" aria-label="Затвори">&times;</button>
+      </div>
+      <p id="action-preview-summary" class="action-preview-summary"></p>
+      <div id="action-preview-metrics" class="action-preview-metrics"></div>
+      <div id="action-preview-details" class="action-preview-details"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="action-preview-cancel">Отказ</button>
+        <button type="button" class="btn btn-primary" id="action-preview-confirm">Потвърди</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Общо потвърждение. Заменя браузърния confirm(), който се рисува от
+       самия браузър и при цял екран се показва извън прозореца на играта. -->
+  <div id="confirm-modal" class="modal-backdrop viewport-popup hidden" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal confirm-modal">
+      <div class="confirm-heading">
+        <span id="confirm-icon" class="confirm-icon" aria-hidden="true">❓</span>
+        <h3 id="confirm-title">Потвърждение</h3>
+      </div>
+      <div id="confirm-body" class="confirm-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirm-cancel">Отказ</button>
+        <button type="button" class="btn btn-primary" id="confirm-ok">Потвърди</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Решение за ипотеки, получени при фалит -->
+  <div id="mortgage-transfer-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal mortgage-transfer-modal">
+      <h3>Получени ипотекирани имоти</h3>
+      <p id="mortgage-transfer-intro"></p>
+      <div id="mortgage-transfer-list" class="mortgage-transfer-list"></div>
+      <div id="mortgage-transfer-total" class="mortgage-transfer-total"></div>
+      <div class="modal-actions">
+        <button id="btn-keep-mortgages" class="btn btn-secondary">Запази ипотеките</button>
+        <button id="btn-redeem-mortgages" class="btn btn-primary">Откупи избраните</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Победа -->
+  <div id="victory-modal" class="modal-backdrop viewport-popup hidden">
+    <div class="modal victory-modal-card">
+      <div class="victory-screen">
+        <div class="vs-crown">🏆</div>
+        <h2 id="victory-name">—</h2>
+        <p>спечели играта! Империята е построена.</p>
+        <div id="victory-chart" class="victory-chart"></div>
+        <div id="victory-report" class="victory-report"></div>
+        <div class="victory-actions">
+          <button id="btn-rematch" class="btn btn-primary hidden">🔄 Реванш (същите играчи)</button>
+          <button id="btn-victory-exit" class="btn btn-ghost">Към началото</button>
+        </div>
+        <div id="rematch-hint" class="rematch-hint"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>window.IE_BOARD = {{ board_json | tojson }};</script>
+  <script src="/static/vendor/socket.io.min.js"></script>
+  <script src="/static/js/common.js?v={{ static_version }}"></script>
+  <!-- Игровите модули споделят window.IEGame; core.js го създава,
+       затова се зарежда пръв. Редът на останалите не е критичен —
+       всички взаимни извиквания минават през G.* по време на игра. -->
+  <script src="/static/js/game/core.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/board.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/effects.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/lobby.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/chat.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/trade.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/auction.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/ui.js?v={{ static_version }}"></script>
+  <script src="/static/js/game/events.js?v={{ static_version }}"></script>
+</body>
+</html>

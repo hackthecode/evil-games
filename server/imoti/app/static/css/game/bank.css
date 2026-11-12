@@ -1,0 +1,278 @@
+/* ============================================================
+   Българска народна банка и портфейл на играча
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Българска народна банка в центъра на дъската */
+.center-bank-summary {
+  min-width: 132px;
+  max-width: min(90%, 280px);
+  min-height: 36px;
+  padding: 0.35rem 0.65rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem 0.55rem;
+  color: var(--text-light);
+  background: rgba(5, 12, 24, 0.72);
+  border: 1px solid rgba(230, 195, 107, 0.34);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.center-bank-summary:hover,
+.center-bank-summary:focus-visible {
+  border-color: var(--gold);
+  background: rgba(11, 25, 44, 0.94);
+}
+.center-bank-name {
+  grid-column: 1 / -1;
+  color: var(--gold-soft);
+  font-size: clamp(0.58rem, 0.9vw, 0.74rem);
+  font-weight: 800;
+}
+.center-stock {
+  font-size: clamp(0.6rem, 1vw, 0.85rem);
+  color: var(--text-dim);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+.center-bank-pot {
+  color: #7fe0ac;
+  font-weight: 800;
+  font-size: clamp(0.58rem, 1vw, 0.82rem);
+}
+
+.bank-modal {
+  width: min(720px, 94vw);
+  max-width: 720px;
+  color: #e8edf2;
+  background: #0a1421;
+  border: 1px solid rgba(230, 195, 107, 0.38);
+  padding: 1.2rem;
+}
+.bank-modal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bank-modal .bank-modal-heading h3 {
+  margin: 0.15rem 0 0;
+  color: #f0d887;
+  font-size: 1.3rem;
+}
+.bank-modal-kicker {
+  color: #86b9a0;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.bank-vault {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 1rem 0;
+  border-block: 1px solid rgba(230, 195, 107, 0.2);
+}
+.bank-vault-item {
+  min-height: 86px;
+  padding: 0.7rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-content: center;
+  justify-content: center;
+  gap: 0.15rem 0.5rem;
+  color: #aab5c1;
+  text-align: left;
+}
+.bank-vault-item + .bank-vault-item { border-left: 1px solid rgba(230, 195, 107, 0.16); }
+.bank-vault-item strong {
+  color: #f5f7f8;
+  font-size: 1.35rem;
+}
+.bank-vault-item > span:last-child { grid-column: 1 / -1; font-size: 0.7rem; }
+.bank-vault-fund { display: flex; flex-direction: column; text-align: center; }
+.bank-vault-fund strong { color: #82d6a7; }
+.bank-vault-fund.is-disabled strong { color: #8f9aa6; font-size: 1rem; }
+.bank-ledger-title {
+  margin: 0.9rem 0 0.4rem;
+  color: #f0d887;
+  font-size: 0.78rem;
+}
+.bank-transactions {
+  max-height: min(42vh, 340px);
+  overflow-y: auto;
+}
+.bank-transaction {
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 1fr) auto 42px;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.2rem;
+  border-bottom: 1px solid rgba(180, 194, 207, 0.12);
+  font-size: 0.76rem;
+}
+.bank-transaction-route { color: #f5f7f8; font-weight: 700; overflow-wrap: anywhere; }
+.bank-transaction-reason { color: #9ca9b6; overflow-wrap: anywhere; }
+.bank-transaction strong { color: #82d6a7; text-align: right; white-space: nowrap; }
+.bank-transaction time { color: #7f8b97; text-align: right; }
+.bank-transactions-empty { padding: 1.4rem 0; color: #8e9ba8; text-align: center; font-size: 0.78rem; }
+
+/* Заем към банката — под сградите и фонда „Свободен престой". */
+/* Заемът: най-долу в модала, свит до един ред. Разгъва се при нужда, за да
+   не тежи на екрана през цялата партия. */
+.bank-loan {
+  margin-top: 0.8rem;
+  border: 1px solid rgba(214, 122, 105, 0.5);
+  border-radius: var(--radius-sm);
+  background: rgba(196, 106, 88, 0.14);
+  overflow: hidden;
+}
+.bank-loan-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  background: none;
+  color: #e7edf3;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bank-loan-toggle:hover { background: rgba(214, 122, 105, 0.12); }
+.bank-loan-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.bank-loan-toggle-label { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 800; }
+.bank-loan-toggle strong {
+  color: #f0a595;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.bank-loan-caret {
+  flex: none;
+  color: #93a3b5;
+  font-size: 0.9rem;
+  transition: transform 0.18s ease;
+}
+.bank-loan-toggle.is-open .bank-loan-caret { transform: rotate(180deg); }
+
+.bank-loan-details {
+  padding: 0 0.75rem 0.7rem;
+  border-top: 1px solid rgba(214, 122, 105, 0.3);
+}
+.bank-loan-details.hidden { display: none; }
+.bank-loan-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.9rem;
+  margin: 0.7rem 0 0;
+}
+.bank-loan-facts > div { display: grid; gap: 0.1rem; min-width: 0; }
+.bank-loan-facts dt { color: #93a3b5; font-size: 0.66rem; }
+.bank-loan-facts dd {
+  margin: 0;
+  color: #e7edf3;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+/* Изчерпано обезпечение: следващата обиколка носи прибиране на заема. */
+.bank-loan-facts dd.is-danger { color: #f2836f; }
+.bank-loan-note {
+  margin: 0.6rem 0 0.7rem;
+  color: #93a3b5;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.bank-loan-details .btn { width: 100%; padding: 0.45em 0.9em; font-size: 0.8rem; }
+
+@media (max-width: 460px) {
+  .bank-loan-facts { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Портфейл */
+.portfolio-modal,
+.history-modal {
+  width: min(820px, 94vw);
+  max-width: 820px;
+  color: #e7edf3;
+  background: #0a1421;
+  border: 1px solid rgba(230, 195, 107, 0.34);
+  padding: 1.2rem;
+}
+.portfolio-heading,
+.history-heading,
+.action-preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.portfolio-modal .portfolio-heading h3,
+.history-modal .history-heading h3 { margin: 0.12rem 0 0; color: #f0d887; }
+.portfolio-kicker,
+.history-kicker,
+.action-preview-kicker { color: #83b99e; font-size: 0.64rem; font-weight: 900; }
+.portfolio-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1rem 0;
+  border-block: 1px solid rgba(230, 195, 107, 0.2);
+}
+.portfolio-metrics > div { min-height: 84px; display: flex; flex-direction: column; justify-content: center; padding: 0.65rem; }
+.portfolio-metrics > div + div { border-left: 1px solid rgba(230, 195, 107, 0.15); }
+.portfolio-metrics span { color: #91a0ae; font-size: 0.65rem; }
+.portfolio-metrics strong { margin-top: 0.15rem; color: #f3f6f8; font-size: 1rem; }
+.portfolio-metrics small { color: #82d6a7; font-size: 0.6rem; }
+.portfolio-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; margin: 0.85rem 0 0.4rem; }
+.portfolio-section-heading h4 { margin: 0; color: #f0d887; font-size: 0.78rem; }
+.portfolio-section-heading strong { color: #82d6a7; }
+.portfolio-section-heading span { color: #93a0ad; font-size: 0.68rem; }
+.portfolio-banknotes { min-height: 82px; display: flex; align-items: center; gap: 0.5rem; overflow-x: auto; padding: 0.45rem 0.15rem 0.65rem; }
+.portfolio-note {
+  position: relative;
+  width: 86px;
+  height: 48px;
+  flex: 0 0 86px;
+  display: grid;
+  place-content: center;
+  color: #1c2630;
+  background: #c8cdd2;
+  border: 2px solid rgba(21, 29, 37, 0.55);
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.35), 4px 5px 0 rgba(0, 0, 0, 0.22);
+  font-weight: 900;
+}
+.portfolio-note span { font-size: 1rem; }
+.portfolio-note b { position: absolute; right: 4px; bottom: 2px; font-size: 0.62rem; }
+.portfolio-note small { position: absolute; left: 4px; top: 3px; font-size: 0.48rem; }
+.portfolio-note-500 { background: #ac82c2; }
+.portfolio-note-100 { background: #78bd8e; }
+.portfolio-note-50 { background: #dda05f; }
+.portfolio-note-20 { background: #78afd0; }
+.portfolio-note-10 { background: #d6817b; }
+.portfolio-note-5 { background: #aeb7bf; }
+.portfolio-note-1 { background: #d5b85d; }
+.portfolio-properties { max-height: min(34vh, 280px); overflow-y: auto; border-top: 1px solid rgba(230, 195, 107, 0.14); }
+.portfolio-property {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.45rem 0.2rem;
+  color: #e7edf3;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(180, 194, 207, 0.12);
+  text-align: left;
+  cursor: pointer;
+}
+.portfolio-property:hover { background: rgba(255, 255, 255, 0.04); }
+.portfolio-property-color { width: 7px; height: 34px; }
+.portfolio-property > span { display: flex; flex-direction: column; }
+.portfolio-property > span:last-child { text-align: right; }
+.portfolio-property small { color: #8f9daa; font-size: 0.61rem; }
+.portfolio-property strong { color: #82d6a7; font-size: 0.76rem; }
+.portfolio-property.mortgaged { opacity: 0.66; }
+.portfolio-empty { margin: 0; padding: 1rem 0; color: #8f9daa; text-align: center; font-size: 0.75rem; }
+

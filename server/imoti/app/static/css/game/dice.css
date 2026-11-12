@@ -1,0 +1,169 @@
+/* ============================================================
+   3D зарове и действията на текущия ход
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   3D зарове: кубчета с шест стени, реалистично премятане
+   ------------------------------------------------------------ */
+.dice-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.board-notification-stack {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + clamp(0.35rem, 1.2cqw, 0.75rem));
+  /* Над съдържанието на дъската (макс. 80), но под модалите (200) —
+     иначе банерите закриват отворен модал. Стекът създава собствен
+     контекст, така че z-index на банерите вътре е спрямо него. */
+  z-index: 150;
+  width: min(420px, calc(100vw - 2rem), 62cqw);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, 0.8cqw, 0.55rem);
+  align-items: stretch;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.dice-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  perspective: 620px;
+  perspective-origin: 50% 42%;
+  padding: 6px 0;
+  transform-style: preserve-3d;
+}
+.die3d {
+  --die: clamp(30px, 4vw, 52px);
+  --hd: calc(var(--die) / 2);
+  width: var(--die);
+  height: var(--die);
+  position: relative;
+  filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.4));
+  transition: transform 0.15s ease, filter 0.3s ease;
+  transform-style: preserve-3d;
+  transform-origin: 50% 55%;
+  will-change: transform, filter;
+  z-index: 0;
+}
+.die3d::after {
+  content: "";
+  position: absolute;
+  left: 11%;
+  right: 11%;
+  bottom: -10px;
+  height: 22%;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.36), transparent 68%);
+  border-radius: 50%;
+  filter: blur(3px);
+  transform: translateZ(-1px);
+  pointer-events: none;
+}
+.cube {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.face {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0) 36%),
+    linear-gradient(145deg, #fdf9ee, #e2d3af);
+  border-radius: 18%;
+  box-shadow: inset 0 0 0 1.5px rgba(36, 48, 63, 0.22),
+    inset 0 -5px 8px rgba(0, 0, 0, 0.13),
+    inset 0 4px 6px rgba(255, 255, 255, 0.68),
+    0 0 0 0.5px rgba(255, 255, 255, 0.28);
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 13%;
+  backface-visibility: hidden;
+}
+.face .pip {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #46525f, #1a232d 75%);
+  box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55);
+  margin: 13%;
+  opacity: 0;
+}
+.face[data-v="1"] .pip:nth-child(5),
+.face[data-v="2"] .pip:nth-child(1), .face[data-v="2"] .pip:nth-child(9),
+.face[data-v="3"] .pip:nth-child(1), .face[data-v="3"] .pip:nth-child(5), .face[data-v="3"] .pip:nth-child(9),
+.face[data-v="4"] .pip:nth-child(1), .face[data-v="4"] .pip:nth-child(3), .face[data-v="4"] .pip:nth-child(7), .face[data-v="4"] .pip:nth-child(9),
+.face[data-v="5"] .pip:nth-child(1), .face[data-v="5"] .pip:nth-child(3), .face[data-v="5"] .pip:nth-child(5), .face[data-v="5"] .pip:nth-child(7), .face[data-v="5"] .pip:nth-child(9),
+.face[data-v="6"] .pip:nth-child(1), .face[data-v="6"] .pip:nth-child(3), .face[data-v="6"] .pip:nth-child(4), .face[data-v="6"] .pip:nth-child(6), .face[data-v="6"] .pip:nth-child(7), .face[data-v="6"] .pip:nth-child(9) { opacity: 1; }
+
+/* Кликаеми зарове — светят, когато е твой ред да хвърлиш */
+.dice-row.rollable { cursor: pointer; }
+.dice-row.rollable .die3d {
+  animation: diceInvite 1.2s ease infinite alternate;
+}
+.dice-row.rollable:hover .die3d { transform: scale(1.12); }
+@keyframes diceInvite {
+  from { filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 5px rgba(230, 195, 107, 0.45)); }
+  to { filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 14px rgba(230, 195, 107, 0.95)); }
+}
+
+/* Действията на текущия ход стоят под заровете. */
+.center-actions {
+  width: min(86%, 420px);
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.center-actions:empty { min-height: 0; }
+.center-actions .btn {
+  min-height: 46px;
+  max-width: 100%;
+  padding: 0.62em 1.25em;
+  font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+  font-weight: 800;
+  line-height: 1.15;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.actions-paused { padding: 0.55rem; color: #9daab6; border: 1px dashed rgba(230, 195, 107, 0.28); border-radius: 7px; font-size: 0.76rem; text-align: center; }
+
+/* Зелен бутон за хвърляне на зарове — изпъква, когато си на ход.
+   Пулсиращото сияние е ::after слой с opacity (композитно). */
+.btn-roll {
+  position: relative;
+  background: linear-gradient(160deg, #45c67e, #1f9e57);
+  color: #04250f;
+  box-shadow: 0 4px 14px rgba(31, 158, 87, 0.4);
+  border: 1.5px solid #7fe0a6;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.btn-roll::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 4px 22px rgba(63, 224, 140, 0.85);
+  opacity: 0;
+  animation: glowFade 1.15s ease infinite alternate;
+  pointer-events: none;
+}
+/* Червен бутон за край на хода */
+.btn-end {
+  background: linear-gradient(160deg, #e0685a, #c0392b);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(192, 57, 43, 0.5);
+  border: 1.5px solid #f0a89f;
+}
+/* Зелен текст „Ти си на ход!" */
+.center-turn b.my-turn-text {
+  color: #57e08f;
+  text-shadow: 0 0 10px rgba(63, 224, 140, 0.55);
+  font-size: 1.12em;
+}
+

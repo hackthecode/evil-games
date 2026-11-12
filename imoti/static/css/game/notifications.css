@@ -1,0 +1,140 @@
+/* ============================================================
+   История, център за известия и финансов преглед
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Подробна история */
+.history-modal { max-width: 860px; }
+.history-filters { display: flex; gap: 0.35rem; overflow-x: auto; margin: 1rem 0 0.65rem; padding-bottom: 0.2rem; }
+.history-filters button { padding: 0.35rem 0.6rem; color: #9daab7; background: transparent; border: 1px solid #344354; border-radius: 4px; font-size: 0.68rem; white-space: nowrap; }
+.history-filters button.active { color: #14202b; background: #e8ce78; border-color: #e8ce78; font-weight: 800; }
+.turn-history { max-height: min(62vh, 540px); overflow-y: auto; padding-right: 0.2rem; }
+.history-round { position: sticky; top: 0; z-index: 1; padding: 0.38rem 0.15rem; color: #f0d887; background: #0a1421; border-bottom: 1px solid rgba(230, 195, 107, 0.2); font-size: 0.68rem; font-weight: 900; }
+.history-entry { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 0.55rem; min-height: 45px; padding: 0.4rem 0.2rem; border-bottom: 1px solid rgba(180, 194, 207, 0.1); }
+.history-entry p { margin: 0; color: #dce3ea; font-size: 0.73rem; line-height: 1.35; }
+.history-entry time { color: #778593; font-size: 0.6rem; }
+.history-icon { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #445464; border-radius: 50%; color: #a9b5c0; font-weight: 900; }
+.history-money .history-icon { color: #82d6a7; border-color: #397253; }
+.history-property .history-icon { color: #f0d887; border-color: #75672f; }
+.history-cards .history-icon { color: #c8a6e8; border-color: #654c7b; }
+.history-empty { color: #8f9daa; text-align: center; padding: 2rem 0; font-size: 0.78rem; }
+
+/* Център за известия */
+.notification-button { position: relative; }
+.notification-button.has-unread { border-color: #e6c36b; box-shadow: 0 0 12px rgba(230, 195, 107, 0.35); }
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #c9443b;
+  border: 2px solid #10203a;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.notifications-modal {
+  width: min(720px, 94vw);
+  max-width: 720px;
+  color: #e7edf3;
+  background: #0a1421;
+  border: 1px solid rgba(230, 195, 107, 0.34);
+  padding: 1.1rem;
+}
+.notifications-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.notifications-heading h3 { margin: 0.12rem 0 0; color: #f0d887; }
+.notifications-kicker { color: #83b99e; font-size: 0.64rem; font-weight: 900; }
+.notifications-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; margin: 0.8rem 0 0.45rem; }
+.notifications-toolbar span { color: #929fad; font-size: 0.68rem; }
+.notifications-toolbar .btn { min-height: 34px; padding: 0.35em 0.65em; font-size: 0.68rem; }
+.notifications-list { max-height: min(62vh, 520px); overflow-y: auto; }
+.notification-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+  min-height: 62px;
+  padding: 0.55rem 0.35rem;
+  border-bottom: 1px solid rgba(180, 194, 207, 0.12);
+}
+.notification-item.unread { background: rgba(230, 195, 107, 0.08); box-shadow: inset 3px 0 #e6c36b; }
+.notification-item > i { width: 34px; height: 34px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.06); border-radius: 50%; font-style: normal; }
+.notification-item div { min-width: 0; }
+.notification-item strong { color: #eef2f5; font-size: 0.76rem; }
+.notification-item p { margin: 0.15rem 0 0; color: #9da9b5; font-size: 0.69rem; line-height: 1.35; overflow-wrap: anywhere; }
+.notification-item time { color: #788694; font-size: 0.58rem; white-space: nowrap; }
+.notifications-empty { padding: 2rem 0; color: #8f9daa; text-align: center; }
+
+/* Финансов преглед преди действие */
+.action-preview-modal { width: min(620px, 94vw); max-width: 620px; }
+.action-preview-heading h3 { margin: 0.12rem 0 0; }
+.action-preview-kicker { color: #527b67; }
+.action-preview-summary { color: #56616c; font-size: 0.82rem; }
+.action-preview-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0.8rem 0; border-block: 1px solid #d3d7da; }
+.action-preview-metrics > div { min-height: 78px; display: flex; flex-direction: column; justify-content: center; padding: 0.55rem; }
+.action-preview-metrics > div + div { border-left: 1px solid #d3d7da; }
+.action-preview-metrics span { color: #78838d; font-size: 0.62rem; }
+.action-preview-metrics b { margin-top: 0.15rem; color: #27343e; font-size: 0.84rem; }
+.action-preview-metrics strong { color: #26734a; font-size: 0.73rem; }
+.action-preview-metrics strong.negative { color: #a7443c; }
+.action-preview-details { padding: 0.6rem 0.7rem; color: #4f5b66; background: #eef1f2; border-left: 4px solid #b28b38; font-size: 0.74rem; line-height: 1.45; }
+.action-preview-details p { margin: 0.15rem 0; }
+
+/* Общо потвърждение — на мястото на браузърния confirm(). Стои над
+   останалите модали, защото може да се извика и от отворен прозорец. */
+/* Над всичко останало, включително панела на домакина (620) и завесата
+   на паузата (610): потвърждението е последната крачка преди действие и
+   не бива да остава скрито зад тях. */
+#confirm-modal { z-index: 660; }
+.confirm-modal { width: min(440px, 92vw); max-width: 440px; }
+.confirm-heading { display: flex; align-items: center; gap: 0.6rem; }
+.confirm-heading h3 { margin: 0; font-size: 1.05rem; }
+.confirm-icon {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 34px;
+  height: 34px;
+  background: #f4e6c6;
+  border-radius: 50%;
+  font-size: 1.1rem;
+}
+.confirm-body { margin: 0.85rem 0 0; color: #4f5b66; font-size: 0.86rem; line-height: 1.5; }
+.confirm-body p { margin: 0.45rem 0 0; overflow-wrap: anywhere; }
+.confirm-body p:first-child { margin-top: 0; color: #27343e; font-weight: 700; }
+
+.landing-banner {
+  position: relative;
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  text-align: center;
+  color: var(--text-light);
+  background: rgba(5, 9, 20, 0.96);
+  border: 1px solid rgba(230, 195, 107, 0.55);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+  z-index: 420;
+  animation: landingReveal 0.22s ease-out;
+  /* Плавно скриване: opacity/transform се анимират, а display се сменя
+     чак след прехода (allow-discrete). */
+  transition: opacity 0.2s ease, transform 0.2s ease, display 0.2s allow-discrete;
+}
+.landing-banner.hidden {
+  display: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+}
+.landing-kicker { color: var(--text-dim); font-size: 0.75rem; }
+.landing-name { color: var(--gold); font-weight: 900; font-size: 1.45rem; }
+.landing-result { color: #d9e0ea; font-size: 0.88rem; margin-top: 0.15rem; }
+@keyframes landingReveal {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+

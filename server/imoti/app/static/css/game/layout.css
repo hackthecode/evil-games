@@ -1,0 +1,109 @@
+/* ============================================================
+   Обща подредба на игровия екран и размери на модалите
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* ============================================================
+   Игрови екран — Имоти и Империи
+   Оригинално кръгово табло с централен панел.
+   ============================================================ */
+
+.game-layout {
+  display: grid;
+  /* Страничните колони поемат мястото, което дъската не може да използва.
+
+     Дъската е квадрат, ограничен по ВИСОЧИНА (`.board-wrap` е
+     `min(100% - 1.4rem, 100dvh - 7rem)`), затова на широк екран встрани от
+     нея оставаше празнина: при 1920×1080 средната колона беше 1274px за
+     дъска от 968px — 306 неизползвани пиксела, докато панелите стояха
+     стиснати на 290 и 300.
+
+     `--spare-side` пресмята точно колко остава за едната страна, след като
+     дъската и отстоянията са взети. Долната граница на `clamp` е старата
+     стойност — така при тесен екран нищо не се влошава, а горната пази
+     панелите от разливане на 1440p и нагоре. */
+  --board-side: calc(100dvh - 7rem);
+  /* 3.6rem = отстъпите (2 × 0.9) + междините (2 × 0.9); 1.4rem е
+     собственият отстъп на дъската; 10px са предпазен запас, за да не
+     отхапе от дъската при появила се лента за превъртане (100vw я
+     включва, а ширината на съдържанието — не). */
+  --spare-side: calc(
+    (100vw - 3.6rem - 1.4rem - 10px - var(--board-side)) / 2
+  );
+  grid-template-columns:
+    clamp(270px, var(--spare-side), 460px)
+    minmax(0, 1fr)
+    clamp(280px, var(--spare-side), 460px);
+  gap: 0.9rem;
+  padding: 0.9rem;
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  align-items: start;
+  background: #050914;
+}
+.game-layout:fullscreen {
+  width: 100vw;
+  min-height: 100vh;
+  max-width: none;
+  overflow: auto;
+  background: #050914;
+}
+.game-layout:-webkit-full-screen {
+  width: 100vw;
+  min-height: 100vh;
+  max-width: none;
+  overflow: auto;
+  background: #050914;
+}
+:fullscreen .game-layout,
+:-webkit-full-screen .game-layout {
+  width: 100vw;
+  min-height: 100vh;
+  max-width: none;
+  overflow: auto;
+  background: #050914;
+}
+
+/* Модалите в играта се побират изцяло във вътрешното поле на таблото.
+   Прозрачният слой остава на цял екран само за защита от случайни действия. */
+body.board-popups .modal-backdrop:not(.viewport-popup) {
+  box-sizing: border-box;
+  padding: var(--board-popup-top, 15vh) var(--board-popup-right, 15vw)
+    var(--board-popup-bottom, 15vh) var(--board-popup-left, 15vw);
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.board-popups .modal-backdrop:not(.viewport-popup) > .modal {
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+body.board-popups .modal-backdrop.viewport-popup {
+  box-sizing: border-box;
+  padding: clamp(0.45rem, 2vw, 1.25rem);
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.board-popups .modal-backdrop.viewport-popup > .modal {
+  max-height: calc(100dvh - clamp(0.9rem, 4vw, 2.5rem));
+}
+body.board-popups #card-modal > .modal { display: grid; place-items: center; }
+body.board-popups .drawn-card { width: min(100%, 340px); min-height: 0; max-height: 100%; }
+
+.side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  position: sticky;
+  top: 0.9rem;
+}
+

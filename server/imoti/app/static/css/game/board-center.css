@@ -1,0 +1,149 @@
+/* ============================================================
+   Централният панел във вътрешното поле на таблото
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Централен панел — вътрешното поле на таблото */
+.board-center {
+  position: absolute;
+  inset: 14.5%;
+  /* Игрална маса, не празно поле: топло петно светлина горе-ляво, фина
+     „сукнена" тъкан по диагонал, тъмна винетка към краищата и наситена
+     синя основа. Всичко е с CSS градиенти (без външни файлове, CSP-safe)
+     и статично (без анимация — заради дисциплината за композитинг). */
+  background:
+    radial-gradient(circle at 34% 26%, rgba(58, 96, 142, 0.55), transparent 58%),
+    radial-gradient(circle at 50% 118%, rgba(0, 0, 0, 0.55), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.016) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 5px),
+    radial-gradient(circle at 50% 44%, #1c3c60, #0b1a31 80%);
+  border: 2px solid rgba(230, 195, 107, 0.32);
+  border-radius: 8px;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.58), var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3%;
+  text-align: center;
+  padding: 5%;
+}
+/* Инкрустирана златна нишка навътре от ръба — като кант на истинска маса. */
+.board-center::before {
+  content: "";
+  position: absolute;
+  inset: 2.4%;
+  border: 1px solid rgba(230, 195, 107, 0.16);
+  border-radius: 5px;
+  pointer-events: none;
+}
+.board-center .center-logo {
+  font-size: clamp(1rem, 2.4vw, 2rem);
+  transform: rotate(-14deg);
+  margin-bottom: 2%;
+}
+.pause-overlay {
+  position: absolute;
+  z-index: 610;
+  inset: 18% 12%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 1rem;
+  color: #e8eef4;
+  background: rgba(6, 15, 28, 0.97);
+  border: 1px solid rgba(230, 195, 107, 0.68);
+  border-radius: 10px;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.62);
+  text-align: center;
+  animation: pauseReveal 0.24s ease-out;
+}
+.pause-overlay .pause-icon { color: #f0d887; font-size: clamp(1.6rem, 4vw, 2.8rem); }
+.pause-overlay strong { color: #f0d887; font-size: clamp(0.9rem, 2vw, 1.35rem); }
+.pause-overlay > span:not(.pause-icon) { color: #d2dae2; font-size: clamp(0.62rem, 1.2vw, 0.82rem); }
+.pause-overlay small { max-width: 330px; color: #92a0ad; font-size: clamp(0.55rem, 1vw, 0.7rem); }
+@keyframes pauseReveal { from { opacity: 0; transform: scale(0.95); } }
+.center-turn { color: var(--text-dim); font-size: clamp(0.65rem, 1.1vw, 0.95rem); }
+.center-turn b { color: var(--gold); }
+.center-round { color: var(--text-dim); font-size: clamp(0.6rem, 1vw, 0.8rem); }
+
+/* ------------------------------------------------------------
+   Балонче за потвърждаване на заем — стои над заровете, там гледа
+   играчът в момента на решението.
+   ------------------------------------------------------------ */
+.loan-prompt {
+  position: relative;
+  z-index: 4;
+  width: min(88%, 320px);
+  padding: 0.6rem 0.7rem;
+  color: #2a2113;
+  background: linear-gradient(168deg, #fff6dd, #f3dfa8);
+  border: 1px solid #b98d1f;
+  border-radius: 9px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  text-align: left;
+  animation: loanPromptIn 0.22s ease-out;
+}
+.loan-prompt .lp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: clamp(0.68rem, 1.2vw, 0.86rem);
+}
+.loan-prompt .lp-body {
+  margin: 0.35rem 0 0.5rem;
+  color: #4a3c1c;
+  font-size: clamp(0.58rem, 1vw, 0.74rem);
+  line-height: 1.4;
+}
+.loan-prompt .lp-body b { color: #6b4f12; }
+.loan-prompt .lp-actions { display: flex; gap: 0.35rem; }
+.loan-prompt .lp-actions .btn { flex: 1; padding: 0.35em 0.6em; font-size: clamp(0.6rem, 1vw, 0.78rem); }
+@keyframes loanPromptIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+
+/* ------------------------------------------------------------
+   Известие за оферта, адресирана лично до играча.
+   Стои над заровете — най-гледаното място на екрана.
+   ------------------------------------------------------------ */
+.trade-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 84%;
+  padding: 0.45rem 0.7rem;
+  color: #2a2113;
+  background: linear-gradient(165deg, #ffe9a8, #f0c65c);
+  border: 1px solid #b98d1f;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  text-align: left;
+  cursor: pointer;
+  animation: tradeAlertIn 0.35s ease, tradeAlertPulse 1.5s ease-in-out infinite 0.35s;
+}
+.trade-alert:hover, .trade-alert:focus-visible { filter: brightness(1.07); }
+.trade-alert .ta-icon { font-size: clamp(1rem, 2vw, 1.5rem); }
+.trade-alert .ta-copy { display: flex; flex-direction: column; line-height: 1.2; }
+.trade-alert .ta-copy strong { font-size: clamp(0.66rem, 1.15vw, 0.86rem); font-weight: 900; }
+.trade-alert .ta-copy span { color: #6a5622; font-size: clamp(0.56rem, 0.95vw, 0.72rem); }
+.trade-alert .ta-cta {
+  margin-left: auto;
+  padding: 0.2em 0.6em;
+  color: #ffe9a8;
+  background: #6b4f12;
+  border-radius: 5px;
+  font-size: clamp(0.56rem, 0.95vw, 0.72rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+@keyframes tradeAlertIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.94); }
+}
+/* Пулсът е през opacity на сянка — композитен, не преизчислява оформление. */
+@keyframes tradeAlertPulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 5px rgba(230, 195, 107, 0.45); }
+}
+
+

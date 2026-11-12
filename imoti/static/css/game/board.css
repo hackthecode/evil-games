@@ -1,0 +1,401 @@
+/* ============================================================
+   Таблото: полета, цветни ленти и пулсове
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Табло: класическа квадратна периметърна подредба
+   (4 ъгъла + 8 полета на страна; оригинално съдържание)
+   ------------------------------------------------------------ */
+.board-wrap {
+  position: relative;
+  width: min(calc(100% - 1.4rem), calc(100vh - 7rem));
+  width: min(calc(100% - 1.4rem), calc(100dvh - 7rem));
+  aspect-ratio: 1 / 1;
+  max-width: none;
+  max-height: none;
+  margin: 0 auto;
+  background: #0a1220;
+  border: 3px solid #050914;
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.68);
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+#board {
+  position: absolute;
+  inset: 0;
+}
+
+.space {
+  position: absolute;
+  /* Лек вертикален градиент: плочката изглежда като леко изпъкнала
+     емайлирана табелка, а не като плосък кремав правоъгълник.
+     Изнесен в променлива, защото сцените на ъглите слагат своите слоеве
+     НАД него и трябва да го наследят непроменен. */
+  --space-plate: linear-gradient(180deg, #fcf7ec 0%, var(--panel-cream) 46%, var(--panel-cream-dim) 100%);
+  background: var(--space-plate);
+  /* Оттенък на групата върху цялата плочка. Слой във фона, а не
+     псевдоелемент: ::before вече носи пулсирането на „нужен за групата",
+     а два слоя за едно и също съобщение се четат като шум. Стойността е
+     нула за полетата без група, така че правилото важи навсякъде. */
+  --group-wash: color-mix(in srgb, var(--group-tint, transparent) 16%, transparent);
+  color: var(--ink);
+  /* Хайрлайн-жлеб между плочките: светъл ръб горе-вляво, тъмен долу-вдясно,
+     вместо еднаквата мътна inset сянка отпреди. */
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.5),
+    inset -1px -1px 0 rgba(36, 48, 63, 0.14),
+    inset 0 0 0 1px rgba(36, 48, 63, 0.22);
+  display: flex;
+  overflow: hidden;
+  /* Размерът се води по ширината на таблото (cqw). Пробвано беше и
+     по-едро (1.45cqw / таван 15px), но на 1080p клампът опира в тавана и
+     надписите се разливат извън плочката — тези стойности се четат добре
+     на всички проверени резолюции. */
+  font-size: clamp(6px, 0.8vw, 10.5px);
+  font-size: clamp(6px, 1.15cqw, 13px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+/* Посочване: по-ярка плочка и по-плътен ореол. Нарочно БЕЗ повдигане с
+   transform — фигурките се позиционират отделно от плочките и не са техни
+   деца, така че вдигнатото поле би се отлепило от човечето върху него. */
+.space:hover {
+  z-index: 30;
+  filter: brightness(1.06) saturate(1.05);
+  box-shadow:
+    inset 0 0 0 2px var(--copper),
+    0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 4px 20px rgba(201, 128, 63, 0.7);
+}
+/* Клавиатурен фокус: inset рамка, защото inline outline показва
+   собственика и би скрил стандартния фокус-пръстен. */
+.space:focus-visible {
+  z-index: 30;
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--gold), 0 0 14px rgba(230, 195, 107, 0.65);
+}
+.dice-row:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+/* Имотът носи оттенъка на групата си; полетата без група остават кремави
+   (--group-tint е незададен и color-mix дава прозрачно). */
+.space.type-property {
+  background: linear-gradient(var(--group-wash), var(--group-wash)), var(--space-plate);
+}
+
+/* Цветната лента винаги гледа към центъра на таблото */
+.space.side-bottom { flex-direction: column; }
+.space.side-top { flex-direction: column-reverse; }
+.space.side-left { flex-direction: row-reverse; }
+.space.side-right { flex-direction: row; }
+
+.space .sp-band {
+  flex: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+/* Емблема на цветовата група върху лентата. Стои НАД гланца (::after),
+   иначе избледнява под белия градиент. Размерът е в cqw — спрямо таблото,
+   за да не изтънява при по-малка резолюция. */
+.space .sp-band .band-emblem {
+  position: relative;
+  z-index: 1;
+  width: 2.4cqw;
+  height: 2.4cqw;
+  max-width: 78%;
+  max-height: 78%;
+  opacity: 0.9;
+}
+.space.side-left .sp-band .band-emblem,
+.space.side-right .sp-band .band-emblem { width: 2.1cqw; height: 2.1cqw; }
+/* Сатенен блясък върху цветната лента: цветът на групата идва inline, затова
+   гланцът е отделен слой отгоре — светло по външния ръб, сянка към центъра,
+   за да чете лентата като боядисана керамична ивица, а не плосък правоъгълник. */
+.space .sp-band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.space.side-bottom .sp-band, .space.side-top .sp-band { height: 21%; width: 100%; }
+.space.side-bottom .sp-band { border-bottom: 1px solid rgba(36, 48, 63, 0.32); }
+.space.side-top .sp-band { border-top: 1px solid rgba(36, 48, 63, 0.32); }
+.space.side-bottom .sp-band::after { background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.16)); }
+.space.side-top .sp-band::after { background: linear-gradient(0deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.16)); }
+.space.side-left .sp-band, .space.side-right .sp-band { width: 16%; height: 100%; }
+.space.side-left .sp-band { border-left: 1px solid rgba(36, 48, 63, 0.32); }
+.space.side-right .sp-band { border-right: 1px solid rgba(36, 48, 63, 0.32); }
+.space.side-left .sp-band::after { background: linear-gradient(270deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.16)); }
+.space.side-right .sp-band::after { background: linear-gradient(90deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.16)); }
+
+.space .sp-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 1px;
+}
+/* Външният ръб на всяко поле пази лентата за собственост. Без този отстъп
+   центрираното име минаваше под лентата (личеше при дълги имена: „Ел" от
+   „Електроснабдяване" се губеше). Отстъпът е и в полза на пренасянето —
+   стеснява реда, та дългата дума се пренася по-рано, вместо да прелее.
+   `cqw` е спрямо таблото (container), затова е пропорционален на всяка
+   резолюция. */
+.space.side-bottom .sp-body { padding-bottom: 1.9cqw; }
+.space.side-top .sp-body { padding-top: 1.9cqw; }
+.space.side-left .sp-body { padding-left: 1.6cqw; }
+.space.side-right .sp-body { padding-right: 1.6cqw; }
+.space .sp-icon {
+  font-size: 1.35em;
+  line-height: 1;
+  flex: none;
+}
+/* Дуотон SVG глиф вместо емоджи — мащабира се с font-size на .sp-icon,
+   за да наследи същия размер като старите емоджи на всяко поле/ъгъл. */
+.space .sp-icon .sp-glyph {
+  width: 1.5em;
+  height: 1.5em;
+  display: block;
+}
+.space.is-corner .sp-icon { font-size: 2em; }
+.space .sp-name {
+  flex: 1;
+  font-weight: 700;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  /* Дългите слети имена („Водоснабдяване") се пренасят по вмъкнатите меки
+     тирета (U+00AD от softHyphenate в board.js): `hyphens: manual` показва
+     тире на мястото на прелома. `break-word` е резервен изход, ако дори така
+     не се събере — по височина обаче място има. */
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+/* Предпазен клапан: ако при някоя резолюция надпис не се събере в
+   плочката, слиза само той — на две стъпки, защото при най-широките
+   екрани („Административна проверка" на 2560px) една не стига. Класовете
+   се поставят от fitSpaceNames в board.js след реално измерване. */
+.space .sp-name.is-long { font-size: 0.86em; line-height: 1.05; }
+.space .sp-name.is-longer { font-size: 0.74em; line-height: 1; }
+.space .sp-price {
+  font-size: 0.94em;
+  text-align: center;
+  /* По-плътен и контрастен от предишния мек сив — цената се чете веднага. */
+  color: #3a4657;
+  font-weight: 700;
+}
+/* Наемът замества цената при закупен имот. Различава се по цвят и по
+   ниската линия отдолу — така на пръв поглед личи, че числото вече не е
+   „колко струва", а „колко ще платиш". */
+.space .sp-price.is-rent {
+  color: #7a3f2a;
+  border-bottom: 1.5px solid rgba(122, 63, 42, 0.35);
+  padding-bottom: 1px;
+}
+
+.space.type-corner {
+  /* Ъгловите „забележителности" са по-топли и с лек вътрешен ръб, за да
+     изпъкват като печат спрямо редовите плочки. */
+  --space-plate: linear-gradient(155deg, #ffeabf 0%, #f4dca6 55%, #e9cf98 100%);
+  background: var(--space-plate);
+  box-shadow:
+    inset 0 0 0 1px rgba(160, 120, 60, 0.4),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 22px rgba(160, 120, 60, 0.14);
+  font-weight: 800;
+  font-size: clamp(7px, 0.95vw, 13px);
+  font-size: clamp(7px, 1.35cqw, 15px);
+  /* `center` свиваше .sp-body до височината на съдържанието му — в плочка
+     от 172px тялото оставаше 70px и вторият ред на дългите имена
+     („Административна проверка") се отрязваше. `stretch` му дава цялата
+     плочка; центрирането пази .sp-body със своя justify-content: center,
+     затова видът остава същият. */
+  align-items: stretch;
+  justify-content: center;
+}
+.space.type-corner .sp-body { justify-content: center; }
+
+/* ------------------------------------------------------------
+   Сцени в четирите ъгъла
+
+   Ъглите са четири пъти по-големи от редово поле и окото ги хваща първо,
+   а досега и четирите бяха една и съща топла плочка. Всяка сцена е само
+   слоеве във `background` — топлата плочка остава последният слой и нищо
+   не застава над името (абсолютен ::before би го забулил).
+
+   Правилата стоят СЛЕД .space.type-corner: специфичността е еднаква
+   (два класа), затова редът решава. Позициите (0, 10, 20, 30) идват от
+   board_config.json — при друго табло се пипат и тук.
+   ------------------------------------------------------------ */
+
+/* Начален площад — изгрев: слънчев диск ниско долу и разперени лъчи. */
+.space.corner-0 {
+  background:
+    radial-gradient(circle at 50% 97%, rgba(232, 142, 30, 0.85) 0 17%, transparent 18%),
+    repeating-conic-gradient(from 196deg at 50% 97%,
+      rgba(232, 160, 52, 0.34) 0deg 6deg, transparent 6deg 19deg),
+    linear-gradient(0deg, rgba(246, 190, 104, 0.6), transparent 58%),
+    var(--space-plate);
+}
+
+/* Административна проверка — решетка на прозорец с хладна дневна светлина. */
+.space.corner-10 {
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(52, 66, 84, 0.42) 0 2.5px, transparent 2.5px 15%),
+    repeating-linear-gradient(0deg,
+      rgba(52, 66, 84, 0.24) 0 2.5px, transparent 2.5px 33%),
+    radial-gradient(ellipse at 50% 40%, rgba(196, 214, 234, 0.8), transparent 70%),
+    var(--space-plate);
+}
+
+/* Свободен престой — сенчеста морава: тревна ивица и петно светлина. */
+.space.corner-20 {
+  background:
+    radial-gradient(circle at 22% 20%, rgba(255, 247, 206, 0.75), transparent 44%),
+    radial-gradient(ellipse at 50% 112%, rgba(47, 132, 66, 0.72) 0 44%, transparent 72%),
+    repeating-linear-gradient(74deg,
+      rgba(47, 132, 66, 0.2) 0 3px, transparent 3px 10px),
+    var(--space-plate);
+}
+
+/* Изпращане на проверка — сигнална лампа: студено синьо срещу червено.
+   Без щриховка: диагоналните ивици тук се четяха като лъчите на изгрева
+   в отсрещния ъгъл и двата ъгъла се сливаха. */
+.space.corner-30 {
+  background:
+    radial-gradient(circle at 4% 4%, rgba(46, 104, 196, 0.92) 0 26%, rgba(46, 104, 196, 0.3) 42%, transparent 62%),
+    radial-gradient(circle at 96% 96%, rgba(198, 48, 34, 0.92) 0 26%, rgba(198, 48, 34, 0.3) 42%, transparent 62%),
+    linear-gradient(135deg, rgba(46, 104, 196, 0.22), transparent 42%, rgba(198, 48, 34, 0.22)),
+    var(--space-plate);
+}
+.space.type-card .sp-band { background: repeating-linear-gradient(45deg, #b98add, #b98add 6px, #a273cc 6px, #a273cc 12px); }
+.space.type-tax .sp-band { background: repeating-linear-gradient(45deg, #8d9aa8, #8d9aa8 6px, #7b8996 6px, #7b8996 12px); }
+.space.type-transport .sp-band { background: #37475a; }
+.space.type-utility .sp-band { background: #57a7c2; }
+.space.mortgaged { filter: grayscale(0.8) brightness(0.82); }
+
+/* Лента за собственост по ВЪНШНИЯ ръб на полето (срещу цветната група).
+   Изпъкнала „панделка": светъл ръб горе-вляво, сянка долу-вдясно и тънка
+   тъмна рамка — чете се като залепен деед-етикет, а не плоска ивица.
+   Цветът на собственика идва inline; фаската е само от сенки, за да не го
+   пребоядисва. */
+.space .sp-owner {
+  position: absolute;
+  z-index: 2;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.42),
+    inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.42),
+    inset -1.5px -1.5px 0 rgba(0, 0, 0, 0.24);
+}
+/* По-широка от преди (13% → 18%) и с външна сянка навътре: при бегъл
+   поглед върху цялото табло собствеността трябва да се чете, без да се
+   взира човек. Сянката е черна, а не цветна — цветът идва inline и не
+   бива да се пребоядисва. */
+.space.side-bottom .sp-owner { left: 0; right: 0; bottom: 0; height: 18%; }
+.space.side-top .sp-owner { left: 0; right: 0; top: 0; height: 18%; }
+.space.side-left .sp-owner { top: 0; bottom: 0; left: 0; width: 15%; }
+.space.side-right .sp-owner { top: 0; bottom: 0; right: 0; width: 15%; }
+/* Плочка с притежател: лек тъмен кант отвътре, за да личи, че полето „е
+   заето", дори когато лентата попадне в периферното зрение. */
+.space.is-owned {
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.5),
+    inset -1px -1px 0 rgba(36, 48, 63, 0.14),
+    inset 0 0 0 1px rgba(36, 48, 63, 0.34),
+    inset 0 0 10px rgba(36, 48, 63, 0.12);
+}
+.space .sp-level {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: 0.95em;
+  letter-spacing: -1px;
+  color: #7a4a1c;
+  text-shadow: 0 0 2px #fff;
+  /* Над лентата за собственик, за да се виждат къщите при всеки цвят
+     (вкл. черен) — светла подложка гарантира контраст. */
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 1.5px;
+  border-radius: 3px;
+  background: rgba(255, 253, 246, 0.82);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+  line-height: 1;
+}
+.space .sp-level:empty { display: none; }
+.space.side-bottom .sp-level { top: 21%; }
+.space.side-left .sp-level, .space.side-right .sp-level { top: 1px; }
+
+/* Пулсовете са композитни (transform/opacity), не box-shadow/filter —
+   иначе браузърът пребоядисва зоната на всеки кадър дори в покой. */
+.space.active-space {
+  z-index: 25;
+  box-shadow: 0 0 0 3px var(--gold), 0 0 22px rgba(230, 195, 107, 0.8);
+  animation: activeSpaceBreathe 1.1s ease infinite alternate;
+}
+@keyframes activeSpaceBreathe { to { transform: scale(1.035); } }
+@keyframes glowFade { to { opacity: 1; } }
+
+/* Кратък пулс при покупка — мащабира на място, без изместване */
+.space.purchase-pulse {
+  z-index: 32;
+  animation: purchasePulse 0.45s ease;
+}
+@keyframes purchasePulse {
+  35% { transform: scale(1.32); }
+}
+
+/* Единственият липсващ имот до завършване на цветова група. */
+.space.group-completion-target {
+  z-index: 18;
+  box-shadow:
+    inset 0 0 0 3px var(--completion-color, var(--gold)),
+    0 0 15px color-mix(in srgb, var(--completion-color, var(--gold)) 78%, transparent);
+}
+/* „Дишащото" осветяване е полупрозрачен слой с пулсираща прозрачност
+   (композитно), вместо анимиран filter: brightness. */
+.space.group-completion-target::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  background: #fff;
+  opacity: 0.02;
+  animation: completionGlow 0.85s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes completionGlow { to { opacity: 0.16; } }
+.space.group-completion-target::after {
+  content: attr(data-completion-mark);
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--completion-color, var(--gold));
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+}
+

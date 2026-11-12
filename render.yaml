@@ -1,0 +1,24 @@
+# Сървърът на „Имоти и Империи" в Render (render.com) — безплатен план.
+# Интерфейсът е в imoti/ (GitHub Pages); тук е само Python сървърът.
+# В Render: New → Blueprint → изберете това хранилище.
+services:
+  - type: web
+    name: imoti-i-imperii
+    runtime: python
+    plan: free
+    rootDir: server/imoti
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    # Деплой само при промени по сървъра, не при всяка промяна в портала.
+    buildFilter:
+      paths:
+        - server/imoti/**
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Постоянен ключ: иначе всяко събуждане анулира токените за връщане.
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHONUTF8
+        value: "1"

@@ -806,4 +806,8 @@ export const BG = {
   '🔇 Sound': '🔇 Звук',
   '🔊 Sound': '🔊 Звук',
   '🔒 Close': '🔒 Затвори',
+  'Estates & Empires': 'Имоти и Империи',
+  'Buy, build and trade properties across Bulgaria.': 'Купувайте, строете и търгувайте с имоти из цяла България.',
+  '2–10 · with bots or online': '2–10 · с ботове или онлайн',
+  '\n      <p>A property-trading board game set in Bulgaria for 2 to 10 players. Buy streets, build houses and hotels, collect rent and drive your rivals into bankruptcy.</p>\n      <ul>\n        <li>Create a room and send its code to your friends, or fill the free seats with bots.</li>\n        <li>Trades, auctions, loans, missions and world events – the host chooses the rules in the room settings.</li>\n        <li>The full rules are behind the “Rules” button inside the game.</li>\n      </ul>\n      <p>The game is in Bulgarian. It runs on its own server – after a long pause the first opening can take up to a minute.</p>': '\n      <p>Игра с имоти из България за 2 до 10 играчи. Купувайте улици, строете къщи и хотели, събирайте наем и докарайте съперниците до фалит.</p>\n      <ul>\n        <li>Създайте стая и пратете кода ѝ на приятели или попълнете свободните места с ботове.</li>\n        <li>Сделки, търгове, заеми, мисии и световни събития – домакинът избира правилата в настройките на стаята.</li>\n        <li>Пълните правила са зад бутона „Правила“ в самата игра.</li>\n      </ul>\n      <p>Играта е на български. Работи на собствен сървър – след дълга пауза първото отваряне може да отнеме до минута.</p>',
 };

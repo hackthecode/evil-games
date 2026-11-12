@@ -1,0 +1,600 @@
+{
+  "version": 4,
+  "size": 40,
+  "improvement_levels": [
+    "Незастроен имот",
+    "Малък обект",
+    "Развит комплекс",
+    "Бизнес център",
+    "Регионален хъб",
+    "Гранд хотел"
+  ],
+  "groups": {
+    "star_centar": {
+      "name": "Западни балнео курорти",
+      "color": "#8b5a2b",
+      "improve_cost": 50
+    },
+    "krairechen": {
+      "name": "Природни курорти",
+      "color": "#9fd4e4",
+      "improve_cost": 50
+    },
+    "kulturen": {
+      "name": "Минерални курорти",
+      "color": "#d94f9e",
+      "improve_cost": 100
+    },
+    "targovski": {
+      "name": "Слънчеви курорти",
+      "color": "#f2861d",
+      "improve_cost": 100
+    },
+    "tehno": {
+      "name": "Южно Черноморие",
+      "color": "#e03a2f",
+      "improve_cost": 150
+    },
+    "energien": {
+      "name": "Морски курорти",
+      "color": "#eed322",
+      "improve_cost": 150
+    },
+    "kurort": {
+      "name": "Планински курорти",
+      "color": "#1f9e4c",
+      "improve_cost": 200
+    },
+    "elit": {
+      "name": "Луксозни курорти",
+      "color": "#2456a6",
+      "improve_cost": 200
+    }
+  },
+  "spaces": [
+    {
+      "position": 0,
+      "type": "corner",
+      "name": "Начален площад",
+      "subtype": "start",
+      "icon": "🚩"
+    },
+    {
+      "position": 1,
+      "type": "property",
+      "name": "Вършец",
+      "group": "star_centar",
+      "price": 60,
+      "mortgage": 30,
+      "improve_cost": 50,
+      "rent": [
+        2,
+        10,
+        30,
+        90,
+        160,
+        250
+      ]
+    },
+    {
+      "position": 2,
+      "type": "card",
+      "name": "Обществено събитие",
+      "deck": "community",
+      "icon": "❓"
+    },
+    {
+      "position": 3,
+      "type": "property",
+      "name": "Банкя",
+      "group": "star_centar",
+      "price": 60,
+      "mortgage": 30,
+      "improve_cost": 50,
+      "rent": [
+        4,
+        20,
+        60,
+        180,
+        320,
+        450
+      ]
+    },
+    {
+      "position": 4,
+      "type": "tax",
+      "name": "Данък доход",
+      "amount": 200,
+      "icon": "💰"
+    },
+    {
+      "position": 5,
+      "type": "transport",
+      "name": "Пристанище Варна",
+      "group": "transport",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [
+        25,
+        50,
+        100,
+        200
+      ],
+      "icon": "⚓"
+    },
+    {
+      "position": 6,
+      "type": "property",
+      "name": "Чифлик",
+      "group": "krairechen",
+      "price": 100,
+      "mortgage": 50,
+      "improve_cost": 50,
+      "rent": [
+        6,
+        30,
+        90,
+        270,
+        400,
+        550
+      ]
+    },
+    {
+      "position": 7,
+      "type": "card",
+      "name": "Бизнес възможност",
+      "deck": "business",
+      "icon": "💼"
+    },
+    {
+      "position": 8,
+      "type": "property",
+      "name": "Рибарица",
+      "group": "krairechen",
+      "price": 100,
+      "mortgage": 50,
+      "improve_cost": 50,
+      "rent": [
+        6,
+        30,
+        90,
+        270,
+        400,
+        550
+      ]
+    },
+    {
+      "position": 9,
+      "type": "property",
+      "name": "Девин",
+      "group": "krairechen",
+      "price": 120,
+      "mortgage": 60,
+      "improve_cost": 50,
+      "rent": [
+        8,
+        40,
+        100,
+        300,
+        450,
+        600
+      ]
+    },
+    {
+      "position": 10,
+      "type": "corner",
+      "name": "Административна проверка",
+      "subtype": "jail",
+      "icon": "⚖️"
+    },
+    {
+      "position": 11,
+      "type": "property",
+      "name": "Огняново",
+      "group": "kulturen",
+      "price": 140,
+      "mortgage": 70,
+      "improve_cost": 100,
+      "rent": [
+        10,
+        50,
+        150,
+        450,
+        625,
+        750
+      ]
+    },
+    {
+      "position": 12,
+      "type": "utility",
+      "name": "Електроснабдяване",
+      "group": "utility",
+      "price": 150,
+      "mortgage": 75,
+      "rent_multiplier": [
+        4,
+        10
+      ],
+      "icon": "⚡"
+    },
+    {
+      "position": 13,
+      "type": "property",
+      "name": "Сапарева баня",
+      "group": "kulturen",
+      "price": 140,
+      "mortgage": 70,
+      "improve_cost": 100,
+      "rent": [
+        10,
+        50,
+        150,
+        450,
+        625,
+        750
+      ]
+    },
+    {
+      "position": 14,
+      "type": "property",
+      "name": "Велинград",
+      "group": "kulturen",
+      "price": 160,
+      "mortgage": 80,
+      "improve_cost": 100,
+      "rent": [
+        12,
+        60,
+        180,
+        500,
+        700,
+        900
+      ]
+    },
+    {
+      "position": 15,
+      "type": "transport",
+      "name": "Централна гара",
+      "group": "transport",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [
+        25,
+        50,
+        100,
+        200
+      ],
+      "icon": "🚂"
+    },
+    {
+      "position": 16,
+      "type": "property",
+      "name": "Сандански",
+      "group": "targovski",
+      "price": 180,
+      "mortgage": 90,
+      "improve_cost": 100,
+      "rent": [
+        14,
+        70,
+        200,
+        550,
+        750,
+        950
+      ]
+    },
+    {
+      "position": 17,
+      "type": "card",
+      "name": "Обществено събитие",
+      "deck": "community",
+      "icon": "❓"
+    },
+    {
+      "position": 18,
+      "type": "property",
+      "name": "Хисаря",
+      "group": "targovski",
+      "price": 180,
+      "mortgage": 90,
+      "improve_cost": 100,
+      "rent": [
+        14,
+        70,
+        200,
+        550,
+        750,
+        950
+      ]
+    },
+    {
+      "position": 19,
+      "type": "property",
+      "name": "Павел баня",
+      "group": "targovski",
+      "price": 200,
+      "mortgage": 100,
+      "improve_cost": 100,
+      "rent": [
+        16,
+        80,
+        220,
+        600,
+        800,
+        1000
+      ]
+    },
+    {
+      "position": 20,
+      "type": "corner",
+      "name": "Свободен престой",
+      "subtype": "free_parking",
+      "icon": "🌳"
+    },
+    {
+      "position": 21,
+      "type": "property",
+      "name": "Поморие",
+      "group": "tehno",
+      "price": 220,
+      "mortgage": 110,
+      "improve_cost": 150,
+      "rent": [
+        18,
+        90,
+        250,
+        700,
+        875,
+        1050
+      ]
+    },
+    {
+      "position": 22,
+      "type": "card",
+      "name": "Бизнес възможност",
+      "deck": "business",
+      "icon": "💼"
+    },
+    {
+      "position": 23,
+      "type": "property",
+      "name": "Созопол",
+      "group": "tehno",
+      "price": 220,
+      "mortgage": 110,
+      "improve_cost": 150,
+      "rent": [
+        18,
+        90,
+        250,
+        700,
+        875,
+        1050
+      ]
+    },
+    {
+      "position": 24,
+      "type": "property",
+      "name": "Свети Влас",
+      "group": "tehno",
+      "price": 240,
+      "mortgage": 120,
+      "improve_cost": 150,
+      "rent": [
+        20,
+        100,
+        300,
+        750,
+        925,
+        1100
+      ]
+    },
+    {
+      "position": 25,
+      "type": "transport",
+      "name": "Летище София",
+      "group": "transport",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [
+        25,
+        50,
+        100,
+        200
+      ],
+      "icon": "✈️"
+    },
+    {
+      "position": 26,
+      "type": "property",
+      "name": "Златни пясъци",
+      "group": "energien",
+      "price": 260,
+      "mortgage": 130,
+      "improve_cost": 150,
+      "rent": [
+        22,
+        110,
+        330,
+        800,
+        975,
+        1150
+      ]
+    },
+    {
+      "position": 27,
+      "type": "property",
+      "name": "Слънчев бряг",
+      "group": "energien",
+      "price": 260,
+      "mortgage": 130,
+      "improve_cost": 150,
+      "rent": [
+        22,
+        110,
+        330,
+        800,
+        975,
+        1150
+      ]
+    },
+    {
+      "position": 28,
+      "type": "utility",
+      "name": "Водоснабдяване",
+      "group": "utility",
+      "price": 150,
+      "mortgage": 75,
+      "rent_multiplier": [
+        4,
+        10
+      ],
+      "icon": "💧"
+    },
+    {
+      "position": 29,
+      "type": "property",
+      "name": "Албена",
+      "group": "energien",
+      "price": 280,
+      "mortgage": 140,
+      "improve_cost": 150,
+      "rent": [
+        24,
+        120,
+        360,
+        850,
+        1025,
+        1200
+      ]
+    },
+    {
+      "position": 30,
+      "type": "corner",
+      "name": "Изпращане на проверка",
+      "subtype": "goto_jail",
+      "icon": "🚨"
+    },
+    {
+      "position": 31,
+      "type": "property",
+      "name": "Пампорово",
+      "group": "kurort",
+      "price": 300,
+      "mortgage": 150,
+      "improve_cost": 200,
+      "rent": [
+        26,
+        130,
+        390,
+        900,
+        1100,
+        1275
+      ]
+    },
+    {
+      "position": 32,
+      "type": "property",
+      "name": "Боровец",
+      "group": "kurort",
+      "price": 300,
+      "mortgage": 150,
+      "improve_cost": 200,
+      "rent": [
+        26,
+        130,
+        390,
+        900,
+        1100,
+        1275
+      ]
+    },
+    {
+      "position": 33,
+      "type": "card",
+      "name": "Обществено събитие",
+      "deck": "community",
+      "icon": "❓"
+    },
+    {
+      "position": 34,
+      "type": "property",
+      "name": "Банско",
+      "group": "kurort",
+      "price": 320,
+      "mortgage": 160,
+      "improve_cost": 200,
+      "rent": [
+        28,
+        150,
+        450,
+        1000,
+        1200,
+        1400
+      ]
+    },
+    {
+      "position": 35,
+      "type": "transport",
+      "name": "Дунав мост",
+      "group": "transport",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [
+        25,
+        50,
+        100,
+        200
+      ],
+      "icon": "🌉"
+    },
+    {
+      "position": 36,
+      "type": "card",
+      "name": "Бизнес възможност",
+      "deck": "business",
+      "icon": "💼"
+    },
+    {
+      "position": 37,
+      "type": "property",
+      "name": "Дюни",
+      "group": "elit",
+      "price": 350,
+      "mortgage": 175,
+      "improve_cost": 200,
+      "rent": [
+        35,
+        175,
+        500,
+        1100,
+        1300,
+        1500
+      ]
+    },
+    {
+      "position": 38,
+      "type": "tax",
+      "name": "Луксозен данък",
+      "amount": 100,
+      "icon": "💰"
+    },
+    {
+      "position": 39,
+      "type": "property",
+      "name": "Елените",
+      "group": "elit",
+      "price": 400,
+      "mortgage": 200,
+      "improve_cost": 200,
+      "rent": [
+        50,
+        200,
+        600,
+        1400,
+        1700,
+        2000
+      ]
+    }
+  ]
+}

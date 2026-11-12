@@ -1,0 +1,309 @@
+/* ============================================================
+   Имоти и Империи — базова дизайн-система
+   Тъмносин фон, медно-златисти акценти, кремави панели.
+   ============================================================ */
+
+:root {
+  --bg-deep: #0b1626;
+  --bg-main: #10203a;
+  --bg-raised: #16294a;
+  --panel-cream: #f7f0e1;
+  --panel-cream-dim: #efe5cf;
+  --ink: #24303f;
+  --ink-soft: #5a6474;
+  --copper: #c9803f;
+  --copper-bright: #e2a55e;
+  --gold: #e6c36b;
+  --gold-soft: #d4af6a;
+  --accent-green: #3fae7a;
+  --accent-red: #d05545;
+  --accent-blue: #4a9db5;
+  --text-light: #f2ede2;
+  --text-dim: #a8b3c4;
+  --shadow-soft: 0 6px 24px rgba(4, 10, 22, 0.45);
+  --shadow-card: 0 3px 12px rgba(4, 10, 22, 0.35);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --font-main: "Segoe UI", "Noto Sans", system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: #050914;
+}
+
+body {
+  font-family: var(--font-main);
+  background: #050914;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+h1, h2, h3 { margin: 0 0 0.5em; line-height: 1.2; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-md);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+button:not(:disabled):hover { filter: brightness(1.08); }
+button:not(:disabled):active { transform: translateY(1px) scale(0.99); }
+
+.btn {
+  padding: 0.7em 1.5em;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.btn-primary {
+  background: linear-gradient(160deg, var(--copper-bright), var(--copper));
+  color: #241608;
+  box-shadow: 0 4px 14px rgba(201, 128, 63, 0.35);
+}
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-light);
+  border: 1px solid rgba(230, 195, 107, 0.35);
+}
+
+.btn-danger {
+  background: linear-gradient(160deg, #e06a58, var(--accent-red));
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid rgba(168, 179, 196, 0.3);
+}
+
+/* Качество на връзката — общо за лобито и игровия екран. */
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 28px;
+  padding: 0.25rem 0.58rem;
+  border: 1px solid rgba(168, 179, 196, 0.3);
+  border-radius: 999px;
+  color: var(--text-dim);
+  background: rgba(11, 22, 38, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.connection-indicator > i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #8c98a8;
+  box-shadow: 0 0 0 3px rgba(140, 152, 168, 0.15);
+}
+.connection-indicator.is-good { color: #8ce0b6; border-color: rgba(63, 174, 122, 0.38); }
+.connection-indicator.is-good > i { background: #4fd18d; box-shadow: 0 0 0 3px rgba(79, 209, 141, 0.16); }
+.connection-indicator.is-delayed { color: #ffd17a; border-color: rgba(230, 195, 107, 0.42); }
+.connection-indicator.is-delayed > i { background: #f0b84d; box-shadow: 0 0 0 3px rgba(240, 184, 77, 0.17); }
+.connection-indicator.is-offline { color: #f0a39a; border-color: rgba(208, 85, 69, 0.46); }
+.connection-indicator.is-offline > i { background: #df6658; box-shadow: 0 0 0 3px rgba(223, 102, 88, 0.17); }
+.connection-indicator.is-connecting > i {
+  background: #65a9d8;
+  animation: connectionPulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes connectionPulse { to { opacity: 0.35; transform: scale(0.72); } }
+
+input[type="text"], input[type="password"], input[type="number"], select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.6em 0.9em;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(230, 195, 107, 0.3);
+  background: rgba(11, 22, 38, 0.65);
+  color: var(--text-light);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+input::placeholder { color: #6d7a8d; }
+
+.panel {
+  background: var(--bg-raised);
+  border: 1px solid rgba(230, 195, 107, 0.18);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 1.2rem;
+}
+
+.panel-cream {
+  background: var(--panel-cream);
+  color: var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 1.2rem;
+}
+
+/* --- Модални прозорци --- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 20, 0.72);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.18s ease;
+  /* Плавно затваряне: избледняване преди display: none (allow-discrete).
+     Отварянето остава през fadeIn/popIn анимациите. */
+  transition: opacity 0.18s ease, display 0.18s allow-discrete;
+}
+.modal-backdrop.hidden { display: none; opacity: 0; }
+.modal-backdrop.hidden .modal { transform: scale(0.96); }
+
+.modal {
+  background: var(--panel-cream);
+  color: var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55);
+  padding: 1.6rem;
+  max-width: min(480px, 92vw);
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: popIn 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: transform 0.18s ease;
+}
+.modal h3 { color: #7a4a1c; }
+.modal .modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+  flex-wrap: wrap;
+}
+
+/* --- Тостове --- */
+#toast-area {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: var(--panel-cream);
+  color: var(--ink);
+  border-left: 5px solid var(--copper);
+  padding: 0.65em 1.2em;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  font-weight: 600;
+  animation: toastIn 0.25s ease;
+  max-width: min(440px, 90vw);
+}
+.toast.error { border-left-color: var(--accent-red); }
+.toast.success { border-left-color: var(--accent-green); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85) translateY(14px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hidden { display: none !important; }
+
+/* Лого */
+.logo {
+  margin: 0;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-img {
+  display: block;
+  width: auto;
+  height: 2.6em;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(230, 195, 107, 0.28));
+}
+.landing .logo-img {
+  height: clamp(11rem, 34vw, 20rem);
+  max-width: min(96vw, 860px);
+}
+.lobby-header .logo-img {
+  height: 6.4rem;
+}
+.game-topbar .logo-img {
+  height: 4.2rem;
+}
+.board-center .center-logo .logo-img {
+  height: clamp(3.8rem, 11vw, 8.5rem);
+  height: clamp(3.8rem, 12cqw, 8.5rem);
+  max-width: 76%;
+}
+
+/* Анимирани човешки фигурки */
+.person-token { display: block; overflow: visible; }
+.person-token .avatar-figure {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: avatarBreathe 1.8s ease-in-out infinite;
+}
+.person-token .avatar-arm,
+.person-token .avatar-leg {
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+.person-token .avatar-arm-left { animation: avatarArmLeft 1.25s ease-in-out infinite alternate; }
+.person-token .avatar-arm-right { animation: avatarArmRight 1.25s ease-in-out infinite alternate; }
+.person-token .avatar-leg-left { animation: avatarLegLeft 1.05s ease-in-out infinite alternate; }
+.person-token .avatar-leg-right { animation: avatarLegRight 1.05s ease-in-out infinite alternate; }
+
+@keyframes avatarBreathe {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-0.45px) scaleY(1.015); }
+}
+@keyframes avatarArmLeft {
+  from { transform: rotate(4deg); }
+  to { transform: rotate(-8deg); }
+}
+@keyframes avatarArmRight {
+  from { transform: rotate(-4deg); }
+  to { transform: rotate(8deg); }
+}
+@keyframes avatarLegLeft {
+  from { transform: rotate(2deg); }
+  to { transform: rotate(-3deg); }
+}
+@keyframes avatarLegRight {
+  from { transform: rotate(-2deg); }
+  to { transform: rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .person-token .avatar-figure,
+  .person-token .avatar-arm,
+  .person-token .avatar-leg { animation: none !important; }
+}

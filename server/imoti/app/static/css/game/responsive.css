@@ -1,0 +1,125 @@
+/* ============================================================
+   Адаптивност — медийни заявки за всички модули
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Адаптивност */
+
+/* На широк екран страничните колони скролват вътре в себе си вместо да
+   разтягат цялата страница. Иначе с натрупването на имоти лявата колона
+   надхвърля екрана и дъската започва да излиза от кадъра.
+   Само над 1150px — по-надолу колоните минават в нормален поток. */
+@media (min-width: 1151px) {
+  .side-col {
+    /* Същата формула като на .board-wrap — колоните стават точно
+       колкото дъската и отчитат горната лента и отстоянията. */
+    max-height: calc(100vh - 7rem);
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(230, 195, 107, 0.35) transparent;
+  }
+  /* Панелите пазят естествената си височина — иначе flex ги смачква,
+     за да се вместят, вместо колоната да превърти. */
+  .side-col > * { flex: none; }
+}
+
+@media (max-width: 1150px) {
+  .game-layout { grid-template-columns: minmax(230px, 250px) minmax(0, 1fr); }
+  .right-col { grid-column: 1 / -1; position: static; flex-direction: row; flex-wrap: wrap; }
+  .right-col > * { flex: 1 1 280px; }
+}
+@media (max-width: 720px) {
+  /* `1fr` има минимум min-content: широкото съдържание (лентата с
+     бутоните) разпъваше колоната и страницата се плъзгаше настрани.
+     `minmax(0, 1fr)` позволява на колоната да се свие. */
+  .game-layout { grid-template-columns: minmax(0, 1fr); padding: 0.45rem max(0.45rem, env(safe-area-inset-right)) calc(0.7rem + env(safe-area-inset-bottom)) max(0.45rem, env(safe-area-inset-left)); }
+  .board-wrap { order: 1; }
+  .left-col { order: 2; }
+  .right-col { order: 3; }
+  .side-col { position: static; flex-direction: column; flex-wrap: nowrap; }
+  .side-col > * { flex: 1 1 auto; width: 100%; }
+  .mobile-panel-toggle { display: inline-grid; place-content: center; flex: none; }
+  .mobile-collapsible.mobile-collapsed > :not(.mobile-panel-heading) { display: none !important; }
+  .mobile-collapsible.mobile-collapsed .mobile-panel-toggle { transform: rotate(180deg); }
+  /* Лентата е един ред и на телефон. Целта за пръст остава 44px (долната
+     препоръчителна граница), а мястото се печели от логото и от текста на
+     индикатора, а не от размера на бутоните. */
+  .game-topbar .icon-btn, .topbar-right .icon-btn { width: 44px; height: 44px; }
+  .game-topbar { padding: 0.15rem 0.4rem; gap: 0.4rem; }
+  .game-topbar .logo { height: 2.4rem; }
+  .topbar-right { gap: 0.35rem; }
+  /* Точката остава — тя носи състоянието; надписът и закъснението не са
+     нужни на екран, където всяка отнета точка е плочка от дъската. */
+  .topbar-right .connection-indicator { padding: 0.25rem; gap: 0; }
+  .topbar-right .connection-label { display: none; }
+  .actions-panel .btn, .modal .btn, .chat-form .btn, .prop-row button { min-height: 46px; font-size: 1rem; }
+  .center-actions .btn { min-height: 44px; padding: 0.55em 1em; font-size: 0.95rem; }
+  /* Известието за оферта минава на един ред — центърът е тесен, а името на
+     подателя си остава видимо в самия панел с офертата. */
+  .trade-alert { max-width: 96%; padding: 0.3rem 0.5rem; gap: 0.35rem; }
+  .trade-alert .ta-copy span { display: none; }
+  .modal-backdrop { padding: 0.45rem; }
+  .modal { width: min(96vw, 680px); max-height: calc(100dvh - 0.9rem); overflow-y: auto; padding: 0.9rem; }
+  /* Размерът е на носача — лицата са абсолютни вътре в него. */
+  .card-flip { width: min(88vw, 340px); min-height: 62vh; }
+  .drawn-card .dc-emblem { font-size: 3.8rem; }
+  .drawn-card .dc-text { font-size: 1.05rem; }
+  .board-wrap {
+    width: min(96vw, calc(100vh - 6rem));
+    width: min(96vw, calc(100dvh - 6rem));
+  }
+  .space { font-size: 6.4px; }
+  /* На телефон плочката е около 30px: емблемата в лентата става шум,
+     а не информация. Цветът остава единственият белег, както преди. */
+  .space .sp-band .band-emblem { display: none; }
+  /* Тестето е около 50px — значката с броя пада до 5px шрифт и не се чете.
+     Дебелината на купчината остава като сигнал колко карти са останали. */
+  .deck-count { display: none; }
+  .victory-row .vr-stat { min-width: 58px; font-size: 0.9em; }
+  .trade-modal-shell {
+    width: 100%;
+    max-height: calc(100dvh - 0.9rem);
+    overflow: hidden;
+    padding: 0.75rem;
+  }
+  .trade-filters { grid-template-columns: 1fr; }
+  .trade-grid { grid-template-columns: 1fr; }
+  .trade-modal-body .trade-props { max-height: none; overflow: visible; }
+  .trade-modal-actions .btn { flex: 1 1 130px; }
+  .bank-vault-item { min-height: 72px; padding: 0.5rem 0.3rem; }
+  .bank-vault-item strong { font-size: 1.05rem; }
+  .bank-transaction {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.15rem 0.5rem;
+  }
+  .bank-transaction-reason { grid-column: 1; }
+  .bank-transaction time { grid-column: 2; grid-row: 2; }
+  /* Действията в акта: на телефон дребните бутони падат до 24px и не се
+     улучват. Един под друг, на цяла ширина — актът превърта в модала,
+     както и останалото му съдържание. */
+  .deed-actions { flex-direction: column; }
+  .deed-actions button { min-height: 44px; width: 100%; font-size: 0.9rem; }
+  .deed-modal-shell { padding: 0.35rem; }
+  .property-deed { padding: 0.8rem; border-width: 4px; }
+  .deed-rents { font-size: 0.84rem; }
+  .deed-values, .deed-owner, .deed-category { font-size: 0.82rem; }
+  .deed-header { grid-template-columns: 42px minmax(0, 1fr); }
+  .deed-emblem { width: 40px; height: 40px; }
+  .deed-status { grid-column: 1 / -1; justify-self: end; }
+  .deed-owner { grid-template-columns: 8px minmax(0, 1fr); }
+  .deed-owner > div:last-child { grid-column: 2; }
+  .deed-columns { grid-template-columns: 1fr; }
+  .deed-footer { grid-template-columns: 1fr 58px 1fr; gap: 0.4rem; }
+  .deed-seal { width: 54px; height: 54px; }
+  .portfolio-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portfolio-metrics > div:nth-child(3) { border-left: 0; border-top: 1px solid rgba(230, 195, 107, 0.15); }
+  .portfolio-metrics > div:nth-child(4) { border-top: 1px solid rgba(230, 195, 107, 0.15); }
+  .portfolio-property { grid-template-columns: 7px minmax(0, 1fr); }
+  .portfolio-property > span:last-child { grid-column: 2; text-align: left; }
+  .action-preview-metrics { grid-template-columns: 1fr; }
+  .action-preview-metrics > div + div { border-left: 0; border-top: 1px solid #d3d7da; }
+  .history-entry { grid-template-columns: 28px minmax(0, 1fr); }
+  .history-entry time { grid-column: 2; }
+}

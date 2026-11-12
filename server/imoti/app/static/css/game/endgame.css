@@ -1,0 +1,414 @@
+/* ============================================================
+   Начално хвърляне, победа, фалит, горна лента и акценти
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Начално хвърляне за реда */
+.starting-order-panel {
+  position: absolute;
+  z-index: 520;
+  left: 50%;
+  top: 50%;
+  width: min(82%, 430px);
+  max-height: 88%;
+  overflow-y: auto;
+  padding: clamp(0.7rem, 2.2vw, 1.1rem);
+  color: #e7edf3;
+  background: rgba(7, 17, 31, 0.98);
+  border: 1px solid rgba(230, 195, 107, 0.65);
+  border-radius: 9px;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.7);
+  transform: translate(-50%, -50%);
+  animation: startingOrderIn 0.35s ease-out;
+}
+.starting-order-panel.closing { opacity: 0; transition: opacity 0.28s ease; }
+.starting-order-panel > button { position: absolute; top: 0.35rem; right: 0.45rem; color: #dce4eb; background: none; border: 0; font-size: 1.25rem; cursor: pointer; }
+.starting-order-panel > small { color: #83b99e; font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; }
+.starting-order-panel h3 { margin: 0.1rem 0 0.6rem; color: #f0d887; }
+.starting-order-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.starting-order-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 0.45rem; min-height: 38px; padding: 0.3rem 0.45rem; background: rgba(255, 255, 255, 0.045); border-radius: 5px; }
+.starting-order-row > b { width: 24px; height: 24px; display: grid; place-items: center; color: #172335; background: #e6c36b; border-radius: 50%; font-size: 0.68rem; }
+.starting-order-row > span { display: flex; min-width: 0; flex-direction: column; color: #eef2f5; font-size: 0.75rem; font-weight: 800; text-align: left; }
+.starting-order-row small { color: #91a0ae; font-size: 0.53rem; font-weight: 600; }
+.starting-order-row strong { color: #f0d887; white-space: nowrap; }
+.starting-order-row strong i { margin-left: 0.25rem; color: #82d6a7; font-size: 0.72rem; font-style: normal; }
+@keyframes startingOrderIn { from { opacity: 0; transform: translate(-50%, -45%) scale(0.94); } }
+
+.mortgage-transfer-modal { max-width: 560px; }
+.mortgage-transfer-list { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.8rem 0; }
+.mortgage-transfer-list label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6rem; padding: 0.55rem; border: 1px solid #d0d5db; border-radius: 5px; cursor: pointer; }
+.mortgage-transfer-list input { width: 18px; height: 18px; }
+.mortgage-transfer-total { color: #6b4d17; font-weight: 800; font-size: 0.84rem; }
+.debt-advice { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.65rem; padding-top: 0.55rem; border-top: 1px solid rgba(208, 85, 69, 0.35); }
+.debt-advice-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0.35rem; font-size: 0.75rem; }
+.debt-advice-row span { overflow-wrap: anywhere; }
+.debt-advice-row strong { color: #7fe0ac; }
+.debt-advice-row .btn { width: auto; min-width: 58px; padding: 0.25em 0.5em; font-size: 0.7rem; }
+.debt-advice p { margin: 0; color: #e6a69c; font-size: 0.74rem; }
+
+/* Победа */
+.victory-screen {
+  text-align: center;
+  padding: 1rem 0.4rem;
+}
+.victory-screen .vs-crown { font-size: 4rem; animation: crownBounce 1.2s ease infinite alternate; }
+@keyframes crownBounce { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-12px) rotate(4deg); } }
+.victory-screen h2 { color: #9c6a2e; font-size: 1.9rem; }
+.victory-modal-card { width: min(920px, 94vw); max-width: 920px; max-height: 90vh; overflow-y: auto; }
+/* Тъмносин фон (не съвпада с никой цвят на играч) — така всяка линия,
+   вкл. бяла и черна, се вижда. Всяка линия има и контрастен ореол. */
+.victory-chart { margin: 0.8rem 0; padding: 0.65rem; background: #12233f; border-radius: 6px; border: 1px solid rgba(230, 195, 107, 0.25); }
+.victory-chart svg { display: block; width: 100%; height: 150px; }
+.victory-chart-title { color: #e8dcc0; font-size: 0.78rem; font-weight: 800; text-align: left; }
+.victory-report { display: flex; flex-direction: column; gap: 0.45rem; text-align: left; }
+.victory-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.victory-actions .btn { padding: 0.6em 1.4em; font-size: 1rem; }
+.rematch-hint { margin-top: 0.5rem; font-size: 0.78rem; color: #6d7886; text-align: center; }
+.victory-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #d8dde4;
+  border-radius: 6px;
+  color: #26313f;
+}
+.victory-row.winner { border-color: #b98a32; background: #fff7dd; }
+.vr-rank { font-size: 1.1rem; font-weight: 900; color: #7a4a1c; flex: 0 0 auto; }
+.vr-token { flex: 0 0 auto; }
+.vr-token svg { width: 28px; height: 28px; }
+.vr-main, .vr-stat { display: flex; flex-direction: column; }
+.vr-main { flex: 1 1 180px; min-width: 140px; }
+.vr-main span, .vr-stat span { color: #6d7886; font-size: 0.68rem; }
+.vr-stat { flex: 0 0 auto; min-width: 66px; text-align: right; }
+/* Колоните със статистика минават на нов ред под името при тесни екрани */
+.victory-row .vr-stat { margin-left: auto; }
+.victory-row .vr-stat ~ .vr-stat { margin-left: 0; }
+
+.confetti {
+  position: fixed;
+  top: -14px;
+  width: 10px;
+  height: 16px;
+  z-index: 500;
+  pointer-events: none;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  to { transform: translateY(105vh) rotate(720deg); opacity: 0.6; }
+}
+
+/* Фалит анимация */
+.player-card.going-bankrupt { animation: bankruptShake 0.8s ease; }
+@keyframes bankruptShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* Горна лента */
+/* Лентата остава на ЕДИН ред при всяка широчина.
+
+   С `flex-wrap: wrap` десетте бутона се пренасяха на два реда при 800px и
+   на три (~180px) на телефон — преди дъската изобщо да започне. Сега редът
+   не се пренася, а при недостиг се превърта водоравно: височината е
+   постоянна, а целите за пръст остават големи. */
+.game-topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: nowrap;
+  /* Без това редът от бутони става минимална ширина на цялата решетка и
+     страницата тръгва да се плъзга водоравно на телефон. */
+  min-width: 0;
+  background: rgba(5, 9, 20, 0.78);
+  border: 1px solid rgba(230, 195, 107, 0.12);
+  border-radius: var(--radius-md);
+  padding: 0.18rem 0.7rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.36);
+}
+.game-topbar .logo {
+  height: 3.55rem;
+  overflow: hidden;
+  font-size: 1.25rem;
+  flex: none;
+}
+.topbar-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Лентата за превъртане би добавила своя височина към реда. */
+  scrollbar-width: none;
+  padding-block: 0.15rem;
+}
+.topbar-right::-webkit-scrollbar { display: none; }
+/* Кръглите бутони не бива да се сплескват в елипси при недостиг на място. */
+.topbar-right > * { flex: none; }
+.icon-btn {
+  background: rgba(22, 41, 74, 0.88);
+  border: 1px solid rgba(230, 195, 107, 0.25);
+  color: var(--text-light);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Включена настройка (системните известия при твой ред) — златен ръб,
+   за да се различава изключеното от включеното без да се чете надпис. */
+.icon-btn.is-active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(230, 195, 107, 0.35);
+}
+/* Сила на звука: кръглият бутон запазва досегашното поведение
+   (клик = вкл./изкл.), а стрелката до него отваря плъзгача. */
+.volume-control { position: relative; display: flex; align-items: center; gap: 0.15rem; }
+.volume-caret {
+  width: 18px;
+  height: 40px;
+  padding: 0;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--text-light);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.volume-caret:hover, .volume-caret:focus-visible { opacity: 1; background: rgba(230, 195, 107, 0.14); }
+.volume-caret[aria-expanded="true"] { opacity: 1; transform: rotate(180deg); }
+
+.volume-popover {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 540;
+  /* На тесен екран лентата се пренася и панелът не бива да излиза от кадъра;
+     точното изместване се доуточнява от JS при отваряне. */
+  width: min(244px, calc(100vw - 1rem));
+  padding: 0.75rem 0.8rem 0.7rem;
+  background: rgba(11, 22, 38, 0.97);
+  border: 1px solid rgba(230, 195, 107, 0.3);
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+.volume-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.82rem;
+  color: var(--text-light);
+}
+.volume-head output { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 600; }
+.volume-popover input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
+.volume-hint {
+  margin: 0.5rem 0 0.6rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: #93a3b5;
+}
+/* Миксер по вид звук. Списъкът е дълъг, затова скролва вътре в панела,
+   а не разтяга менюто извън екрана. */
+.volume-mixer {
+  max-height: min(46vh, 300px);
+  margin-bottom: 0.55rem;
+  padding-right: 0.25rem;
+  overflow-y: auto;
+  border-block: 1px solid rgba(230, 195, 107, 0.18);
+}
+.volume-mixer-group {
+  margin: 0.5rem 0 0.25rem;
+  color: var(--gold);
+  font-size: 0.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.volume-mixer-group:first-child { margin-top: 0.3rem; }
+.volume-mixer-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 0.4rem;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+  cursor: pointer;
+}
+.volume-mixer-row .vm-label { color: #c3cedb; font-size: 0.7rem; }
+.volume-mixer-row .vm-value {
+  color: #93a3b5;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+.volume-mixer-row .vm-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 14px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+/* Изключен вид — редът избледнява, за да личи от пръв поглед. */
+.volume-mixer-row.is-off .vm-label { color: #6d7a88; text-decoration: line-through; }
+.volume-mixer-row.is-off .vm-value { color: #e59084; }
+
+.volume-actions { display: flex; gap: 0.35rem; }
+.volume-preview { flex: 1; padding: 0.4em 0.5em; font-size: 0.72rem; }
+.volume-preview-label {
+  min-height: 1.1em;
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--gold);
+}
+/* Заглушено: плъзгачът остава видим, но подсказва, че няма ефект. */
+.volume-popover.is-muted input[type="range"] { opacity: 0.45; }
+
+#btn-pause-game.is-resume {
+  color: #102418;
+  background: linear-gradient(160deg, #79dfa5, #3eac70);
+  border-color: #9af0bd;
+  box-shadow: 0 0 13px rgba(73, 190, 120, 0.45);
+}
+
+/* Нова входяща оферта за сделка — полето премигва осезаемо и по-дълго
+   (8 пъти по 0.75 s ≈ 6 s), защото офертата лесно се пропуска сред
+   останалите панели. */
+.incoming-trade.trade-attention {
+  position: relative;
+  z-index: 1;
+  animation: tradeAttention 0.75s ease 8;
+}
+@keyframes tradeAttention {
+  0%, 100% {
+    box-shadow: var(--shadow-soft);
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--gold), 0 0 34px 6px rgba(230, 195, 107, 0.95);
+    transform: scale(1.05);
+    filter: brightness(1.12);
+  }
+}
+
+/* Тайна мисия и периодично глобално събитие.
+   Банерът стои статично в горния край на центъра на таблото; текущите
+   известия (стекът над заровете, z-index 150) излизат върху него. */
+.global-event-banner {
+  position: absolute;
+  top: 2%;
+  left: 50%;
+  z-index: 35;
+  width: max-content;
+  max-width: min(52%, 430px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon copy"
+    "icon duration";
+  align-items: center;
+  column-gap: clamp(0.3rem, 1.2cqw, 0.7rem);
+  row-gap: 0.08rem;
+  padding: clamp(0.25rem, 0.75cqw, 0.48rem) clamp(0.35rem, 1cqw, 0.65rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: #fff5d6;
+  background: linear-gradient(100deg, rgba(112, 54, 20, 0.96), rgba(31, 64, 102, 0.96));
+  border: 1px solid rgba(240, 204, 112, 0.55);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.38);
+}
+.global-event-icon {
+  grid-area: icon;
+  font-size: clamp(1rem, 3cqw, 1.8rem);
+}
+.global-event-copy {
+  grid-area: copy;
+  min-width: 0;
+}
+.global-event-banner strong,
+.global-event-banner span { display: block; }
+.global-event-banner strong {
+  color: #ffe49a;
+  font-size: clamp(0.52rem, 1.55cqw, 0.96rem);
+  line-height: 1.15;
+}
+.global-event-copy span {
+  margin-top: 0.1rem;
+  color: #d9e1e9;
+  font-size: clamp(0.48rem, 1.3cqw, 0.82rem);
+  line-height: 1.2;
+}
+.global-event-duration {
+  grid-area: duration;
+  color: #ffe49a;
+  font-size: clamp(0.42rem, 1.05cqw, 0.7rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mission-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(185, 138, 221, 0.45);
+  background: linear-gradient(150deg, rgba(49, 27, 68, 0.96), rgba(12, 26, 45, 0.96));
+}
+.mission-panel::after { content: "🔒"; position: absolute; right: -8px; bottom: -20px; font-size: 5rem; opacity: 0.07; transform: rotate(-12deg); }
+.mission-kicker { color: #d4afea; font-size: 0.64rem; font-weight: 900; letter-spacing: 0.12em; }
+.mission-panel h3 { margin: 0.25rem 0 0.35rem; color: #f1ddff; }
+.mission-panel p { position: relative; z-index: 1; margin: 0; color: #cbd5df; font-size: 0.78rem; line-height: 1.45; }
+.mission-progress { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 0.6rem; margin-top: 0.65rem; color: #b8c4d0; font-size: 0.7rem; }
+.mission-progress strong { color: #f0d47d; }
+.mission-progress-track { position: relative; z-index: 1; height: 7px; margin-top: 0.35rem; overflow: hidden; background: #111a28; border-radius: 10px; }
+.mission-progress-track i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #9d62c7, #e8c96d); border-radius: inherit; transition: width 0.4s ease; }
+.mission-panel.completed { border-color: rgba(111, 211, 165, 0.58); background: linear-gradient(150deg, rgba(24, 83, 60, 0.96), rgba(12, 31, 46, 0.96)); }
+
+/* Кинематографични акценти за важните моменти */
+.event-spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 430;
+  display: grid;
+  place-content: center;
+  padding: 1rem;
+  pointer-events: none;
+  color: #fff;
+  text-align: center;
+  background: radial-gradient(circle, rgba(30, 56, 91, 0.35), rgba(2, 6, 13, 0.88));
+  animation: spotlightIn 1.8s ease forwards;
+}
+.event-spotlight.danger { background: radial-gradient(circle, rgba(151, 35, 31, 0.48), rgba(5, 2, 4, 0.94)); }
+.event-spotlight.success { background: radial-gradient(circle, rgba(124, 91, 24, 0.42), rgba(4, 8, 15, 0.92)); }
+.event-spotlight .spotlight-icon { font-size: clamp(3rem, 12vw, 7rem); filter: drop-shadow(0 8px 24px rgba(0,0,0,.6)); }
+.event-spotlight strong { margin-top: 0.4rem; color: #ffe596; font-size: clamp(1.5rem, 6vw, 3.4rem); text-transform: uppercase; letter-spacing: 0.08em; text-shadow: 0 5px 20px #000; }
+.event-spotlight span { margin-top: 0.35rem; color: #f2f4f7; font-size: clamp(0.9rem, 2.5vw, 1.25rem); }
+@keyframes spotlightIn { 0% { opacity: 0; transform: scale(1.12); } 15%, 72% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.96); } }
+
+.space.group-celebration { z-index: 55; animation: groupCelebration 1.8s ease; }
+@keyframes groupCelebration {
+  0%, 100% { filter: none; }
+  20%, 60% { filter: brightness(1.8) saturate(1.5); box-shadow: 0 0 28px 8px var(--celebration-color, #e6c36b); }
+  40%, 80% { transform: translate(-50%, -50%) scale(1.12); }
+}
+
+.mobile-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.mobile-panel-toggle { display: none; width: 36px; height: 36px; padding: 0; color: var(--gold); background: rgba(14, 29, 49, 0.8); border: 1px solid rgba(230, 195, 107, 0.3); border-radius: 50%; }
+

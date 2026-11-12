@@ -1,0 +1,475 @@
+/* ============================================================
+   Панели на играчите отстрани
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Панели на играчите
+   ------------------------------------------------------------ */
+/* При пълна стая (до 10 играчи) списъкът надхвърля височината на екрана —
+   затова се скролира сам, вместо да разтяга цялата лява колона. */
+.players-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+/* Сбит вид от седмия играч нататък: всичко се смалява, за да се виждат
+   повече карти наведнъж, без да се губи цветът и сумата. */
+.players-panel.compact { gap: 0.35rem; }
+.players-panel.compact .player-card { padding: 0.32rem 0.55rem; gap: 0.4rem; }
+.players-panel.compact .player-card .pc-token { width: 30px; height: 30px; }
+.players-panel.compact .player-card .pc-name { font-size: 0.85rem; }
+.players-panel.compact .player-card .pc-cash { font-size: 0.86rem; }
+.players-panel.compact .player-card .pc-flag { font-size: 0.62rem; padding: 0 0.22em; }
+.players-panel.compact .pc-order { width: 1rem; height: 1rem; font-size: 0.55rem; left: 0.34rem; top: 0.24rem; }
+.player-card {
+  background: rgba(11, 22, 38, 0.55);
+  border: 1px solid rgba(230, 195, 107, 0.14);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.player-card:hover { border-color: rgba(230, 195, 107, 0.45); }
+.player-card.current {
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(230, 195, 107, 0.3);
+}
+.player-card.bankrupt { opacity: 0.4; filter: grayscale(1); }
+.player-card .pc-token { width: 38px; height: 38px; flex: none; border-radius: 50%; padding: 2px; }
+.player-card .pc-token svg { width: 100%; height: 100%; }
+.player-card .pc-info { flex: 1; min-width: 0; }
+.player-card .pc-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Номерът на реда стои ВЪРХУ жетона, а не до него.
+
+   Докато беше вътре в .pc-name, изяждаше около 27px от ширината, с която
+   името разполага, и го отрязваше още при „Домакин". Изнесен като съсед,
+   продължаваше да отнема цяла колона от картата. Като значка върху
+   жетона не струва нищо — а мястото отива при името и при реда със
+   сумата и значките. */
+.player-card { position: relative; }
+.pc-order {
+  position: absolute;
+  left: 0.42rem;
+  top: 0.32rem;
+  display: grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  color: #172335;
+  background: var(--gold);
+  border: 1px solid rgba(9, 15, 28, 0.55);
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 800;
+  z-index: 2;
+}
+/* Сумата и значките споделят реда ПОД името — така цялата ширина на
+   картата остава за името, вместо да се дели с числото. */
+.player-card .pc-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.05rem;
+}
+.player-card .pc-cash {
+  color: var(--gold-soft);
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+.player-card .pc-flags {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* Значка вместо дума. Числото остава видимо там, където носи стойност
+   (неактивни ходове, размер на заема); останалото е в title. */
+.player-card .pc-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1em;
+  /* Умишлено стегнати: сумата и значките трябва да се съберат на един ред
+     при обичайните два-три флага, иначе картата пораства с цял ред. */
+  font-size: 0.62rem;
+  line-height: 1.45;
+  padding: 0 0.22em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-dim);
+  cursor: help;
+  white-space: nowrap;
+}
+.player-card .pc-flag.is-warn {
+  background: rgba(214, 106, 96, 0.18);
+  color: #f0b0a6;
+}
+.player-card .pc-flag.is-loan {
+  background: rgba(230, 195, 107, 0.14);
+  color: var(--gold-soft);
+}
+.player-card .pc-flag.is-me {
+  background: rgba(230, 195, 107, 0.22);
+  color: #ffe9a8;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+/* Картите в ръката като икони под името — видими за всички играчи.
+   Обяснението стои в title, за да се вижда при посочване с мишката. */
+.player-card .pc-cards { display: flex; gap: 0.2rem; margin-top: 0.22rem; }
+.player-card .pc-card-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1rem;
+  background: linear-gradient(165deg, #fff8e9, #ecd9ab);
+  border: 1px solid #c9a03c;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  font-size: 0.62rem;
+  line-height: 1;
+  cursor: help;
+}
+/* Балонче с описание на картата. Показва се веднага при посочване —
+   вграденият title се бави около секунда и е нечетим. Позицията е fixed,
+   защото панелът с играчите има собствено скролиране и би го отрязал. */
+.chip-tip {
+  position: fixed;
+  z-index: 700;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-width: min(280px, 88vw);
+  padding: 0.5rem 0.6rem;
+  background: rgba(8, 16, 28, 0.98);
+  border: 1px solid rgba(230, 195, 107, 0.55);
+  border-radius: 7px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: chipTipIn 0.11s ease-out;
+}
+.chip-tip strong { color: var(--gold); font-size: 0.78rem; }
+.chip-tip span { color: #d7dee6; font-size: 0.72rem; line-height: 1.35; }
+.chip-tip em { color: #93a3b5; font-size: 0.67rem; font-style: italic; line-height: 1.35; }
+.chip-tip.is-bad { border-color: rgba(214, 122, 105, 0.7); }
+.chip-tip.is-bad strong { color: #f0a595; }
+@keyframes chipTipIn { from { opacity: 0; transform: translateY(3px); } }
+
+.player-card .pc-card-chip.is-good { background: linear-gradient(165deg, #e6f7ea, #c2e9cc); border-color: #4f9d63; }
+.player-card .pc-card-chip.is-bad { background: linear-gradient(165deg, #fdeeea, #f3cec5); border-color: #b56a5a; }
+.player-card .pc-card-chip:hover,
+.player-card .pc-card-chip:focus-visible {
+  border-color: #ffd97a;
+  box-shadow: 0 0 0 2px rgba(230, 195, 107, 0.5);
+}
+.player-card .pc-cash.flash-up { animation: cashUp 0.8s ease; }
+.player-card .pc-cash.flash-down { animation: cashDown 0.8s ease; }
+@keyframes cashUp { 30% { color: #6fd3a5; transform: scale(1.18); } }
+@keyframes cashDown { 30% { color: #e59084; transform: scale(1.18); } }
+
+/* ------------------------------------------------------------
+   Лента на контрола — дял от 22-та имота в цветовите групи
+   (транспортът и комуналните обекти нарочно не влизат в сметката)
+   ------------------------------------------------------------ */
+.control-bar {
+  display: flex;
+  height: 14px;
+  margin-bottom: 0.55rem;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(230, 195, 107, 0.22);
+  background: rgba(6, 12, 22, 0.6);
+}
+.control-bar .cb-seg {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: #101c2e;
+  /* Разделителна нишка между дяловете: два близки светли цвята иначе
+     се сливат в един стълб. */
+  box-shadow: inset -1px 0 0 rgba(6, 12, 22, 0.55);
+  transition: width 0.35s ease, filter 0.15s ease;
+  overflow: hidden;
+}
+/* Дяловете на играчите отварят картата им; свободният дял не е бутон. */
+button.cb-seg { cursor: pointer; }
+button.cb-seg:hover { filter: brightness(1.18); }
+/* Общото правило за бутони в base.css мести с 1px при натискане — в лента
+   от 14 пиксела това изглежда като трепване на цялата графика. */
+button.cb-seg:not(:disabled):active { transform: none; }
+button.cb-seg:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.control-bar .cb-free {
+  background: repeating-linear-gradient(45deg,
+    rgba(168, 179, 196, 0.32) 0 4px, rgba(168, 179, 196, 0.16) 4px 8px);
+  color: var(--text-dim);
+  box-shadow: none;
+}
+
+/* Бутони за действия */
+.actions-panel { display: flex; flex-direction: column; gap: 0.5rem; }
+.actions-panel .btn { width: 100%; padding: 0.65em 1em; font-size: 0.95rem; }
+
+/* Лог */
+/* Таванът следва екрана, а не фиксирани 360px.
+
+   При 1080p логът показваше 288px от 3563px съдържание — 8% — докато под
+   него в дясната колона зееха 300 свободни пиксела. Долната граница пази
+   ниските екрани, горната оставя място на чата под него. */
+.log-panel {
+  max-height: clamp(260px, 46dvh, 660px);
+  display: flex;
+  flex-direction: column;
+}
+.log-entries {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.3rem;
+  font-size: 0.84rem;
+  min-height: 100px;
+}
+/* Име на играч в логовете — в неговия цвят, за бързо разпознаване.
+   JS подава две сенки: --name-light за тъмни повърхности и --name-dark за
+   кремавите панели, защото черното изчезва на тъмен фон, а бялото — на светъл. */
+.log-name {
+  color: var(--name-light, inherit);
+  font-weight: 800;
+}
+/* Тъмният вариант — САМО за кремавите повърхности. Повечето панели и
+   модали в играта са тъмни (вкл. банковия), затова светлият е по
+   подразбиране: обратното правило правеше черния жетон невидим. */
+.panel-cream .log-name,
+.trade-details-modal .log-name,
+.drawn-card .log-name {
+  color: var(--name-dark, inherit);
+}
+
+.log-entry {
+  display: grid;
+  /* Икона · текст · час. Часът е с фиксирана ширина отдясно, за да не
+     подскача колоната при различни часове. */
+  grid-template-columns: 1.2em minmax(0, 1fr) auto;
+  gap: 0.3em;
+  color: var(--text-dim);
+  animation: fadeIn 0.3s ease;
+}
+.log-entry .log-icon {
+  font-size: 0.82em;
+  line-height: 1.7;
+  text-align: center;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+.log-entry .log-time {
+  font-size: 0.68em;
+  line-height: 2.1;
+  opacity: 0.55;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  /* Часът е второстепенен: не наследява цвета на вида събитие. */
+  color: var(--text-dim);
+}
+.log-entry.kind-money, .log-entry.kind-buy { color: #9fd8bc; }
+.log-entry.kind-rent, .log-entry.kind-tax, .log-entry.kind-warning { color: #eab3a9; }
+.log-entry.kind-auction { color: #d9c07f; }
+.log-entry.kind-card { color: #c8a6e8; }
+.log-entry.kind-mission, .log-entry.kind-monopoly { color: #f0d47d; font-weight: 700; }
+.log-entry.kind-global_event { color: #8fd3e3; font-weight: 700; }
+.log-entry.kind-jail { color: #90bfd4; }
+.log-entry.kind-victory { color: var(--gold); font-weight: 700; }
+.log-entry.kind-turn, .log-entry.kind-system { color: var(--text-light); font-weight: 600; }
+
+/* Собственост (списък имоти в панела) */
+.my-props { display: flex; flex-direction: column; gap: 0.3rem; max-height: 240px; overflow-y: auto; }
+/* Празно състояние — покана за действие, не сухо съобщение. */
+.my-props-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.7rem 0.6rem;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  border: 1px dashed rgba(230, 195, 107, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(230, 195, 107, 0.05);
+}
+.my-props-empty span { color: var(--text-dim); font-size: 0.72rem; font-weight: 400; line-height: 1.35; }
+/* Име на първия ред, бутоните на втори — иначе три-четири бутона стесняват
+   името дотолкова, че се вижда само началото му. */
+.prop-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  background: rgba(11, 22, 38, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.prop-row:hover { background: rgba(20, 39, 62, 0.72); }
+.prop-row .pr-dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+/* Вече има цял ред на разположение, затова името може и да се пренесе. */
+.prop-row .pr-name { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+.prop-row .pr-lv { color: var(--gold-soft); font-size: 0.78rem; }
+.prop-row.mortgaged .pr-name { text-decoration: line-through; color: var(--text-dim); }
+.prop-row .pr-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.prop-row button { font-size: 0.72rem; padding: 0.22em 0.6em; border-radius: 6px; }
+
+
+/* ------------------------------------------------------------
+   Карта на играча — статистиката, събирана през цялата партия
+   ------------------------------------------------------------ */
+/* По-широк от стандартните 480px (base.css): трите групи трябва да
+   застанат една до друга, иначе последната увисва сама на нов ред. */
+.modal.player-stats-modal { max-width: min(640px, 94vw); width: 100%; }
+.player-stats-modal .ps-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.player-stats-modal .ps-token {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 50%;
+  padding: 3px;
+}
+.player-stats-modal .ps-token svg { width: 100%; height: 100%; }
+.player-stats-modal .ps-flags {
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  margin-bottom: 0.6rem;
+  min-height: 1em;
+}
+.player-stats-modal .ps-grid {
+  display: grid;
+  /* 155px, за да се подредят и трите групи една до друга в модала —
+     при 190px третата увисваше сама на нов ред. */
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 0.7rem;
+  align-items: start;
+}
+.player-stats-modal .ps-group {
+  background: rgba(11, 22, 38, 0.92);
+  border: 1px solid rgba(230, 195, 107, 0.18);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.7rem;
+  /* Модалът е кремав, блокчетата — тъмни: мастилото трябва да се обърне
+     изрично, иначе стойностите наследяват тъмния --ink и изчезват. */
+  color: var(--text-light);
+}
+.player-stats-modal .ps-group h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+.player-stats-modal .ps-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  padding: 0.16rem 0;
+}
+.player-stats-modal .ps-row + .ps-row { border-top: 1px solid rgba(230, 195, 107, 0.08); }
+.player-stats-modal .ps-row span { color: var(--text-dim); }
+.player-stats-modal .ps-row strong { white-space: nowrap; color: #f6f1e4; }
+.player-stats-modal .ps-note {
+  margin: 0.7rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+/* --- Групиране на лога по ход -----------------------------------------
+   Дългата партия става нечетима като плосък списък. Всеки ход е сгъваема
+   група със заглавие „Ред е на X" и брой събития. */
+.log-group {
+  border-left: 2px solid rgba(230, 195, 107, 0.28);
+  padding-left: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+.log-group:first-child { border-left-color: var(--gold); }
+.log-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0.16rem 0.15rem;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--gold-soft);
+  cursor: pointer;
+  text-align: left;
+  border-radius: 5px;
+}
+.log-group-head:hover { background: rgba(230, 195, 107, 0.09); }
+.log-group-head .lg-caret {
+  flex: none;
+  transition: transform 0.15s ease;
+  font-size: 0.7rem;
+}
+.log-group.collapsed .lg-caret { transform: rotate(-90deg); }
+.log-group-head .lg-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-group-head .lg-count {
+  flex: none;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  padding: 0 0.4em;
+  min-width: 1.4em;
+  text-align: center;
+}
+.log-group-body {
+  display: flex;
+  /* Както и външният списък (.log-entries): записите се добавят с
+     `prepend`, а column-reverse ги показва най-новото най-долу. Без това
+     редът вътре в групата би вървял обратно на реда на самите групи. */
+  flex-direction: column-reverse;
+  gap: 1px;
+  padding-left: 0.2rem;
+}
+.log-group.collapsed .log-group-body { display: none; }
+/* Ход още без събития: празното тяло не бива да заема ред. */
+.log-group-body:empty { display: none; }

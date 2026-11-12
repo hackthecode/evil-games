@@ -1,7 +1,7 @@
 # Evil Games — game portal
 
 A portal of classic games in the browser – against the computer or online against real people:
-**Backgammon, Tapa, Gulbara, Chess, Belot, Blato, Santase, Ludo and Solitaire**.
+**Backgammon, Tapa, Gulbara, Chess, Belot, Blato, Santase, Ludo, Solitaire and Imoti i Imperii** (a property board game).
 It has sign-up, statistics (games, wins, time per game), a ranking with an Elo rating, friends, invitations,
 a shared lobby with chat and quick matchmaking, and an administrator dashboard.
 It works on computers and phones and can be installed as an app (PWA).
@@ -95,6 +95,27 @@ The referee server then runs in a SharedWorker – with the same code as the rea
   and `tools/build-referee.py`, and let the UI use `createTable` from `js/net/table.js`.
 - Add `online: { seats, minHumans, bots, seatNames, options }` (and `referee: true` for refereed games)
   to the game's entry in `registry.js`.
+
+## Imoti i Imperii (property board game)
+
+Unlike the other games, *Imoti i Imperii* has its own Python server (FastAPI + Socket.IO) that runs
+the whole game, so it lives in two parts:
+
+- `imoti/` – the interface, published by GitHub Pages and shown inside the portal in a frame
+  (`js/games/imoti/imoti.js`). The server address is in `imoti/config.js`.
+- `server/imoti/` – the server, run by [Render](https://render.com) on the free plan
+  (`render.yaml` in the root of this repository).
+
+**Setting up the server (once):** in Render choose **New → Blueprint** and select this repository.
+After the deploy check `https://<name>.onrender.com/health`. If Render gave the service a different
+address than `https://imoti-i-imperii.onrender.com`, put it into `imoti/config.js` and push.
+
+The free server sleeps after ~15 minutes without players; the first opening then takes up to a minute
+(the game shows a message). Its disk is not persistent – unfinished games are lost on a restart.
+
+**Updating:** the game is developed in its own repository. There, run `build_pages.py` into `imoti/`
+and copy the last commit into `server/imoti/` (see "Публикуване в портала Evil Games" in
+`server/imoti/README.md`), then push here. Render redeploys only when `server/imoti/` changes.
 
 ## Publishing for free
 

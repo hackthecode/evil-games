@@ -1,0 +1,405 @@
+/* ============================================================
+   Модал с изтеглена карта
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Носач на двете лица. Размерът и въртенето живеят тук; лицата само
+   се крият взаимно. Без този слой картата се въртеше като един лист и
+   лицето ѝ се виждаше през целия обръщащ се път. */
+/* Перспективата стои на РОДИТЕЛЯ на въртящия се елемент — без нея
+   rotateY е ортографско и обръщането изглежда като сплескване вместо
+   като лист, който се завърта в пространството. */
+#card-modal .modal {
+  perspective: 1400px;
+  perspective-origin: 50% 45%;
+}
+.card-flip {
+  position: relative;
+  width: min(90vw, 340px);
+  min-height: 460px;
+  transform-style: preserve-3d;
+}
+.card-flip.flipping { animation: cardFlip 0.72s cubic-bezier(.2,.72,.3,1); }
+
+/* Карта (модал за теглене) — лицевата страна */
+.drawn-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  padding: 1.4rem 1.3rem 1.1rem;
+  background: linear-gradient(168deg, #fffdf6 0%, #fbf3dd 55%, #f4e7c6 100%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(255, 255, 255, 0.7);
+  border: 3px solid var(--copper);
+  overflow: hidden;
+  /* Лицето е обърнато назад в началото на обръщането и не бива да
+     прозира през гърба. */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+/* Декоративна рамка вътре в картата */
+.drawn-card::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1.5px solid rgba(156, 106, 46, 0.4);
+  border-radius: 12px;
+  pointer-events: none;
+}
+/* Тема според тестето */
+.drawn-card.dc-community { border-color: #8e5bd6; }
+.drawn-card.dc-community .dc-deck,
+.drawn-card.dc-community .dc-emblem { color: #6f39c4; }
+.drawn-card.dc-business { border-color: #d99a1e; }
+.drawn-card.dc-business .dc-deck,
+.drawn-card.dc-business .dc-emblem { color: #b9791a; }
+
+/* --- Гръб на картата ---------------------------------------------------
+   Стои завъртян на 180°, тоест гледа към зрителя, докато носачът е в
+   начално положение. Шарката е плетеница от два наклонени градиента —
+   рисува се изцяло с CSS, без изображение. */
+.dc-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 3px solid var(--copper);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(255, 255, 255, 0.12);
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 6px, transparent 6px 12px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.06) 0 6px, transparent 6px 12px),
+    radial-gradient(circle at 50% 42%, #24406e 0%, #16294a 55%, #0d1a31 100%);
+}
+.dc-back .dcb-frame {
+  position: absolute;
+  inset: 14px;
+  border: 2px solid rgba(230, 195, 107, 0.55);
+  border-radius: 12px;
+  display: grid;
+  place-content: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+.dc-back .dcb-emblem {
+  font-size: 3.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+}
+.dc-back .dcb-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: var(--gold);
+}
+/* Тестето личи и по гърба — както при истинско тесте. */
+.dc-back.dcb-community { border-color: #8e5bd6; }
+.dc-back.dcb-community .dcb-frame { border-color: rgba(142, 91, 214, 0.6); }
+.dc-back.dcb-business { border-color: #d99a1e; }
+.dc-back.dcb-business .dcb-frame { border-color: rgba(217, 154, 30, 0.6); }
+
+/* --- Тон на картата: аура според добрата или лошата новина ---------------
+   Цветът идва от ефекта (cards.card_tone), а не от отделно поле, така че
+   нова карта не може да получи грешна аура по невнимание. Слага се като
+   външна сянка ВЪРХУ съществуващата, за да не изтрие дълбочината. */
+.drawn-card.dc-good {
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6),
+              0 0 34px 4px rgba(88, 176, 138, 0.55),
+              inset 0 0 0 3px rgba(255, 255, 255, 0.7);
+}
+.drawn-card.dc-bad {
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6),
+              0 0 34px 4px rgba(214, 106, 96, 0.55),
+              inset 0 0 0 3px rgba(255, 255, 255, 0.7);
+}
+/* Тънка лента отгоре — тонът личи и при изключени сенки. */
+.drawn-card.dc-good::before,
+.drawn-card.dc-bad::before,
+.drawn-card.dc-legendary::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  z-index: 3;
+}
+.drawn-card.dc-good::before { background: linear-gradient(90deg, #58b08a, #8fd3b4, #58b08a); }
+.drawn-card.dc-bad::before { background: linear-gradient(90deg, #d66a60, #eda49c, #d66a60); }
+
+/* --- Легендарна: златна рамка и бавно преливащ ореол ------------------- */
+.drawn-card.dc-legendary {
+  border-color: var(--gold);
+  background: linear-gradient(168deg, #fffdf3 0%, #fdf1cf 55%, #f6e3b0 100%);
+  /* Обръщането вече е на носача (.card-flip); тук остава само пулсът. */
+  animation: legendaryGlow 2.4s 0.72s ease-in-out infinite;
+}
+.drawn-card.dc-legendary::before {
+  background: linear-gradient(90deg, #b8860b, var(--gold), #fff3c9, var(--gold), #b8860b);
+  height: 6px;
+}
+.drawn-card.dc-legendary::after { border-color: rgba(184, 134, 11, 0.55); }
+.drawn-card.dc-legendary .dc-deck,
+.drawn-card.dc-legendary .dc-emblem { color: #a9781a; }
+.drawn-card.dc-legendary .dc-emblem {
+  /* По-едра и с топъл ореол — легендарната се разпознава от разстояние. */
+  font-size: 5.4rem;
+  filter: drop-shadow(0 4px 10px rgba(184, 134, 11, 0.6));
+}
+/* --- Фолио: отблясък, който следва мишката --------------------------
+   Ъгълът и центърът идват от JS като --foil-x / --foil-y (0–100%).
+   Слоят е върху лицето, но под текста, и не приема мишката. При
+   неподвижен показалец стои в средата и картата просто изглежда леко
+   металическа. */
+.drawn-card.dc-legendary .dc-foil {
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: soft-light;
+  /* Сдържано: фолиото трябва да се усеща като блясък по хартията, а не
+     да пребоядисва картата в дъга. Текстът остава първото нещо, което
+     се чете. */
+  opacity: 0.5;
+  background:
+    radial-gradient(circle at var(--foil-x, 50%) var(--foil-y, 50%),
+      rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(calc(var(--foil-angle, 115deg)),
+      #ffc7dc 0%, #ffe8bd 18%, #d2ffe4 36%,
+      #c6e8ff 54%, #e6d2ff 72%, #ffd0dd 90%, #ffe8bd 100%);
+  background-size: 180% 180%, 260% 260%;
+  background-position:
+    0 0,
+    calc(var(--foil-x, 50%) * 1.2) calc(var(--foil-y, 50%) * 1.2);
+  transition: background-position 0.12s linear, opacity 0.2s ease;
+}
+/* Само легендарните имат фолио — на останалите слоят изобщо не се рисува. */
+.drawn-card:not(.dc-legendary) .dc-foil { display: none; }
+/* Текстът и емблемата стоят НАД фолиото, иначе преливането ги замъглява. */
+.drawn-card .dc-deck,
+.drawn-card .dc-emblem,
+.drawn-card .dc-text,
+.drawn-card .dc-footer { position: relative; z-index: 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .drawn-card.dc-legendary .dc-foil { transition: none; }
+}
+
+@keyframes legendaryGlow {
+  0%, 100% {
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6),
+                0 0 26px 3px rgba(230, 195, 107, 0.5),
+                inset 0 0 0 3px rgba(255, 255, 255, 0.7);
+  }
+  50% {
+    box-shadow: 0 22px 66px rgba(0, 0, 0, 0.62),
+                0 0 46px 10px rgba(230, 195, 107, 0.75),
+                inset 0 0 0 3px rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Уважаваме системната настройка: без пулсиране и обръщане при
+   „намалено движение". Картата просто се появява. */
+@media (prefers-reduced-motion: reduce) {
+  .card-flip.flipping,
+  .drawn-card.dc-legendary { animation: none; }
+  .drawn-card .dc-emblem { animation: none; }
+  /* Без обръщане носачът стои в начално положение и лицето е отгоре —
+     гърбът просто не се показва. */
+}
+
+.drawn-card .dc-deck {
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 900;
+  margin: 0.2rem 0 0.1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 2px solid currentColor;
+  width: 82%;
+}
+.drawn-card .dc-emblem {
+  font-size: 4.6rem;
+  line-height: 1;
+  margin: 1.3rem 0 0.6rem;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.25));
+  /* Изскача чак когато лицето вече се вижда (обръщането минава 90° около
+     0.42s). Преди това картата още е с гърба напред и подскокът се губеше. */
+  animation: emblemPop 0.55s 0.5s both cubic-bezier(0.34, 1.5, 0.6, 1);
+}
+@keyframes emblemPop { from { transform: scale(0.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+.drawn-card .dc-text {
+  font-size: 1.12rem;
+  line-height: 1.55;
+  color: #3a2a12;
+  font-weight: 600;
+  padding: 0.4rem 0.3rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.drawn-card .dc-footer {
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(122, 74, 28, 0.6);
+  font-weight: 800;
+  margin-top: 0.5rem;
+}
+.drawn-card .dc-corner {
+  position: absolute;
+  font-size: 1.4rem;
+  z-index: 2;
+  opacity: 0.85;
+}
+.drawn-card .dc-corner-tl { top: 14px; left: 16px; }
+.drawn-card .dc-corner-br { bottom: 14px; right: 16px; transform: rotate(180deg); }
+@keyframes cardFlip {
+  0% { transform: translateY(-45px) rotateY(180deg) rotateZ(-7deg) scale(0.72); opacity: 0; }
+  55% { transform: translateY(7px) rotateY(-12deg) rotateZ(2deg) scale(1.05); opacity: 1; }
+  78% { transform: translateY(-3px) rotateY(5deg) rotateZ(-1deg) scale(0.99); }
+  100% { transform: translateY(0) rotateY(0) rotateZ(0) scale(1); opacity: 1; }
+}
+
+
+/* ------------------------------------------------------------
+   Дискретно известие за карта
+   Показва се вместо модала, докато играчът е отворил свой
+   прозорец (нотариален акт, сделка, портфейл). Живее в
+   #board-notification-stack (z-index 150) и затова никога не
+   застъпва модал.
+   ------------------------------------------------------------ */
+.card-notice {
+  position: relative;
+  width: min(420px, calc(100vw - 2rem));
+  padding: 0.55rem 0.95rem 0.62rem;
+  border-radius: 14px;
+  border: 2px solid rgba(230, 195, 107, 0.5);
+  border-left-width: 6px;
+  background: rgba(8, 14, 26, 0.95);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translateY(10px) scale(0.94);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.3, 0.64, 1);
+  pointer-events: none;
+}
+.card-notice.show { opacity: 1; transform: translateY(0) scale(1); }
+.card-notice.cn-community { border-left-color: #8e5bd6; }
+.card-notice.cn-business { border-left-color: #d99a1e; }
+/* Тонът бие вида на тестето: при бегъл поглед е по-важно дали новината е
+   добра, отколкото от кое тесте идва. */
+.card-notice.cn-good { border-left-color: #58b08a; }
+.card-notice.cn-bad { border-left-color: #d66a60; }
+.card-notice.cn-legendary {
+  border-left-color: var(--gold);
+  border-color: rgba(230, 195, 107, 0.75);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(230, 195, 107, 0.35);
+}
+.card-notice.cn-legendary .cn-head { color: #ffe9a8; }
+.card-notice .cn-head {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.2rem;
+}
+.card-notice .cn-text {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #f2e6cd;
+}
+
+/* Обратният случай: картата вече виси, а играчът отваря свой прозорец.
+   ID-селекторът бие .modal-backdrop (z-index 200), така че отвореният
+   модал остава отгоре, без да зависи от реда в DOM. */
+#card-modal { z-index: 190; }
+
+/* ============================================================
+   Карта с избор: сигурен вариант или залог на зара
+   ============================================================ */
+.modal.choice-modal { max-width: min(560px, 94vw); width: 100%; }
+.choice-modal .choice-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.6rem;
+}
+.choice-modal .choice-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.25));
+}
+.choice-modal .choice-head h3 { margin: 0; }
+.choice-modal .choice-text {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.choice-modal .choice-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.6rem;
+}
+.choice-modal .choice-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-md);
+  /* Тъмни блокчета в кремавия модал — както в „Карта на играча". */
+  background: rgba(11, 22, 38, 0.92);
+  color: var(--text-light);
+  border: 1px solid rgba(230, 195, 107, 0.22);
+  transition: border-color 0.15s, transform 0.1s, background 0.15s;
+}
+.choice-modal .choice-option:hover:not(:disabled) { transform: translateY(-2px); }
+.choice-modal .choice-option:disabled { opacity: 0.5; cursor: default; }
+.choice-modal .choice-option .co-label {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.choice-modal .choice-option .co-amount {
+  font-size: 1.05rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.choice-modal .choice-option small {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+/* Сигурното е спокойно синьо-зелено, залогът — топъл и предупредителен. */
+.choice-modal .choice-option.is-safe { border-color: rgba(88, 176, 138, 0.45); }
+.choice-modal .choice-option.is-safe .co-amount { color: #8fd3b4; }
+.choice-modal .choice-option.is-safe:hover:not(:disabled) {
+  border-color: #58b08a;
+  background: rgba(14, 40, 32, 0.92);
+}
+.choice-modal .choice-option.is-risky { border-color: rgba(230, 195, 107, 0.5); }
+.choice-modal .choice-option.is-risky .co-amount { color: var(--gold); }
+.choice-modal .choice-option.is-risky:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: rgba(44, 34, 12, 0.92);
+}
+/* Над завесата на паузата (610) и панела (620): играта чака точно този
+   избор, затова нищо не бива да го покрива. Потвърждението (660) остава
+   най-отгоре. */
+#card-choice-modal { z-index: 640; }
+
+@media (prefers-reduced-motion: reduce) {
+  .choice-modal .choice-option:hover:not(:disabled) { transform: none; }
+}

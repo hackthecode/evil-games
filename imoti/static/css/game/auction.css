@@ -1,0 +1,146 @@
+/* ============================================================
+   Търг
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Търг */
+.auction-modal-shell {
+  width: min(520px, 100%);
+  max-width: 520px;
+  padding: clamp(0.65rem, 2cqw, 1rem);
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* При недостиг на височина се свива само историята; контролите за
+   наддаване остават прилепнали в долния край и винаги видими. */
+.auction-modal-shell > * { flex: none; }
+#auction-bid-controls {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 0 calc(-1 * clamp(0.65rem, 2cqw, 1rem));
+  padding: 0.3rem clamp(0.65rem, 2cqw, 1rem) clamp(0.65rem, 2cqw, 1rem);
+  background: var(--panel-cream);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 -12px 16px -12px rgba(31, 26, 16, 0.5);
+}
+.auction-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.65rem; }
+.auction-heading h3 { margin: 0.08rem 0 0; font-size: clamp(1rem, 4cqw, 1.35rem); }
+.auction-kicker { color: #6b826f; font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; }
+.auction-kind { flex: none; padding: 0.25rem 0.45rem; color: #6b4b1c; background: #f4e3b8; border: 1px solid #d1b36c; border-radius: 999px; font-size: 0.62rem; font-weight: 900; }
+.auction-price { margin: 0.2rem 0 0.45rem; color: var(--ink-soft); font-size: 0.68rem; }
+.auction-property-card {
+  --auction-accent: #647383;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--auction-accent) 42%, #c7ccd1);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--auction-accent) 7%, #fffdf6);
+}
+.auction-property-identity {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0.4rem 0.5rem 0.4rem 0;
+}
+.auction-property-swatch { background: var(--auction-accent); }
+.auction-property-identity > div { display: flex; min-width: 0; flex-direction: column; justify-content: center; }
+.auction-property-identity small { color: #6c7780; font-size: 0.56rem; font-weight: 800; }
+.auction-property-identity strong { color: #26313a; font-size: 0.82rem; overflow-wrap: anywhere; }
+.auction-property-level { align-self: center; max-width: 110px; color: #5e513f; font-size: 0.58rem; font-weight: 850; text-align: right; }
+.auction-property-metrics,
+.auction-finance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.auction-property-metrics { border-top: 1px solid rgba(46, 57, 67, 0.13); }
+.auction-property-metrics > div,
+.auction-finance > div { display: flex; min-width: 0; flex-direction: column; padding: 0.36rem 0.48rem; }
+.auction-property-metrics > div:nth-child(even),
+.auction-finance > div:nth-child(even) { border-left: 1px solid rgba(46, 57, 67, 0.11); }
+.auction-property-metrics > div:nth-child(n+3),
+.auction-finance > div:nth-child(n+3) { border-top: 1px solid rgba(46, 57, 67, 0.11); }
+.auction-property-metrics span,
+.auction-finance span { color: #707982; font-size: 0.55rem; }
+.auction-property-metrics b,
+.auction-finance b { color: #28343d; font-size: 0.72rem; overflow-wrap: anywhere; }
+.auction-property-metrics small { color: #78828a; font-size: 0.5rem; }
+.auction-finance { margin-top: 0.45rem; background: rgba(53, 77, 97, 0.06); border: 1px solid rgba(53, 77, 97, 0.13); border-radius: 7px; }
+.auction-finance b.negative { color: #ad3f37; }
+.auction-status { margin: 0.45rem 0 0.25rem; color: #7a4a1c; font-size: 0.66rem; font-weight: 800; text-align: center; }
+.auction-status.urgent { color: #a9322b; animation: auctionTimerPulse 0.7s ease infinite alternate; }
+@keyframes auctionTimerPulse { to { transform: scale(1.035); } }
+/* Водеща оферта — това е числото, заради което всички гледат екрана, затова
+   стои като отделна табела, а не като ред дребен текст в общия поток. */
+.auction-current {
+  display: grid;
+  justify-items: center;
+  gap: 0.05rem;
+  padding: 0.5rem 0.6rem 0.55rem;
+  background: linear-gradient(170deg, #fff6dd, #ffeec2);
+  border: 1px solid #d8ab3f;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 2px 8px rgba(120, 81, 13, 0.16);
+  text-align: center;
+}
+.auction-current-label {
+  color: #8a6a22;
+  font-size: 0.56rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.auction-current-amount {
+  color: #6d4a0c;
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.auction-current-bidder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #4a3a17;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.auction-current-bidder .dot {
+  width: 0.62em;
+  height: 0.62em;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+}
+/* Когато водиш ти — различима рамка, за да не наддаваш срещу себе си. */
+.auction-current.is-mine {
+  background: linear-gradient(170deg, #e4f7e6, #c9efd0);
+  border-color: #4f9d63;
+}
+.auction-current.is-mine .auction-current-label { color: #2f6b3f; }
+.auction-current.is-mine .auction-current-amount { color: #1f5730; }
+/* Кратък подскок при всяка нова водеща оферта — при бързи наддавания
+   иначе числото се сменя незабелязано. */
+.auction-current.bump { animation: auctionBump 0.42s ease; }
+@keyframes auctionBump {
+  0% { transform: scale(1); }
+  32% { transform: scale(1.06); box-shadow: 0 0 0 3px rgba(216, 171, 63, 0.45); }
+  100% { transform: scale(1); }
+}
+.auction-participants { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; margin: 0.6rem 0; }
+.auction-participants span { border: 1px solid #c9cfd6; border-radius: 4px; padding: 0.18rem 0.35rem; color: #66717d; font-size: 0.6rem; }
+.auction-participants span.leading { color: #78510d; border-color: #c99b35; background: #fff3cb; font-weight: 800; }
+.auction-participants span.withdrawn { opacity: 0.48; text-decoration: line-through; }
+.auction-history-heading { margin-top: 0.25rem; color: #66717d; font-size: 0.58rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+.auction-bid-history { flex: 0 1 auto; min-height: 46px; max-height: 92px; margin-top: 0.2rem; overflow-y: auto; border-block: 1px solid rgba(46, 57, 67, 0.12); }
+.auction-history-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.4rem; align-items: center; padding: 0.22rem 0.1rem; color: #63707b; font-size: 0.59rem; }
+.auction-history-row + .auction-history-row { border-top: 1px solid rgba(46, 57, 67, 0.08); }
+.auction-history-row.latest { color: #34414c; background: rgba(230, 195, 107, 0.08); }
+.auction-history-row b { color: #7a5418; }
+.auction-history-row time { color: #8a939b; }
+.auction-history-empty { padding: 0.42rem; color: #828b93; font-size: 0.6rem; text-align: center; }
+.auction-withdraw { width: 100%; margin-top: 0.55rem; color: #733b35; border-color: #b98b85; }
+#auction-build-target { width: 100%; min-height: 34px; margin-top: 0.35rem; }
+.auction-bid-row { display: flex; gap: 0.5rem; margin-top: 0.45rem; }
+.auction-bid-row input { flex: 1; }
+.auction-quick { display: flex; gap: 0.35rem; margin-top: 0.35rem; flex-wrap: wrap; }
+.auction-quick button { flex: 1; font-size: 0.72rem; padding: 0.32em; }
+

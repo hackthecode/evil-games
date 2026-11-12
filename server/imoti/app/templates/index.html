@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ game_name }}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/css/base.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/css/lobby.css?v={{ static_version }}">
+</head>
+<body>
+  <main class="landing">
+    <h1 class="logo"><img class="logo-img" src="/static/imoti_i_imperii_logo.png" alt="{{ game_name }}"></h1>
+
+    <div id="resume-banner" class="panel hidden" style="display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap">
+      <span>Имате активна сесия в стая.</span>
+      <button id="btn-resume" class="btn btn-primary" style="padding:0.45em 1.1em">Върни ме в играта</button>
+      <button id="btn-forget" class="btn btn-ghost" style="padding:0.45em 1.1em">Забрави я</button>
+    </div>
+
+    <div class="panel landing-card">
+      <div>
+        <label for="player-name">Вашето име</label>
+        <input type="text" id="player-name" maxlength="20" placeholder="напр. Иван" autocomplete="nickname">
+      </div>
+
+      <button id="btn-create" class="btn btn-primary">➕ Създай стая</button>
+
+      <div class="divider">или се присъединете</div>
+
+      <div>
+        <label for="join-code">Код на стаята</label>
+        <div class="join-row">
+          <input type="text" id="join-code" maxlength="6" placeholder="ABC123" autocomplete="off">
+          <button id="btn-join" class="btn btn-secondary">Присъедини се</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="landing-footer">
+      <button id="btn-rules" class="btn btn-ghost">📖 Правила</button>
+    </div>
+  </main>
+
+  <footer class="site-credit">Създадено от Evil9009 © 2026</footer>
+
+  <!-- Правила -->
+  <div id="rules-modal" class="modal-backdrop hidden">
+    <div class="modal rules-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <div class="rules-heading">
+        <div>
+          <span class="rules-kicker">ОФИЦИАЛЕН НАРЪЧНИК</span>
+          <h3 id="rules-title">Правила на играта</h3>
+        </div>
+        <button type="button" class="rules-close" data-close aria-label="Затвори правилата" title="Затвори">&times;</button>
+      </div>
+
+      <p class="rules-lead"><strong>Цел:</strong> изградете най-силното портфолио и останете последният платежоспособен играч. При игра с лимит на рундовете печели играчът с най-висока нетна стойност.</p>
+
+      <div class="rules-grid">
+        <section class="rules-section">
+          <h4>1. Подготовка и начало</h4>
+          <ul>
+            <li>Всеки играч започва с определената от домакина сума и жетон на Начален площад.</li>
+            <li>Редът на играчите се определя автоматично при стартиране на играта.</li>
+            <li>Преминаването през Старт носи зададения доход. Ако европейските субсидии са включени, банката добавя и избраната субсидия.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>2. Един ход</h4>
+          <ul>
+            <li>Хвърляте два зара, премествате жетона и изпълнявате действието на полето.</li>
+            <li>Чифт дава още един ход. Три поредни чифта ви изпращат на административна проверка.</li>
+            <li>След покупка, търг, карта или плащане приключете хода, когато бутонът стане активен.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>3. Имоти и наеми</h4>
+          <ul>
+            <li>Свободен имот може да бъде купен на обявената цена. Нотариалният акт показва всички наеми, ипотеката и цената за строеж.</li>
+            <li>При стъпване на чужд неипотекиран имот плащате наем на собственика.</li>
+            <li>Пълна цветова група удвоява основния наем на незастроените имоти.</li>
+            <li>Наемът за транспорт зависи от броя притежавани транспортни обекти, а този за предприятията се изчислява според заровете.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>4. Търгове</h4>
+          <ul>
+            <li>При отказ от покупка започва търг между всички активни играчи.</li>
+            <li>Няма фиксиран таймер: всеки участник наддава или се отказва окончателно.</li>
+            <li>Търгът приключва, когато остане един участник. Ако всички се откажат, активът остава в банката.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>5. Строеж и банков фонд</h4>
+          <ul>
+            <li>Строите само след придобиване на цяла цветова група и развивате имотите равномерно.</li>
+            <li>Нивата са Малък обект, Развит комплекс, Бизнес център, Регионален хъб и Гранд хотел.</li>
+            <li>Банката разполага с ограничен брой къщи и хотели. При недостиг последните постройки се продават на търг.</li>
+            <li>Продажбата на подобрение връща половината от строителната му цена.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>6. Карти и специални полета</h4>
+          <ul>
+            <li>„Обществено събитие“ и „Бизнес възможност“ се изпълняват веднага, освен картите, които се пазят.</li>
+            <li>Карта за най-близък транспорт начислява двоен наем. При най-близко предприятие се хвърлят зарове и се плаща десеткратният резултат.</li>
+            <li>Данъците се плащат на банката. Фондът „Свободен престой“ се използва само ако домакинът го е включил.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>7. Административна проверка</h4>
+          <ul>
+            <li>Докато сте на проверка, не се движите, но можете да събирате наеми и да управлявате портфейла си.</li>
+            <li>Освобождавате се с чифт, с карта или с плащане на зададената такса.</li>
+            <li>След максималния брой неуспешни опити таксата се плаща задължително и ходът продължава.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>8. Ипотеки и сделки</h4>
+          <ul>
+            <li>Имот без постройки може да се ипотекира за посочената в акта стойност. Ипотекиран имот не носи наем.</li>
+            <li>Освобождаването на ипотека струва главницата плюс 10% лихва.</li>
+            <li>При сделка могат да се разменят пари, имоти и карти. Получателят на ипотекиран имот плаща веднага 10% такса.</li>
+            <li>Прегледът преди потвърждение показва промяната в парите, наемите и нетната стойност.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>9. Дълг и фалит</h4>
+          <ul>
+            <li>При недостиг на пари първо продайте постройки или ипотекирайте активи. Съветникът предлага план с минимална загуба.</li>
+            <li>Ако задължението остане неплатено, играчът фалира и напуска играта.</li>
+            <li>При дълг към играч активите преминават към кредитора. За ипотекираните имоти той плаща 10% лихва и избира дали да ги освободи веднага.</li>
+            <li>При дълг към банката върнатите имоти могат да бъдат предложени на търг.</li>
+          </ul>
+        </section>
+
+        <section class="rules-section">
+          <h4>10. Победа</h4>
+          <ul>
+            <li>В режим „Последен оцелял“ печели последният нефалирал играч.</li>
+            <li>При лимит на рундовете се сравнява нетната стойност: пари, имоти и стойност на подобренията.</li>
+            <li>Подробната история на хода и банковият журнал пазят проверим запис на всички действия.</li>
+          </ul>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" data-close>Към играта</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/vendor/socket.io.min.js"></script>
+  <script src="/static/js/common.js?v={{ static_version }}"></script>
+  <script src="/static/js/lobby.js?v={{ static_version }}"></script>
+</body>
+</html>

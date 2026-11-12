@@ -1,0 +1,373 @@
+/* ============================================================
+   Hover карта на поле и нотариален акт
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Hover карта на поле — пълната информация за имота
+   ------------------------------------------------------------ */
+.space-card {
+  position: absolute;
+  width: 30%;
+  max-width: 250px;
+  background: #fffdf6;
+  color: var(--ink);
+  border: 2px solid #24303f;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 80;
+  pointer-events: none;
+  overflow: hidden;
+  font-size: clamp(9px, 1vw, 12.5px);
+  animation: fadeIn 0.12s ease;
+}
+.space-card.in-modal {
+  position: static;
+  width: 100%;
+  max-width: none;
+  pointer-events: auto;
+  font-size: 0.95rem;
+  box-shadow: none;
+  /* Отвореният модал се обновява при промяна в състоянието (кой стои на
+     полето, фондът „Свободен престой"). Появата се анимира от самия модал
+     чрез popIn — иначе fadeIn би се повтарял при всяко обновяване. */
+  animation: none;
+}
+.space-card .sc-band {
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+  padding: 0.45em 0.4em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+}
+/* Емблемата на групата — същият знак, който стои и върху лентата на полето.
+   Тук обаче мастилото е бялото на надписа (`currentColor` бие inline
+   атрибута stroke): върху светла група тъмната емблема до бял текст на
+   същата лента изглеждаше като две различни решения. */
+.space-card .sc-band .band-emblem {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  stroke: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+.space-card .sc-name {
+  font-weight: 800;
+  text-align: center;
+  padding: 0.4em 0.5em 0.2em;
+  font-size: 1.15em;
+}
+.property-visual {
+  position: relative;
+  height: 76px;
+  overflow: hidden;
+  background: #34495a;
+  isolation: isolate;
+}
+.property-visual::before,
+.property-visual::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 58%;
+  background: rgba(8, 14, 21, 0.78);
+  clip-path: polygon(0 100%,0 60%,8% 60%,8% 22%,15% 22%,15% 67%,23% 67%,23% 42%,30% 42%,30% 12%,38% 12%,38% 72%,47% 72%,47% 37%,57% 37%,57% 55%,66% 55%,66% 20%,73% 20%,73% 70%,82% 70%,82% 34%,90% 34%,90% 62%,100% 62%,100% 100%);
+  z-index: -1;
+}
+.property-visual::after {
+  height: 38%;
+  opacity: 0.44;
+  transform: translateX(5%);
+}
+.property-visual span {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 0.4rem;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-shadow: 0 1px 4px #000;
+}
+.visual-star_centar { background: linear-gradient(150deg, #a8693e, #598596); }
+.visual-krairechen { background: linear-gradient(150deg, #79bfd0, #d9d6ad); }
+.visual-kulturen { background: linear-gradient(150deg, #c7538e, #5f789d); }
+.visual-targovski { background: linear-gradient(150deg, #dd7931, #627d5d); }
+.visual-tehno { background: linear-gradient(150deg, #ca4742, #477d8c); }
+.visual-energien { background: linear-gradient(150deg, #e1be3a, #2e8394); }
+.visual-kurort { background: linear-gradient(150deg, #3e9a68, #aebfd0); }
+.visual-elit { background: linear-gradient(150deg, #365ca8, #9b7282); }
+.visual-transport { background: linear-gradient(150deg, #4c5a66, #b87945); }
+.visual-utility { background: linear-gradient(150deg, #438ca4, #83b86d); }
+.space-card .sc-owner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  font-size: 0.95em;
+  padding: 0.15em 0.5em 0.3em;
+  color: #444;
+}
+.space-card .sc-owner.sc-free { color: #1f7a46; font-weight: 700; }
+.space-card .sc-standing {
+  margin: 0.15em 0 0.2em;
+  font-size: 0.86em;
+  color: #55606c;
+  text-align: center;
+}
+.space-card .sc-standing b { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.space-card .sc-dot {
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+.space-card .sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.2em 0 0;
+}
+.space-card .sc-table td {
+  padding: 0.18em 0.7em;
+  border-top: 1px solid rgba(36, 48, 63, 0.12);
+}
+.space-card .sc-table td:last-child { text-align: right; font-weight: 700; white-space: nowrap; }
+.space-card .sc-table tr.sc-active { background: rgba(230, 195, 107, 0.35); }
+.space-card .sc-text { padding: 0.3em 0.8em 0.7em; margin: 0; text-align: center; }
+.sc-group-strip { display: flex; gap: 0.3em; padding: 0.45em 0.6em 0.65em; flex-wrap: wrap; justify-content: center; }
+.sc-group-strip span { padding: 0.18em 0.45em; border: 1px solid #c7cdd3; border-radius: 4px; color: #727d88; font-size: 0.78em; }
+.sc-group-strip span.held { color: #17643b; border-color: #66ae89; background: #e4f4eb; font-weight: 800; }
+
+/* Бележка, че активно събитие променя тарифата — иначе играчът чете едно
+   число, а плаща друго. */
+.sc-event-note {
+  margin-top: 0.3rem;
+  padding: 0.2rem 0.35rem;
+  color: #f0d887;
+  background: rgba(230, 195, 107, 0.14);
+  border-radius: 4px;
+  font-size: 0.62rem;
+  line-height: 1.3;
+}
+
+/* Нотариален акт при избор на притежаемо поле */
+.deed-modal-shell {
+  position: relative;
+  width: min(820px, 94vw);
+  max-width: 820px;
+  padding: 0.8rem;
+  background: #1a2028;
+}
+.deed-close { position: absolute; top: 1rem; right: 1rem; z-index: 6; }
+.deed-modal-shell .modal-actions { margin: 0.7rem 0 0; }
+/* Защо строежът е спрян — черупката е тъмна, затова текстът е светъл. */
+.deed-build-note {
+  margin: 0.7rem 0 0;
+  padding: 0.45rem 0.6rem;
+  color: #f0d9a8;
+  background: rgba(201, 162, 60, 0.14);
+  border-left: 3px solid #c9a23c;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.deed-build-note.hidden { display: none; }
+.property-deed {
+  --deed-accent: #486477;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  color: #26313a;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)),
+    repeating-linear-gradient(0deg, #f3eedf 0, #f3eedf 2px, #eee7d5 3px, #f6f1e5 5px);
+  border: 7px double #705a3d;
+  border-radius: 2px;
+  box-shadow: inset 0 0 35px rgba(76, 56, 31, 0.14);
+}
+.deed-watermark {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  color: rgba(78, 95, 105, 0.07);
+  font-family: Georgia, serif;
+  font-size: clamp(5rem, 15vw, 9rem);
+  font-weight: 900;
+  pointer-events: none;
+}
+.deed-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 3px double #74644d;
+  padding-right: 3rem;
+}
+.deed-emblem {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  color: #f3ead2;
+  background: #33424a;
+  border: 3px double #bc9b58;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+  font-weight: 900;
+}
+.deed-country { color: #6a5b45; font-size: 0.62rem; font-weight: 900; }
+.deed-header h2 { margin: 0.1rem 0; color: #302a22; font-family: Georgia, serif; font-size: clamp(1.45rem, 3vw, 2rem); }
+.deed-header p { margin: 0; color: #6c6254; font-family: Georgia, serif; font-size: 0.78rem; }
+.deed-status {
+  padding: 0.38rem 0.55rem;
+  border: 2px solid currentColor;
+  transform: rotate(2deg);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+.deed-status.owned { color: #2c6947; }
+.deed-status.free { color: #5d6e7c; }
+.deed-status.mortgaged { color: #9a3f37; transform: rotate(-4deg); }
+.deed-identity {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(72, 59, 42, 0.28);
+}
+.deed-identity div,
+.deed-owner > div:not(.deed-owner-mark) { display: flex; flex-direction: column; gap: 0.1rem; }
+.deed-identity span,
+.deed-owner span,
+.deed-property-name > span { color: #756b5c; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+.deed-identity strong { font-family: Consolas, monospace; font-size: 0.78rem; }
+/* Категорията носи знака на групата (или на вида предприятие). Редът е
+   flex, защото .deed-identity div подрежда децата си в колона — иначе
+   емблемата би застанала над текста вместо до него. */
+.deed-category-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.deed-category-line .band-emblem {
+  width: 1.5em;
+  height: 1.5em;
+  flex: none;
+}
+.deed-property-name { position: relative; padding: 0.8rem 0; text-align: center; }
+.deed-property-name::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 7px; background: var(--deed-accent); }
+.deed-property-name h3 { margin: 0.1rem 0 0; color: #28231d; font-family: Georgia, serif; font-size: clamp(1.35rem, 3.4vw, 2.15rem); }
+.deed-owner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) minmax(150px, auto);
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.55rem;
+  background: rgba(255, 255, 255, 0.35);
+  border-block: 1px solid rgba(72, 59, 42, 0.22);
+}
+.deed-owner-mark { width: 10px; height: 36px; }
+.deed-owner strong { font-size: 0.86rem; }
+.deed-columns { position: relative; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 1.2rem; margin-top: 0.9rem; }
+.deed-columns h4 { margin: 0 0 0.45rem; color: #4a3c2c; font-family: Georgia, serif; font-size: 0.82rem; text-transform: uppercase; }
+.deed-values { margin: 0; }
+.deed-values div { display: flex; justify-content: space-between; gap: 0.7rem; padding: 0.28rem 0; border-bottom: 1px dotted #9f927f; font-size: 0.75rem; }
+.deed-values dd { margin: 0; font-weight: 800; white-space: nowrap; }
+.deed-values .deed-current-rent { color: #265f42; margin-top: 0.35rem; border-bottom-style: solid; }
+.deed-rents { width: 100%; border-collapse: collapse; font-size: 0.71rem; }
+.deed-rents td { padding: 0.23rem 0.35rem; border-bottom: 1px dotted #aa9e8d; }
+.deed-rents td:last-child { text-align: right; font-weight: 800; white-space: nowrap; }
+.deed-rents tr.current { color: #1f6643; background: rgba(83, 151, 108, 0.12); }
+/* Събран наем от началото на партията — числото идва от property_income. */
+.deed-values .deed-income { color: #6a5b45; }
+/* Тарифата вече е коригирана от активното събитие; бележката казва защо. */
+.deed-event-note {
+  margin: 0.45rem 0 0;
+  padding: 0.3rem 0.45rem;
+  color: #7a5a1f;
+  background: rgba(201, 162, 60, 0.16);
+  border-left: 3px solid #c9a23c;
+  border-radius: 3px;
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+/* Дял от групата (или брой обекти от вида) и кой стои на полето —
+   двата реда между вписания собственик и финансовите условия. */
+.deed-holding,
+.deed-standing {
+  position: relative;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem 0.55rem;
+  border-bottom: 1px solid rgba(72, 59, 42, 0.22);
+}
+.deed-holding > span,
+.deed-standing > span {
+  color: #756b5c;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.deed-holding > strong { font-size: 0.78rem; }
+.deed-holding-strip { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.1rem 0; }
+.deed-holding-strip span {
+  padding: 0.12rem 0.4rem;
+  border: 1px solid #bdb3a2;
+  border-radius: 4px;
+  color: #7d7263;
+  font-size: 0.64rem;
+}
+/* Притежаваните имоти от групата — по-тъмни; ипотекираните са зачертани,
+   защото не броят за двойния наем. */
+.deed-holding-strip span.held {
+  color: #17643b;
+  border-color: #66ae89;
+  background: rgba(102, 174, 137, 0.16);
+  font-weight: 800;
+}
+.deed-holding-strip span.mortgaged { color: #8f4a3d; border-color: #c08a7d; background: rgba(192, 138, 125, 0.14); text-decoration: line-through; }
+.deed-standing > strong { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-size: 0.78rem; }
+.deed-standing i { width: 9px; height: 9px; margin-right: 0.25rem; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.35); display: inline-block; vertical-align: middle; }
+
+/* Действия на собственика — в самия акт, до сумите, върху които действат.
+   В реда на модала не се събират: под 720px всеки бутон там е с
+   min-height 46px и шест бутона изтласкват акта извън екрана. */
+.deed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed #a99d8b;
+}
+.deed-actions.hidden { display: none; }
+.deed-actions button {
+  padding: 0.32em 0.7em;
+  border: 1px solid #8a7a60;
+  border-radius: 6px;
+  background: rgba(255, 253, 246, 0.75);
+  color: #3c3428;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.deed-actions button:not(:disabled):hover { background: #fffdf6; border-color: #5f5340; }
+.deed-actions button:disabled { opacity: 0.5; }
+.deed-actions-note { margin: 0.6rem 0 0; color: #7a5a1f; font-size: 0.68rem; }
+.deed-footer { position: relative; display: grid; grid-template-columns: 1fr 72px 1fr; align-items: end; gap: 1rem; margin-top: 1.1rem; }
+.deed-signature { padding-top: 0.7rem; border-top: 1px solid #534938; text-align: center; }
+.deed-signature span { display: block; font-family: "Segoe Script", cursive; font-size: 0.82rem; }
+.deed-signature small { color: #776b5b; font-size: 0.55rem; }
+.deed-seal { width: 68px; height: 68px; display: grid; place-content: center; color: rgba(143, 47, 40, 0.75); border: 3px double currentColor; border-radius: 50%; transform: rotate(-8deg); text-align: center; font-size: 0.55rem; font-weight: 900; }
+.deed-seal b { font-size: 1rem; }
+

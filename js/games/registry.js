@@ -125,6 +125,16 @@ export const GAMES = [
     },
     rules: txt('\n      <p>The goal is to sort all 52 cards onto the four foundations (top right) – by suit, from ace to king.</p>\n      <ul>\n        <li>In the columns cards are stacked in descending order with alternating colours (red on black and vice versa).</li>\n        <li>You can also move whole sorted groups. Only a king (with the cards on it) can be placed in an empty column.</li>\n        <li>A face-down card turns over when it is uncovered.</li>\n        <li>Tap the stock to draw 1 or 3 cards. When it runs out, the waste is turned over again.</li>\n        <li>When all cards in the columns are face up, the <b>Finish</b> button sorts the rest automatically.</li>\n      </ul>\n      <p><b>Controls:</b> tap a card – it goes to the best place by itself; or drag it wherever you want. There is undo and a hint.</p>\n      <p><b>Online:</b> 2–4 players sort the same deal at the same time and see each other\'s progress. Whoever finishes first wins (or the last one remaining if the others give up).</p>'),
   },
+  {
+    id: 'imoti',
+    name: txt('Estates & Empires'),
+    tagline: txt('Buy, build and trade properties across Bulgaria.'),
+    players: txt('2–10 · with bots or online'),
+    accent: '#e8b04a',
+    // a separate site with its own server – it has its own rooms and lobby
+    load: () => import('./imoti/imoti.js'),
+    rules: txt('\n      <p>A property-trading board game set in Bulgaria for 2 to 10 players. Buy streets, build houses and hotels, collect rent and drive your rivals into bankruptcy.</p>\n      <ul>\n        <li>Create a room and send its code to your friends, or fill the free seats with bots.</li>\n        <li>Trades, auctions, loans, missions and world events – the host chooses the rules in the room settings.</li>\n        <li>The full rules are behind the “Rules” button inside the game.</li>\n      </ul>\n      <p>The game is in Bulgarian. It runs on its own server – after a long pause the first opening can take up to a minute.</p>'),
+  },
 ];
 
 export const gameById = (id) => GAMES.find((g) => g.id === id);

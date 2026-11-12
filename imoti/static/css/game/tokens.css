@@ -1,0 +1,191 @@
+/* ============================================================
+   Фигурките на играчите върху таблото
+   Част от game.css — редът на зареждане в game.html е важен.
+   ============================================================ */
+
+/* Фигурки върху таблото — човече върху цветна основа + име отдолу.
+   Позицията се задава от JS чрез transform (композитно движение). */
+.board-token {
+  --tok-color: #df3f45;
+  /* Смалява се, когато на едно поле се струпат много играчи (до 10). */
+  --tok-scale: 1;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(5.6% * var(--tok-scale));
+  aspect-ratio: 1;
+  z-index: 40;
+  transition: transform 0.55s cubic-bezier(0.45, 0.05, 0.35, 1), width 0.2s ease;
+  pointer-events: none;
+}
+.board-token.is-moving {
+  z-index: 70 !important;
+  transition-duration: 0.22s;
+  will-change: transform;
+}
+.board-token.token-instant {
+  transition: none !important;
+}
+.board-token .tok-piece {
+  position: absolute;
+  inset: 0;
+  /* Само лек контур около самата фигура; сянката на земята е отделният
+     .tok-shadow, защото трябва да остава долу, докато човечето скача. */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+
+/* Сянка върху земята.
+
+   Стои в основата на човечето и НЕ се вдига с него. Използва отделните
+   свойства `translate` и `scale` вместо `transform`, за да не си пречат
+   двете движения: изоставането се задава от JS чрез --lag-x/--lag-y, а
+   свиването при подскок идва от собствената ѝ анимация. */
+.board-token .tok-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 78%;
+  height: 20%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.34) 55%, rgba(0, 0, 0, 0) 78%);
+  translate: -50% 0;
+  scale: 1;
+  opacity: 0.62;
+  z-index: -1;
+  pointer-events: none;
+  /* По-бавно от самата фигурка (0.22s при движение) — затова изостава,
+     а при спиране се връща под нея. */
+  transition: translate 0.32s cubic-bezier(0.2, 0.7, 0.3, 1), opacity 0.2s ease;
+}
+.board-token.is-moving .tok-shadow {
+  translate: calc(-50% + var(--lag-x, 0px)) var(--lag-y, 0px);
+  animation: tokenShadow 0.22s ease-in-out infinite;
+}
+.board-token.token-instant .tok-shadow { transition: none !important; }
+
+/* Подскок при движение.
+
+   Анимира се ВЪТРЕШНИЯТ елемент, а не .board-token: външният носи
+   позиционния transform и анимация върху него би отменила преместването.
+   Така двете се събират — външният лети към полето, вътрешният подскача. */
+.board-token.is-moving .tok-piece {
+  animation: tokenHop 0.22s ease-in-out infinite;
+}
+@keyframes tokenHop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-16%) scale(1.04); }
+}
+/* Синхронно с подскока: във въздуха сянката се свива и избледнява,
+   при допир до земята се събира и потъмнява. */
+@keyframes tokenShadow {
+  0%, 100% { scale: 1; opacity: 0.62; }
+  50% { scale: 0.7; opacity: 0.3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-token.is-moving .tok-piece,
+  .board-token.is-moving .tok-shadow { animation: none; }
+  .board-token .tok-shadow { transition: none; }
+}
+/* Кремава основа с пръстен в цвета на играча — човечето изпъква */
+.board-token .tok-piece::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1%;
+  width: 96%;
+  height: 46%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 32%, #fffdf6, #e9ddc1);
+  border: 2px solid var(--tok-color);
+  border-radius: 50%;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+.board-token .tok-piece svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: 1;
+  /* тънък бял ореол, за да се чете фигурата на всякакъв фон */
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+}
+/* Име на играча под фигурката. Показва се само за играча на ход —
+   иначе чиповете закриват имената и цените на полетата. Кой стои на
+   дадено поле се вижда в hover картата му (ред „Тук: …"). */
+.board-token .tok-name {
+  position: absolute;
+  left: 50%;
+  top: 99%;
+  transform: translate(-50%, 0);
+  background: rgba(6, 12, 22, 0.92);
+  color: #fff;
+  border: 1.5px solid var(--tok-color);
+  border-radius: 999px;
+  padding: 0 0.5em;
+  font-size: clamp(7px, 1.55cqw, 13px);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.board-token.is-current .tok-name,
+.board-token.is-moving .tok-name { opacity: 1; }
+/* Долен ред: името застава НАД фигурката, за да не излиза от таблото */
+.board-token.side-bottom .tok-name {
+  top: auto;
+  bottom: 99%;
+}
+/* Странични редове: изместваме името навътре, за да не се реже от ръба */
+.board-token.side-left .tok-name { transform: translate(-32%, 0); }
+.board-token.side-right .tok-name { transform: translate(-68%, 0); }
+/* Близо до ляв/десен ръб (вкл. ъгли) — прибираме името още навътре */
+.board-token.name-clamp-left .tok-name { transform: translate(-14%, 0); }
+.board-token.name-clamp-right .tok-name { transform: translate(-86%, 0); }
+
+/* Играчът на ход — златен пръстен и подчертано име */
+.board-token.is-current { z-index: 47; }
+.board-token.is-current .tok-piece::before {
+  border-color: var(--gold);
+  box-shadow: 0 0 4px 1px rgba(230, 195, 107, 0.5), 0 3px 5px rgba(0, 0, 0, 0.45);
+}
+/* Сиянието пулсира чрез opacity на отделен слой (композитно) */
+.board-token.is-current .tok-piece::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1%;
+  width: 96%;
+  height: 46%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  box-shadow: 0 0 11px 3px rgba(230, 195, 107, 0.95);
+  opacity: 0.2;
+  z-index: 0;
+  animation: glowFade 1.15s ease infinite alternate;
+  pointer-events: none;
+}
+.board-token.is-current .tok-name {
+  background: var(--gold);
+  color: #241608;
+  border-color: #fff;
+}
+
+.board-token.jump .tok-piece { animation: tokenJump 0.24s ease; }
+.board-token.jump .avatar-figure { animation: avatarBoardStep 0.3s ease-in-out infinite alternate; }
+@keyframes tokenJump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-13px); }
+}
+@keyframes avatarBoardStep {
+  from { transform: translateY(0) rotate(-2deg); }
+  to { transform: translateY(-1.5px) rotate(2deg); }
+}
+
