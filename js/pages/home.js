@@ -60,6 +60,11 @@ export async function renderHome(view) {
         ),
       ),
     ),
+    h('p', { class: 'made-by' },
+      txt('Built by'), ' ',
+      h('a', { href: 'https://hackthecode.github.io/' }, 'HackTheCode'),
+      h('a', { href: 'https://hackthecode.github.io/#profile' }, txt('About the author')),
+    ),
   );
 }
 

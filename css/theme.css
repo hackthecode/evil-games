@@ -169,8 +169,17 @@ input, select { border-radius: 0; background: rgba(0, 0, 0, .5); }
 .game-card.soon { background: #33151a; }
 .game-card.soon::before { background: var(--bg); }
 
+/* The logo effects are part of the look: they stay on unless FX is switched off on hackthecode.github.io. */
 @media (prefers-reduced-motion: reduce) {
-  .id-frame::after, .id-frame .g { animation: none; }
+  .id-frame::after { animation-duration: 4.5s !important; animation-iteration-count: infinite !important; }
+  .id-frame .g { animation-duration: 6.4s !important; animation-iteration-count: infinite !important; }
 }
+.fx-off .id-frame::after, .fx-off .id-frame .g { animation: none !important; }
+.fx-off body::after { display: none; }
+
+.made-by { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 34px 0 0; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.made-by::before { content: "//"; color: var(--accent); }
+.made-by a { color: var(--text); border-bottom: 1px solid var(--accent); }
+.made-by a:hover { color: var(--accent); }
 .hero-text { min-width: 0; }
 .hero h1 { overflow-wrap: anywhere; }

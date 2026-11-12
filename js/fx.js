@@ -1,6 +1,10 @@
 // Background atmosphere: red hex rain behind the portal pages (never behind a game).
+// The effects follow the FX switch of hackthecode.github.io (same origin, key htc.fx).
 export function startRain() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let off = false;
+  try { off = localStorage.getItem('htc.fx') === 'off'; } catch {}
+  document.documentElement.classList.toggle('fx-off', off);
+  if (off) return;
   const cv = document.createElement('canvas');
   cv.id = 'fx-rain';
   cv.setAttribute('aria-hidden', 'true');

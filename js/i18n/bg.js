@@ -415,6 +415,8 @@ export const BG = {
   'Message': 'Съобщение',
   'More': 'Повече',
   'More games': 'Още игри',
+  'Built by': 'Създадено от',
+  'About the author': 'За автора',
   'New': 'Нова',
   'New game': 'Нова игра',
   'New game of belot': 'Нова игра на белот',
