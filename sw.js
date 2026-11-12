@@ -1,10 +1,10 @@
 // Service worker: offline support and fast loading.
 // When files change, bump VERSION so the cache is refreshed.
-const VERSION = 'evil-v38';
+const VERSION = 'evil-v39';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(['./', './index.html', './css/app.css', './js/app.js'])));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(['./', './index.html', './css/app.css', './css/theme.css', './js/app.js'])));
 });
 
 self.addEventListener('activate', (e) => {

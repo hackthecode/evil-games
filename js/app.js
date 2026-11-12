@@ -1,3 +1,4 @@
+import { startRain } from './fx.js';
 import { CONFIG } from '../config.js';
 import { store } from './store/index.js';
 import { h, avatar, toast, closeAllModals } from './ui.js';
@@ -113,7 +114,7 @@ function renderChrome() {
   const u = session.user;
   headerEl.replaceChildren(
     h('a', { href: '#/', class: 'brand' },
-      h('span', { class: 'brand-mark', html: BRAND_SVG }),
+      h('span', { class: 'brand-mark' }, h('img', { src: 'assets/brand/evil-mark.webp', alt: '', width: 34, height: 34 })),
       brandName(CONFIG.appName),
     ),
     h('nav', { class: 'top-nav' },
@@ -178,23 +179,8 @@ function brandName(name) {
   return h('span', { class: 'brand-name' }, rest.length ? [h('b', null, first), ' ' + rest.join(' ')] : name);
 }
 
-// The logo: a die with horns.
-const BRAND_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
-  <defs>
-    <linearGradient id="bm-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a78"/><stop offset="1" stop-color="#b00020"/></linearGradient>
-    <linearGradient id="bm-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8aa0"/><stop offset="1" stop-color="#d4123a"/></linearGradient>
-  </defs>
-  <path d="M15 21 C9 16 7 9 9 2 C13 9 19 12 26 15 Z" fill="url(#bm-h)"/>
-  <path d="M49 21 C55 16 57 9 55 2 C51 9 45 12 38 15 Z" fill="url(#bm-h)"/>
-  <rect x="9" y="15" width="46" height="46" rx="13" fill="url(#bm-g)"/>
-  <rect x="9.75" y="15.75" width="44.5" height="44.5" rx="12.4" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="1.5"/>
-  <path d="M17 31 Q23 31.5 29.5 35.5 Q28.5 41.5 23 41 Q17.5 40 17 31 Z" fill="#000"/>
-  <path d="M47 31 Q41 31.5 34.5 35.5 Q35.5 41.5 41 41 Q46.5 40 47 31 Z" fill="#000"/>
-  <path d="M21 48 Q32 56 43 48" fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round"/>
-  <path d="M25.5 50.6 L27.3 55 L29.4 51.9 Z M34.6 51.9 L36.7 55 L38.5 50.6 Z" fill="#000"/>
-</svg>`;
-
 async function boot() {
+  startRain();
   appEl.append(
     (headerEl = h('header', { class: 'app-header' })),
     (viewEl = h('main', { class: 'view', id: 'view' })),
