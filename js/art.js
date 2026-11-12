@@ -151,19 +151,13 @@ export const ART = {
   santase: txt('<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">\n    <defs>{0}{1}\n      <radialGradient id="sa-felt" cx=".45" cy=".42" r=".75"><stop offset="0" stop-color="#8a2140"/><stop offset=".7" stop-color="#3a0a18"/><stop offset="1" stop-color="#120206"/></radialGradient>\n      <linearGradient id="sa-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>\n    </defs>\n    <rect width="320" height="180" fill="url(#sa-felt)"/>\n    {2}\n    {3}\n    {4}\n    <text x="250" y="110" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="54" font-weight="800" fill="url(#sa-gold)" filter="url(#sa-glow)">66</text>\n    <text x="250" y="136" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#ffc9d3">SANTASE</text>\n  </svg>', defs('sa'), cardGrad('sa'), miniCard('sa', 104, 96, -14, 'K', 'H'), miniCard('sa', 152, 92, 8, 'Q', 'H'), overlay('sa')),
   imoti: `<svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice">
     <defs>${defs('im')}
-      <radialGradient id="im-bg" cx=".5" cy=".4" r=".8"><stop offset="0" stop-color="#1d3355"/><stop offset=".7" stop-color="#0a1426"/><stop offset="1" stop-color="#03060c"/></radialGradient>
-      <linearGradient id="im-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a3"/><stop offset="1" stop-color="#d79a2b"/></linearGradient>
-      <linearGradient id="im-house" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ee7a0"/><stop offset="1" stop-color="#1f8a4c"/></linearGradient>
-      <linearGradient id="im-hotel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a8a"/><stop offset="1" stop-color="#b3262f"/></linearGradient>
+      <radialGradient id="im-bg" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#2a3f6e"/><stop offset=".55" stop-color="#121d38"/><stop offset="1" stop-color="#04060d"/></radialGradient>
+      <radialGradient id="im-halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f2c14e" stop-opacity=".45"/><stop offset=".6" stop-color="#b3262f" stop-opacity=".18"/><stop offset="1" stop-color="#b3262f" stop-opacity="0"/></radialGradient>
     </defs>
     <rect width="320" height="180" fill="url(#im-bg)"/>
-    <g transform="translate(160 104) skewX(-24) scale(1 .55)" opacity=".9">
-      ${Array.from({ length: 7 }, (_, i) => `<rect x="${-150 + i * 43}" y="-46" width="40" height="92" rx="3" fill="#efe6d2"/><rect x="${-150 + i * 43}" y="-46" width="40" height="18" rx="3" fill="${['#e23b4e', '#f2b33d', '#2fbf71', '#3b82f6', '#a78bfa', '#ef6f6c', '#38bdf8'][i]}"/>`).join('')}
-    </g>
-    ${[[70, 78], [96, 78], [204, 78]].map(([x, y]) => `<g transform="translate(${x} ${y})" filter="url(#im-sh)"><path d="M -11 6 L -11 -6 L 0 -16 L 11 -6 L 11 6 Z" fill="url(#im-house)"/><rect x="-3" y="-1" width="6" height="7" fill="#0f5c33"/></g>`).join('')}
-    <g transform="translate(150 70)" filter="url(#im-sh)"><rect x="-22" y="-22" width="44" height="34" rx="3" fill="url(#im-hotel)"/><path d="M -26 -22 L 0 -36 L 26 -22 Z" fill="#8a1820"/>${[-13, 0, 13].map((x) => `<rect x="${x - 3.5}" y="-14" width="7" height="7" fill="#ffe7a3" opacity=".9"/>`).join('')}<rect x="-5" y="0" width="10" height="12" fill="#5a0e14"/></g>
-    ${[[252, 128], [266, 120], [280, 128]].map(([x, y]) => `<g transform="translate(${x} ${y})" filter="url(#im-sh)"><ellipse rx="14" ry="5" cy="6" fill="#a8741c"/><ellipse rx="14" ry="5" fill="url(#im-gold)"/><text y="3" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="7" font-weight="800" fill="#8a5a06">€</text></g>`).join('')}
-    <text x="160" y="160" text-anchor="middle" font-family="Unbounded,Inter,sans-serif" font-size="13" font-weight="800" letter-spacing="2" fill="url(#im-gold)" filter="url(#im-glow)">ИМОТИ И ИМПЕРИИ</text>
+    ${Array.from({ length: 12 }, (_, i) => `<path d="M160 90 L${160 + 260 * Math.cos((i + 0.25) * Math.PI / 6)} ${90 + 260 * Math.sin((i + 0.25) * Math.PI / 6)} L${160 + 260 * Math.cos((i + 0.6) * Math.PI / 6)} ${90 + 260 * Math.sin((i + 0.6) * Math.PI / 6)} Z" fill="#f2c14e" opacity=".05"/>`).join('')}
+    <ellipse cx="160" cy="90" rx="120" ry="84" fill="url(#im-halo)"/>
+    <image href="assets/imoti/crest.webp" x="77" y="10" width="166" height="158" filter="url(#im-sh)"/>
     ${overlay('im')}
   </svg>`,
 };
