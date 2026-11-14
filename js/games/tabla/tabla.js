@@ -3,6 +3,7 @@ import { icon } from '../../icons.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton, loadPrefs } from '../common.js';
 import { variantEngine } from './variants.js';
 import { rollDice3d, preloadDice } from './dice3d.js';
+import { dieDefs, dieMarkup } from '../dieface.js';
 import { offlineNet } from '../../net/room.js';
 import { txt } from '../../i18n.js';
 
@@ -164,7 +165,9 @@ export async function mount(root, ctx) {
       for (const p of [0, 1]) {
         for (let k = 0; k < st.off[p]; k++) {
           const [x, y] = offXY(p, k);
-          const g = s('rect', { x: x + 6, y, width: 78, height: 13, rx: 4, fill: p === 0 ? 'url(#ckLight)' : 'url(#ckDark)', stroke: p === 0 ? '#a99a7c' : '#000' });
+          const g = s('g', { filter: 'url(#shOff)' },
+            s('rect', { x: x + 6, y, width: 78, height: 13, rx: 4.5, fill: p === 0 ? 'url(#ckLight)' : 'url(#ckDark)', stroke: p === 0 ? '#9c8c6c' : '#000', 'stroke-width': 0.8 }),
+            s('rect', { x: x + 10, y: y + 1.6, width: 70, height: 2.6, rx: 1.3, fill: '#fff', opacity: p === 0 ? 0.75 : 0.22 }));
           checkerLayer.append(g);
           (els['off' + p] ||= []).push(g);
         }
@@ -213,10 +216,8 @@ export async function mount(root, ctx) {
       list.forEach((d, i) => {
         const [x, y] = diePos(i, list.length, turn);
         const dark = openingColors ? i === 1 : turn === 1;
-        const g = s('g', { class: `tb-die ${used[i] ? 'used' : ''} ${pop && (i === 0 || i === 3) ? 'pop' : ''}` },
-          s('rect', { width: 58, height: 58, rx: 12, fill: dark ? '#2b1e22' : '#fbf7ee', stroke: dark ? '#000' : '#c9b994', 'stroke-width': 2 }),
-          ...PIP_POS[d].map(([px, py]) => s('circle', { cx: px, cy: py, r: 5.6, fill: dark ? '#f3e6c8' : '#2a2018' })),
-        );
+        const g = s('g', { class: `tb-die ${used[i] ? 'used' : ''} ${pop && (i === 0 || i === 3) ? 'pop' : ''}` });
+        g.innerHTML = dieMarkup(d, dark, 'tbd');
         diceLayer.append(s('g', { transform: `translate(${x} ${y})` }, g));
       });
     }
@@ -660,24 +661,19 @@ export async function mount(root, ctx) {
   return { destroy() { destroyed = true; offEvents(); resizeObs?.disconnect(); } };
 }
 
-const PIP_POS = {
-  1: [[29, 29]],
-  2: [[16, 16], [42, 42]],
-  3: [[15, 15], [29, 29], [43, 43]],
-  4: [[16, 16], [42, 16], [16, 42], [42, 42]],
-  5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]],
-  6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]],
-};
 
-// Checker: domed (radial gradient), bevelled rim, two engraved rings (dark line +
-// a light one beneath it) and a highlight at the top left.
-function pulSymbol(id, body, rim, groove, lite, hi) {
+// Checker: a turned disc with thickness (the side wall shows below the face), a bevelled
+// rim, two engraved rings (dark line + a light one beneath it) and a highlight at the top left.
+function pulSymbol(id, body, rim, side, groove, lite, hi) {
   const ring = (r, w) => `<circle r="${r}" fill="none" stroke="${groove}" stroke-width="${w}"/><circle r="${r}" cy="${w * 0.7}" fill="none" stroke="${lite}" stroke-width="${w * 0.6}"/>`;
   return `<symbol id="${id}" viewBox="-30 -30 60 60" overflow="visible">
-    <circle r="29" fill="url(#${body})"/>
-    <circle r="28" fill="none" stroke="url(#${rim})" stroke-width="2"/>
-    ${ring(21, 1.6)}${ring(12.5, 1.2)}
-    <circle r="5" fill="url(#${body})" stroke="${groove}" stroke-width=".8"/>
+    <circle r="28.6" cy="3.2" fill="${side}"/>
+    <circle r="28.6" cy="3.2" fill="url(#pulSide)"/>
+    <circle r="28.6" fill="url(#${body})"/>
+    <circle r="27.6" fill="none" stroke="url(#${rim})" stroke-width="2"/>
+    <circle r="24.6" fill="none" stroke="${groove}" stroke-width=".7" opacity=".7"/>
+    ${ring(20, 1.6)}${ring(12, 1.2)}
+    <circle r="4.6" fill="url(#${body})" stroke="${groove}" stroke-width=".8"/>
     <ellipse cx="-9" cy="-13" rx="13" ry="6.5" transform="rotate(-32 -9 -13)" fill="url(#pulHi)" opacity="${hi}"/>
   </symbol>`;
 }
@@ -685,47 +681,105 @@ function pulSymbol(id, body, rim, groove, lite, hi) {
 function buildDefs() {
   const defs = s('defs');
   defs.innerHTML = `
-    <radialGradient id="ckLight" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#efe6d2"/><stop offset="1" stop-color="#cbbd9c"/></radialGradient>
-    <radialGradient id="ckDark" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#6e2a35"/><stop offset=".6" stop-color="#3d1219"/><stop offset="1" stop-color="#1d070b"/></radialGradient>
-    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b3f1f"/><stop offset=".5" stop-color="#4c2a13"/><stop offset="1" stop-color="#3a1f0e"/></linearGradient>
-    <radialGradient id="felt" cx=".5" cy=".5" r=".75"><stop offset="0" stop-color="#2a6a48"/><stop offset="1" stop-color="#173f2a"/></radialGradient>
-    <linearGradient id="triA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e1bc"/><stop offset="1" stop-color="#d9c08e"/></linearGradient>
-    <linearGradient id="triB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9503a"/><stop offset="1" stop-color="#8e3523"/></linearGradient>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity=".45"/></filter>
-    <radialGradient id="pulLb" cx=".38" cy=".3" r=".78"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#efe5cf"/><stop offset="1" stop-color="#a8977a"/></radialGradient>
+    <linearGradient id="ckLight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset=".5" stop-color="#efe6d2"/><stop offset="1" stop-color="#b7a888"/></linearGradient>
+    <linearGradient id="ckDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a3443"/><stop offset=".5" stop-color="#4a1420"/><stop offset="1" stop-color="#16040a"/></linearGradient>
+    <!-- frame: walnut -->
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6e4020"/><stop offset=".45" stop-color="#4b2a14"/><stop offset="1" stop-color="#2e180b"/></linearGradient>
+    <linearGradient id="woodEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffdfae" stop-opacity=".5"/><stop offset=".08" stop-color="#ffdfae" stop-opacity="0"/><stop offset=".92" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+    <!-- playing field: oak veneer -->
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d3a868"/><stop offset=".5" stop-color="#c2924f"/><stop offset="1" stop-color="#b28044"/></linearGradient>
+    <radialGradient id="fieldVig" cx=".5" cy=".5" r=".72"><stop offset=".55" stop-color="#2a1304" stop-opacity="0"/><stop offset="1" stop-color="#2a1304" stop-opacity=".42"/></radialGradient>
+    <linearGradient id="fieldDrop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fieldDropX" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".4"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <!-- inlaid points: maple and dark walnut -->
+    <linearGradient id="triA" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f6e8c6"/><stop offset=".5" stop-color="#ecd9ac"/><stop offset="1" stop-color="#d6bd88"/></linearGradient>
+    <linearGradient id="triB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a2f17"/><stop offset=".5" stop-color="#40200f"/><stop offset="1" stop-color="#281308"/></linearGradient>
+    <linearGradient id="slot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150a04"/><stop offset=".25" stop-color="#2a160a"/><stop offset="1" stop-color="#3a2010"/></linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e3a6"/><stop offset=".4" stop-color="#b98c3a"/><stop offset=".62" stop-color="#eed08a"/><stop offset="1" stop-color="#7c561b"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="4" stdDeviation="3.2" flood-color="#150700" flood-opacity=".55"/></filter>
+    <filter id="shOff" x="-10%" y="-30%" width="120%" height="180%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-opacity=".5"/></filter>
+    <radialGradient id="pulLb" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f3ead6"/><stop offset="1" stop-color="#b9a886"/></radialGradient>
     <linearGradient id="pulLr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#8c7c5e"/></linearGradient>
-    <radialGradient id="pulDb" cx=".38" cy=".3" r=".78"><stop offset="0" stop-color="#9a3a4a"/><stop offset=".55" stop-color="#4a1420"/><stop offset="1" stop-color="#12030a"/></radialGradient>
-    <linearGradient id="pulDr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c05a6a"/><stop offset="1" stop-color="#050102"/></linearGradient>
+    <radialGradient id="pulDb" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#a23d4f"/><stop offset=".5" stop-color="#541624"/><stop offset="1" stop-color="#17040b"/></radialGradient>
+    <linearGradient id="pulDr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d06a7c"/><stop offset="1" stop-color="#050102"/></linearGradient>
+    <linearGradient id="pulSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".1"/><stop offset=".3" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
     <radialGradient id="pulHi" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    ${pulSymbol('pulL', 'pulLb', 'pulLr', 'rgba(110,85,50,.5)', 'rgba(255,255,255,.75)', 0.8)}
-    ${pulSymbol('pulD', 'pulDb', 'pulDr', 'rgba(0,0,0,.7)', 'rgba(255,130,150,.28)', 0.35)}
+    ${pulSymbol('pulL', 'pulLb', 'pulLr', '#8f7f60', 'rgba(110,85,50,.5)', 'rgba(255,255,255,.75)', 0.8)}
+    ${pulSymbol('pulD', 'pulDb', 'pulDr', '#0d0206', 'rgba(0,0,0,.7)', 'rgba(255,130,150,.28)', 0.4)}
+    ${dieDefs('tbd')}
     <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".012 .22" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.05"/></filter>
-    <filter id="fuzz" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3"/><feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 .07"/></filter>`;
+    <filter id="grainV" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".3 .009" numOctaves="3" seed="11"/><feColorMatrix values="0 0 0 0 .16  0 0 0 0 .07  0 0 0 0 0  0 0 0 -1.9 1.12"/></filter>
+    <filter id="pores" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .1  0 0 0 0 0  0 0 0 -2.2 1.05"/></filter>
+    <clipPath id="clipL"><rect x="${LEFT_X}" y="${F}" width="${6 * PW}" height="${H - 2 * F}" rx="5"/></clipPath>
+    <clipPath id="clipR"><rect x="${RIGHT_X}" y="${F}" width="${6 * PW}" height="${H - 2 * F}" rx="5"/></clipPath>`;
   return defs;
 }
 
+// The board: a walnut case, two recessed oak fields with inlaid maple/walnut points,
+// a hinged bar in the middle and a tray for the borne-off checkers.
 function drawStatic(g, me = 0) {
+  const np = { 'pointer-events': 'none' };
+  // case
   g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, fill: 'url(#wood)' }));
-  // wood grain
-  g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, filter: 'url(#grain)', opacity: 0.35, 'pointer-events': 'none' }));
-  g.append(s('rect', { x: 2, y: 2, width: W - 4, height: H - 4, rx: 20, fill: 'none', stroke: 'rgba(255,220,170,.18)', 'stroke-width': 2 }));
-  for (const x of [LEFT_X, RIGHT_X]) {
-    g.append(s('rect', { x, y: F, width: 6 * PW, height: H - 2 * F, rx: 6, fill: 'url(#felt)' }));
-    g.append(s('rect', { x, y: F, width: 6 * PW, height: H - 2 * F, rx: 6, filter: 'url(#fuzz)', 'pointer-events': 'none' }));
-    g.append(s('rect', { x, y: F, width: 6 * PW, height: H - 2 * F, rx: 6, fill: 'none', stroke: 'rgba(0,0,0,.45)', 'stroke-width': 3 }));
+  g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, filter: 'url(#grain)', opacity: 0.5, ...np }));
+  g.append(s('rect', { x: 0, y: 0, width: W, height: H, rx: 22, fill: 'url(#woodEdge)', ...np }));
+  g.append(s('rect', { x: 1.5, y: 1.5, width: W - 3, height: H - 3, rx: 21, fill: 'none', stroke: 'rgba(255,214,160,.28)', 'stroke-width': 1.5 }));
+  // brass inlay line around the case
+  g.append(s('rect', { x: 7, y: 7, width: W - 14, height: H - 14, rx: 16, fill: 'none', stroke: 'url(#brass)', 'stroke-width': 1.6, opacity: 0.75 }));
+
+  const tri = (i) => {
+    const x = pointX(i), b = isTop(i) ? F : H - F, tip = isTop(i) ? F + TRI_H : H - F - TRI_H;
+    return `M${x + 3} ${b} L${x + PW / 2} ${tip} L${x + PW - 3} ${b} Z`;
+  };
+  [[LEFT_X, 'clipL'], [RIGHT_X, 'clipR']].forEach(([x, clip]) => {
+    const w = 6 * PW, hgt = H - 2 * F;
+    const f = s('g', { 'clip-path': `url(#${clip})` });
+    f.append(s('rect', { x, y: F, width: w, height: hgt, fill: 'url(#field)' }));
+    f.append(s('rect', { x, y: F, width: w, height: hgt, filter: 'url(#grainV)', opacity: 0.55, ...np }));
+    // the points are veneer set into the field: fill, grain, a fine dark joint
+    for (let i = 0; i < 24; i++) {
+      const px = pointX(i);
+      if (px < x || px >= x + w) continue;
+      const dark = i % 2 === 0;
+      f.append(s('path', { d: tri(i), fill: dark ? 'url(#triB)' : 'url(#triA)' }));
+      f.append(s('path', { d: tri(i), fill: 'none', stroke: dark ? 'rgba(20,8,2,.8)' : 'rgba(92,58,22,.75)', 'stroke-width': 1.1, 'stroke-linejoin': 'round' }));
+      // a light chamfer on the left side of the point
+      const b = isTop(i) ? F : H - F, tip = isTop(i) ? F + TRI_H : H - F - TRI_H;
+      f.append(s('path', { d: `M${px + 4.6} ${b} L${px + PW / 2} ${tip - (isTop(i) ? 6 : -6)}`, stroke: dark ? 'rgba(255,190,130,.2)' : 'rgba(255,255,255,.55)', 'stroke-width': 1.2, fill: 'none' }));
+    }
+    f.append(s('rect', { x, y: F, width: w, height: hgt, filter: 'url(#pores)', opacity: 0.35, ...np }));
+    // the field is sunk into the case: shade under the top and left walls, vignette
+    f.append(s('rect', { x, y: F, width: w, height: hgt, fill: 'url(#fieldVig)', ...np }));
+    f.append(s('rect', { x, y: F, width: w, height: 16, fill: 'url(#fieldDrop)', ...np }));
+    f.append(s('rect', { x, y: F, width: 11, height: hgt, fill: 'url(#fieldDropX)', ...np }));
+    g.append(f);
+    g.append(s('rect', { x: x - 0.5, y: F - 0.5, width: w + 1, height: hgt + 1, rx: 5.5, fill: 'none', stroke: 'rgba(12,4,0,.75)', 'stroke-width': 2 }));
+    g.append(s('path', { d: `M${x + 4} ${H - F + 1.2} H${x + w - 4} M${x + w + 1.2} ${F + 4} V${H - F - 4}`, stroke: 'rgba(255,215,160,.3)', 'stroke-width': 1.2, fill: 'none' }));
+  });
+
+  // the bar with two brass hinges
+  g.append(s('rect', { x: BAR_X + 6, y: F, width: 48, height: H - 2 * F, rx: 6, fill: 'url(#slot)', stroke: 'rgba(0,0,0,.6)', 'stroke-width': 1.5 }));
+  g.append(s('line', { x1: BAR_X + 30, y1: F + 3, x2: BAR_X + 30, y2: H - F - 3, stroke: 'rgba(0,0,0,.75)', 'stroke-width': 2 }));
+  g.append(s('line', { x1: BAR_X + 31.4, y1: F + 3, x2: BAR_X + 31.4, y2: H - F - 3, stroke: 'rgba(255,200,140,.16)', 'stroke-width': 1 }));
+  for (const hy of [H / 2 - 58, H / 2 + 34]) {
+    const hg = s('g', { filter: 'url(#shOff)' });
+    hg.append(s('rect', { x: BAR_X + 12, y: hy, width: 36, height: 24, rx: 2.5, fill: 'url(#brass)', stroke: '#5e4012', 'stroke-width': 0.8 }));
+    hg.append(s('rect', { x: BAR_X + 27.5, y: hy - 2, width: 5, height: 28, rx: 2.5, fill: 'url(#brass)', stroke: '#5e4012', 'stroke-width': 0.7 }));
+    for (const [sx, sy] of [[18.5, 6], [18.5, 18], [41.5, 6], [41.5, 18]]) {
+      hg.append(s('circle', { cx: BAR_X + sx, cy: hy + sy, r: 2.3, fill: '#8a6420', stroke: '#4a300a', 'stroke-width': 0.6 }));
+      hg.append(s('line', { x1: BAR_X + sx - 1.5, y1: hy + sy - 1, x2: BAR_X + sx + 1.5, y2: hy + sy + 1, stroke: '#3a2406', 'stroke-width': 0.8 }));
+    }
+    g.append(hg);
   }
-  g.append(s('rect', { x: BAR_X + 6, y: F, width: 48, height: H - 2 * F, rx: 6, fill: '#2e180a' }));
-  g.append(s('rect', { x: TRAY_X, y: F, width: 90, height: H / 2 - F - 8, rx: 8, fill: '#2e180a' }));
-  g.append(s('rect', { x: TRAY_X, y: H / 2 + 8, width: 90, height: H / 2 - F - 8, rx: 8, fill: '#2e180a' }));
+  // trays for the borne-off checkers
+  for (const y of [F, H / 2 + 8]) {
+    const th = H / 2 - F - 8;
+    g.append(s('rect', { x: TRAY_X, y, width: 90, height: th, rx: 8, fill: 'url(#slot)', stroke: 'rgba(0,0,0,.65)', 'stroke-width': 1.5 }));
+    g.append(s('rect', { x: TRAY_X + 1, y: y + 1, width: 88, height: 14, rx: 7, fill: 'url(#fieldDrop)', ...np }));
+    g.append(s('path', { d: `M${TRAY_X + 6} ${y + th + 1} H${TRAY_X + 84}`, stroke: 'rgba(255,215,160,.25)', 'stroke-width': 1.2 }));
+  }
   for (let i = 0; i < 24; i++) {
-    const x = pointX(i);
-    const fill = i % 2 === 0 ? 'url(#triB)' : 'url(#triA)';
-    const d = isTop(i)
-      ? `M${x + 2} ${F} L${x + PW / 2} ${F + TRI_H} L${x + PW - 2} ${F} Z`
-      : `M${x + 2} ${H - F} L${x + PW / 2} ${H - F - TRI_H} L${x + PW - 2} ${H - F} Z`;
-    g.append(s('path', { d, fill, opacity: 0.95 }));
     // the numbering is from the player's point of view
-    const label = s('text', { x: x + PW / 2, y: isTop(i) ? 14 : H - 5, class: 'tb-num' }, String(me === 0 ? i + 1 : 24 - i));
-    g.append(label);
+    g.append(s('text', { x: pointX(i) + PW / 2, y: isTop(i) ? 14 : H - 5, class: 'tb-num' }, String(me === 0 ? i + 1 : 24 - i)));
   }
 }

@@ -4,7 +4,7 @@
 .ludo-wrap { flex: none; display: grid; place-items: center; }
 .ludo-svg {
   display: block; width: min(calc(100cqh - 24px), calc(100cqw - 330px), 820px); height: auto; aspect-ratio: 1;
-  user-select: none; -webkit-user-select: none; touch-action: manipulation; filter: drop-shadow(0 30px 50px rgba(0,0,0,.7));
+  user-select: none; -webkit-user-select: none; touch-action: manipulation; filter: drop-shadow(0 26px 40px rgba(0,0,0,.75)) drop-shadow(0 6px 10px rgba(0,0,0,.55));
 }
 .ludo-side { width: 270px; display: flex; flex-direction: column; gap: 14px; }
 
@@ -23,13 +23,13 @@
 .lp-home i.home { background: var(--c); border-color: var(--c); }
 
 /* the die tray (tap it to roll) and the status */
-.ludo-dock { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px; border-radius: 18px; background: radial-gradient(ellipse at 50% 30%, #1d3a2b, #0b1912); border: 1px solid rgba(255,255,255,.08); box-shadow: inset 0 0 30px rgba(0,0,0,.6); }
+.ludo-dock { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px; border-radius: 18px; background: radial-gradient(ellipse at 50% 30%, #23533a, #0d2318); border: 5px solid #4a2913; outline: 1px solid rgba(255,214,160,.22); outline-offset: -5px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 6px 26px rgba(0,0,0,.75), 0 10px 22px -8px rgba(0,0,0,.8); }
 .ludo-tray { --c: #fff; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px; border: 0; background: none; color: var(--text); font: inherit; cursor: default; border-radius: 16px; }
 .ludo-tray.ready { cursor: pointer; }
 .ludo-die { width: 84px; aspect-ratio: 1; border-radius: 16px; transition: box-shadow .3s; }
-.ludo-die svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 8px 12px rgba(0,0,0,.6)); }
-.ludo-die .ld-face { fill: #fbf7ee; stroke: var(--c); stroke-width: 3.5; }
-.ludo-die circle { fill: #2a2018; }
+.ludo-die svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 7px 8px rgba(0,0,0,.65)); overflow: visible; }
+/* a ring in the colour of the player whose turn it is */
+.ludo-die .ld-ring { fill: none; stroke: var(--c); stroke-width: 2.5; opacity: .9; }
 .ludo-die.rolling { visibility: hidden; }
 .ludo-tray.ready .ludo-die { animation: ludo-ready 1.4s ease-in-out infinite; }
 @keyframes ludo-ready { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--c) 0%, transparent), 0 0 30px color-mix(in srgb, var(--c) 70%, transparent); transform: translateY(-3px); } }
