@@ -11,7 +11,7 @@
   width: min(100%, calc((100cqh - 128px) * 980 / 760), 1100px);
   height: auto; max-height: 100%;
   border-radius: 18px;
-  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255,255,255,.06);
+  box-shadow: 0 34px 70px -18px rgba(0, 0, 0, .9), 0 10px 22px -8px rgba(0, 0, 0, .7), 0 0 0 1px rgba(0, 0, 0, .6);
   touch-action: manipulation; user-select: none; -webkit-user-select: none;
 }
 .tb-svg.rot { width: min(100%, calc((100cqh - 128px) * 760 / 980), 640px); }
@@ -19,13 +19,13 @@
 /* black sees the board flipped vertically – the labels are flipped back */
 .tb-svg.flip .tb-num, .tb-svg.flip .tb-count { transform-box: fill-box; transform-origin: center; transform: scale(1, -1); }
 .tb-svg.rot.flip .tb-num, .tb-svg.rot.flip .tb-count { transform: scale(1, -1) rotate(-90deg); }
-.tb-num { font-size: 12px; font-weight: 700; fill: rgba(255, 236, 200, .45); text-anchor: middle; font-family: var(--font); }
-.tb-count { font-size: 22px; font-weight: 800; text-anchor: middle; font-family: var(--font); pointer-events: none; }
+.tb-num { font-size: 11px; font-weight: 700; fill: rgba(255, 226, 180, .55); text-anchor: middle; font-family: var(--font); }
+.tb-count { font-size: 22px; font-weight: 800; text-anchor: middle; font-family: var(--font); pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .18); stroke-width: 3px; }
 .tb-ck { filter: url(#sh); }
 .tb-src { fill: rgba(255, 217, 120, .18); stroke: #ffd978; stroke-width: 5; stroke-dasharray: 10 6; animation: tb-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 .tb-src.sel { stroke: #ffd978; stroke-width: 6; stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(255, 217, 120, .9)); }
 .tb-dst { fill: rgba(255, 217, 120, .45); stroke: #ffd978; stroke-width: 5; animation: tb-glow 1.2s ease-in-out infinite alternate; }
-.tb-die { transition: opacity .25s; filter: url(#sh); transform-box: fill-box; transform-origin: center; }
+.tb-die { transition: opacity .25s; filter: drop-shadow(0 3px 2.5px rgba(20, 8, 0, .6)); transform-box: fill-box; transform-origin: center; }
 .tb-die.used { opacity: .3; }
 .tb-die.pop { animation: tb-pop .35s cubic-bezier(.3,1.5,.5,1) both; }
 @keyframes tb-pop { from { transform: scale(0); opacity: 0; } }

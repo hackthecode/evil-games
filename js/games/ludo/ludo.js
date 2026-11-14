@@ -5,6 +5,7 @@ import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../co
 import { rollDice3d, preloadDice } from '../tabla/dice3d.js';
 import { START, TRACK, LANES, YARDS, ZONES, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
 import { txt } from '../../i18n.js';
+import { dieDefs, dieMarkup } from '../dieface.js';
 
 const COLORS = [
   { name: txt('red'), main: '#e23b4e', light: '#ff8a98', dark: '#7a0f1e' },
@@ -16,7 +17,6 @@ const CS = 60; // cell size
 const C = (x) => x * CS + CS / 2;
 const BOT_NAMES = [txt('You'), txt('Georgi'), txt('Maria'), txt('Petar')];
 const LEVELS = { easy: txt('Easy'), normal: txt('Normal') };
-const PIP = { 1: [[29, 29]], 2: [[16, 16], [42, 42]], 3: [[15, 15], [29, 29], [43, 43]], 4: [[16, 16], [42, 16], [16, 42], [42, 42]], 5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]], 6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]] };
 
 const still = () => motion.fast || matchMedia('(prefers-reduced-motion: reduce)').matches;
 // t from 0 to 1 over ms, fn(t) every frame
@@ -99,7 +99,7 @@ export async function mount(root, ctx) {
     // token: position on the board (board units) + an upright part (counter-rotated)
     // with a shadow that stays on the board and a body that hops.
     const tokens = active.map((p) => [0, 1, 2, 3].map((t) => {
-      const shadow = s('ellipse', { cx: 0, cy: 16, rx: 19, ry: 7, fill: 'rgba(0,0,0,.4)' });
+      const shadow = s('ellipse', { cx: 2, cy: 17, rx: 20, ry: 7.5, fill: 'url(#lshadow)' });
       const body = s('g', null, pawn(p));
       const g = s('g', { class: 'ludo-tok', 'data-p': p, 'data-t': t },
         s('g', { transform: `rotate(${-angle})` },
@@ -117,8 +117,8 @@ export async function mount(root, ctx) {
       g.setAttribute('transform', `translate(${x} ${y})`);
       g.body.setAttribute('transform', `translate(0 ${-lift}) scale(${1 + squash * 0.12} ${1 - squash * 0.14})`);
       const k = 1 - Math.min(lift, 60) / 110;
-      g.shadow.setAttribute('rx', 19 * k);
-      g.shadow.setAttribute('ry', 7 * k);
+      g.shadow.setAttribute('rx', 20 * k);
+      g.shadow.setAttribute('ry', 7.5 * k);
       g.shadow.setAttribute('opacity', k);
     }
     const placeAt = (p, t, [x, y]) => put(tokEl(p, t), C(x), C(y));
@@ -160,7 +160,7 @@ export async function mount(root, ctx) {
 
     function drawDie(val, p) {
       dieEl.style.setProperty('--c', COLORS[p].main);
-      dieEl.innerHTML = `<svg viewBox="0 0 58 58" aria-hidden="true"><rect x="1.5" y="1.5" width="55" height="55" rx="12" class="ld-face"/>${(PIP[val] || []).map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5.4"/>`).join('')}</svg>`;
+      dieEl.innerHTML = `<svg viewBox="-4 -4 66 66" aria-hidden="true"><defs>${dieDefs('ldd')}</defs><rect x="-2.5" y="-2.5" width="63" height="63" rx="15" class="ld-ring"/>${dieMarkup(val, false, 'ldd')}</svg>`;
       dieEl.dataset.v = val || '';
     }
 
@@ -416,85 +416,113 @@ export async function mount(root, ctx) {
 }
 
 // ---------- drawing ----------
+// a mix of two #rrggbb colours: t = 0 → a, t = 1 → b
+function mix(a, b, t) {
+  const ch = (c, i) => parseInt(c.slice(1 + i * 2, 3 + i * 2), 16);
+  return '#' + [0, 1, 2].map((i) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0')).join('');
+}
 function defs() {
   const d = s('defs');
   d.innerHTML = COLORS.map((c, i) => `
-    <radialGradient id="lp${i}" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="${c.light}"/><stop offset=".5" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></radialGradient>
-    <linearGradient id="lz${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.light}"/><stop offset=".45" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></linearGradient>
-    <linearGradient id="lc${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.light}"/><stop offset="1" stop-color="${c.main}"/></linearGradient>`).join('') + `
-    <radialGradient id="lboard" cx=".5" cy=".42" r=".8"><stop offset="0" stop-color="#2b2433"/><stop offset=".7" stop-color="#16121c"/><stop offset="1" stop-color="#0a080d"/></radialGradient>
-    <linearGradient id="lcell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf7"/><stop offset="1" stop-color="#ddd2bd"/></linearGradient>
-    <linearGradient id="lbrass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dd9b"/><stop offset=".35" stop-color="#b98a35"/><stop offset=".6" stop-color="#f1d58a"/><stop offset="1" stop-color="#7a5418"/></linearGradient>
-    <radialGradient id="lgloss" cx=".25" cy=".1" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="lhole" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></radialGradient>
-    <filter id="lsh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="2" flood-opacity=".45"/></filter>
-    <filter id="ltile" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2.5" stdDeviation="1.6" flood-opacity=".45"/></filter>
-    <filter id="lnoise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 .06"/></filter>`;
+    <radialGradient id="lp${i}" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".16" stop-color="${c.light}"/><stop offset=".55" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></radialGradient>
+    <linearGradient id="lb${i}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${c.main}"/><stop offset=".26" stop-color="${c.light}"/><stop offset=".5" stop-color="${c.main}"/><stop offset="1" stop-color="${c.dark}"/></linearGradient>
+    <linearGradient id="lz${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.main}"/><stop offset="1" stop-color="${mix(c.main, c.dark, 0.22)}"/></linearGradient>
+    <linearGradient id="lc${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(c.main, c.dark, 0.18)}"/><stop offset="1" stop-color="${c.main}"/></linearGradient>`).join('') + `
+    <linearGradient id="lframe" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#70421f"/><stop offset=".5" stop-color="#4a2913"/><stop offset="1" stop-color="#2b1609"/></linearGradient>
+    <linearGradient id="lframeEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffdfae" stop-opacity=".55"/><stop offset=".05" stop-color="#ffdfae" stop-opacity="0"/><stop offset=".95" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+    <linearGradient id="lboard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ecd3a2"/><stop offset=".5" stop-color="#dfbf86"/><stop offset="1" stop-color="#cfa96c"/></linearGradient>
+    <radialGradient id="lvig" cx=".5" cy=".5" r=".72"><stop offset=".6" stop-color="#3a1c04" stop-opacity="0"/><stop offset="1" stop-color="#3a1c04" stop-opacity=".3"/></radialGradient>
+    <linearGradient id="lcell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2cfa6"/><stop offset="1" stop-color="#fbf1d8"/></linearGradient>
+    <!-- a dimple drilled into the wood: dark under the upper lip, light on the lower one -->
+    <linearGradient id="ldimS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".38"/><stop offset=".55" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <linearGradient id="ldimR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c0c02" stop-opacity=".85"/><stop offset=".5" stop-color="#3a2008" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity=".8"/></linearGradient>
+    <radialGradient id="lgloss" cx=".22" cy=".08" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lshadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#1a0a00" stop-opacity=".62"/><stop offset=".6" stop-color="#1a0a00" stop-opacity=".3"/><stop offset="1" stop-color="#1a0a00" stop-opacity="0"/></radialGradient>
+    <filter id="lgrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".008 .16" numOctaves="3" seed="5"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .18  0 0 0 0 .02  0 0 0 -1.7 1.02"/></filter>
+    <filter id="lgrainD" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".012 .2" numOctaves="3" seed="9"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.05"/></filter>
+    <filter id="lpaint" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".02 .3" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .1  0 0 0 0 0  0 0 0 -1.2 .62"/></filter>
+    <clipPath id="lclip"><rect x="-10" y="-10" width="680" height="680" rx="26"/></clipPath>`;
   return d;
 }
 
-// A rounded tile on the square (with volume: shadow, top highlight, bottom edge).
-function tile(g, x, y, fill, stroke = 'rgba(0,0,0,.25)') {
-  const t = s('g', { filter: 'url(#ltile)' },
-    s('rect', { x: C(x) - 26, y: C(y) - 26, width: 52, height: 52, rx: 13, fill, stroke, 'stroke-width': 1.5 }),
-    s('rect', { x: C(x) - 22, y: C(y) - 23, width: 44, height: 16, rx: 8, fill: '#fff', opacity: 0.28 }),
-  );
-  g.append(t);
-  return t;
+// A field: a shallow dimple in the board with a printed ring around it.
+function dimple(g, cx, cy, r, fill, ring) {
+  g.append(s('circle', { cx, cy, r: r + 3.2, fill: 'none', stroke: ring, 'stroke-width': 2.2 }));
+  g.append(s('circle', { cx, cy, r, fill }));
+  g.append(s('circle', { cx, cy, r, fill: 'url(#ldimS)' }));
+  g.append(s('circle', { cx, cy, r: r - 0.6, fill: 'none', stroke: 'url(#ldimR)', 'stroke-width': 1.5 }));
 }
 
+// The board: birch plywood in a walnut frame; the yards and the home rows are painted on,
+// every field is a dimple the pawn stands in, joined by the printed track line.
 function staticBoard() {
   const g = s('g');
-  // base with a brass frame, texture and highlight
-  g.append(s('rect', { x: -22, y: -22, width: 704, height: 704, rx: 40, fill: 'url(#lbrass)' }));
-  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, fill: 'url(#lboard)' }));
-  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, filter: 'url(#lnoise)', 'pointer-events': 'none' }));
+  const np = { 'pointer-events': 'none' };
+  const INK = '#4b2c12';
+  g.append(s('rect', { x: -24, y: -24, width: 708, height: 708, rx: 38, fill: 'url(#lframe)' }));
+  g.append(s('rect', { x: -24, y: -24, width: 708, height: 708, rx: 38, filter: 'url(#lgrainD)', opacity: 0.5, ...np }));
+  g.append(s('rect', { x: -24, y: -24, width: 708, height: 708, rx: 38, fill: 'url(#lframeEdge)', ...np }));
+  g.append(s('rect', { x: -22.5, y: -22.5, width: 705, height: 705, rx: 36.5, fill: 'none', stroke: 'rgba(255,214,160,.3)', 'stroke-width': 1.5 }));
+  const b = s('g', { 'clip-path': 'url(#lclip)' });
+  g.append(b);
+  b.append(s('rect', { x: -10, y: -10, width: 680, height: 680, fill: 'url(#lboard)' }));
+  b.append(s('rect', { x: -10, y: -10, width: 680, height: 680, filter: 'url(#lgrain)', opacity: 0.6, ...np }));
+
   // the corner zones with the yards (the one whose turn it is glows)
   ZONES.forEach(([zx, zy], p) => {
-    const x = zx * CS + 6, y = zy * CS + 6, w = 4 * CS - 12;
-    g.append(s('rect', { x: x - 4, y: y - 4, width: w + 8, height: w + 8, rx: 34, class: 'ludo-zone', 'data-p': p, fill: 'none', stroke: COLORS[p].light, 'stroke-width': 5 }));
-    g.append(s('rect', { x, y, width: w, height: w, rx: 30, fill: `url(#lz${p})`, stroke: COLORS[p].light, 'stroke-width': 2 }));
-    g.append(s('rect', { x: x + 22, y: y + 22, width: w - 44, height: w - 44, rx: 24, fill: 'rgba(255,255,255,.9)' }));
-    g.append(s('rect', { x: x + 22, y: y + 22, width: w - 44, height: w - 44, rx: 24, fill: 'none', stroke: COLORS[p].dark, 'stroke-opacity': 0.35, 'stroke-width': 3 }));
-    for (const [cx, cy] of YARDS[p]) {
-      g.append(s('circle', { cx: C(cx), cy: C(cy), r: 24, fill: `url(#lz${p})`, opacity: 0.35 }));
-      g.append(s('circle', { cx: C(cx), cy: C(cy), r: 20, fill: 'url(#lhole)', stroke: COLORS[p].main, 'stroke-width': 2.5 }));
-    }
+    const x = zx * CS + 8, y = zy * CS + 8, w = 4 * CS - 16;
+    b.append(s('rect', { x: x - 5, y: y - 5, width: w + 10, height: w + 10, rx: 30, class: 'ludo-zone', 'data-p': p, fill: 'none', stroke: COLORS[p].light, 'stroke-width': 5 }));
+    b.append(s('rect', { x, y, width: w, height: w, rx: 26, fill: `url(#lz${p})` }));
+    b.append(s('rect', { x, y, width: w, height: w, rx: 26, filter: 'url(#lpaint)', opacity: 0.5, ...np }));
+    b.append(s('rect', { x, y, width: w, height: w, rx: 26, fill: 'none', stroke: COLORS[p].dark, 'stroke-opacity': 0.7, 'stroke-width': 2 }));
+    b.append(s('rect', { x: x + 9, y: y + 9, width: w - 18, height: w - 18, rx: 19, fill: 'none', stroke: 'rgba(255,255,255,.55)', 'stroke-width': 2 }));
+    for (const [cx, cy] of YARDS[p]) dimple(b, C(cx), C(cy), 22, 'url(#lcell)', 'rgba(255,255,255,.85)');
   });
-  // the track: light tiles; the start ones are in the player's colour with an arrow in the direction
+
+  // the printed line that joins the track
+  const pts = TRACK.map(([x, y]) => `${C(x)},${C(y)}`).join(' ');
+  b.append(s('polygon', { points: pts, fill: 'none', stroke: INK, 'stroke-width': 5, 'stroke-linejoin': 'round', opacity: 0.55 }));
+  // the track: plain dimples; each start field is in the player's colour with an arrow
   TRACK.forEach(([x, y], i) => {
     const owner = START.indexOf(i);
-    tile(g, x, y, owner >= 0 ? `url(#lc${owner})` : 'url(#lcell)', owner >= 0 ? COLORS[owner].dark : 'rgba(0,0,0,.25)');
+    dimple(b, C(x), C(y), 21, owner >= 0 ? `url(#lc${owner})` : 'url(#lcell)', owner >= 0 ? COLORS[owner].dark : INK);
     if (owner >= 0) {
       const [nx, ny] = TRACK[(i + 1) % TRACK.length];
       const a = (Math.atan2(ny - y, nx - x) * 180) / Math.PI;
-      g.append(s('path', { d: 'M -9 -10 L 11 0 L -9 10 Z', fill: '#fff', opacity: 0.9, transform: `translate(${C(x)} ${C(y)}) rotate(${a})` }));
+      b.append(s('path', { d: 'M -8 -9 L 10 0 L -8 9 Z', fill: '#fff', opacity: 0.92, transform: `translate(${C(x)} ${C(y)}) rotate(${a})` }));
     }
   });
   // the home rows
-  LANES.forEach((cells, p) => cells.forEach(([x, y]) => tile(g, x, y, `url(#lc${p})`, COLORS[p].dark)));
-  // centre: a four-colour star towards the home rows
-  const c = 330, r = 30, k = 10;
-  const tri = (pts, p) => g.append(s('polygon', { points: pts, fill: `url(#lz${p})`, stroke: 'rgba(0,0,0,.35)', 'stroke-width': 1.5 }));
+  LANES.forEach((cells, p) => cells.forEach(([x, y]) => dimple(b, C(x), C(y), 21, `url(#lc${p})`, COLORS[p].dark)));
+  // centre: a four-colour rosette pointing at the home rows
+  const c = 330, r = 27, k = 6;
+  const tri = (pp, p) => b.append(s('polygon', { points: pp, fill: `url(#lz${p})`, stroke: INK, 'stroke-width': 1.6, 'stroke-linejoin': 'round' }));
   tri(`${c - r - k},${c - r} ${c},${c} ${c - r - k},${c + r}`, 0);
   tri(`${c - r},${c - r - k} ${c},${c} ${c + r},${c - r - k}`, 1);
   tri(`${c + r + k},${c - r} ${c},${c} ${c + r + k},${c + r}`, 2);
   tri(`${c - r},${c + r + k} ${c},${c} ${c + r},${c + r + k}`, 3);
-  g.append(s('circle', { cx: c, cy: c, r: 9, fill: '#fff', opacity: 0.85 }));
-  g.append(s('rect', { x: -14, y: -14, width: 688, height: 688, rx: 34, fill: 'url(#lgloss)', 'pointer-events': 'none' }));
+  b.append(s('circle', { cx: c, cy: c, r: 7, fill: '#f6e7c4', stroke: INK, 'stroke-width': 1.6 }));
+  // the board sits a little below the frame
+  b.append(s('rect', { x: -10, y: -10, width: 680, height: 680, fill: 'url(#lvig)', ...np }));
+  b.append(s('rect', { x: -10, y: -10, width: 680, height: 680, fill: 'url(#lgloss)', ...np }));
+  g.append(s('rect', { x: -10, y: -10, width: 680, height: 680, rx: 26, fill: 'none', stroke: 'rgba(14,5,0,.8)', 'stroke-width': 3 }));
+  g.append(s('rect', { x: -8, y: -7, width: 676, height: 676, rx: 24, fill: 'none', stroke: 'rgba(0,0,0,.25)', 'stroke-width': 5, ...np }));
   return g;
 }
 
-// A pawn with volume: base with a rim, body with a highlight and a head (the shadow is separate).
+// A lacquered wooden pawn: a turned base, a cone, a collar and a ball head (the shadow is separate).
 function pawn(p) {
-  const f = `url(#lp${p})`, d = COLORS[p].dark;
-  return s('g', { filter: 'url(#lsh)', transform: 'scale(1.22)' },
-    s('ellipse', { cx: 0, cy: 12, rx: 16, ry: 6.5, fill: f, stroke: d, 'stroke-width': 1.2 }),
-    s('ellipse', { cx: 0, cy: 9.5, rx: 13, ry: 4.5, fill: f, stroke: d, 'stroke-width': .8 }),
-    s('path', { d: 'M -10.5 10 Q -8 -1 -5.5 -8 L 5.5 -8 Q 8 -1 10.5 10 Z', fill: f, stroke: d, 'stroke-width': 1.2 }),
-    s('ellipse', { cx: 0, cy: -8, rx: 7.5, ry: 2.6, fill: f, stroke: d, 'stroke-width': 1 }),
-    s('circle', { cx: 0, cy: -15, r: 9, fill: f, stroke: d, 'stroke-width': 1.2 }),
-    s('path', { d: 'M -6 8 Q -5 -1 -3 -6', stroke: '#fff', 'stroke-opacity': .45, 'stroke-width': 2.2, fill: 'none', 'stroke-linecap': 'round' }),
-    s('ellipse', { cx: -3.2, cy: -18.5, rx: 3.4, ry: 2.2, fill: 'rgba(255,255,255,.8)' }),
+  const body = `url(#lb${p})`, head = `url(#lp${p})`, d = COLORS[p].dark;
+  return s('g', { transform: 'scale(1.24)' },
+    s('path', { d: 'M -15.5 11 A 15.5 6 0 0 0 15.5 11 L 15.5 13.2 A 15.5 6 0 0 1 -15.5 13.2 Z', fill: d }),
+    s('ellipse', { cx: 0, cy: 11, rx: 15.5, ry: 6, fill: body, stroke: d, 'stroke-width': 0.9 }),
+    s('path', { d: 'M -12 9.5 C -9.5 2 -6.6 -3 -5.2 -9 L 5.2 -9 C 6.6 -3 9.5 2 12 9.5 A 12 4.4 0 0 1 -12 9.5 Z', fill: body, stroke: d, 'stroke-width': 0.9 }),
+    s('ellipse', { cx: 0, cy: -8.6, rx: 7.4, ry: 2.5, fill: body, stroke: d, 'stroke-width': 0.9 }),
+    s('circle', { cx: 0, cy: -16, r: 8.8, fill: head, stroke: d, 'stroke-width': 0.9 }),
+    // lacquer highlights
+    s('path', { d: 'M -6.6 6.5 C -5.4 1 -4 -3 -3 -7', stroke: '#fff', 'stroke-opacity': 0.55, 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }),
+    s('path', { d: 'M -11.5 10.6 A 13 4.6 0 0 1 -2 6.8', stroke: '#fff', 'stroke-opacity': 0.4, 'stroke-width': 1.3, fill: 'none', 'stroke-linecap': 'round' }),
+    s('ellipse', { cx: -3.2, cy: -19.6, rx: 3.3, ry: 2, fill: '#fff', opacity: 0.85, transform: 'rotate(-25 -3.2 -19.6)' }),
+    s('path', { d: 'M 4 -9.8 A 8.8 8.8 0 0 0 7.6 -20.5', stroke: '#fff', 'stroke-opacity': 0.22, 'stroke-width': 1.2, fill: 'none', 'stroke-linecap': 'round' }),
   );
 }

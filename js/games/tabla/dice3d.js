@@ -73,7 +73,7 @@ function faceCanvas(v, dark, bump) {
   } else {
     const grd = g.createRadialGradient(N * 0.32, N * 0.28, N * 0.05, N * 0.5, N * 0.5, N * 0.78);
     if (dark) { grd.addColorStop(0, '#4a2a30'); grd.addColorStop(0.55, '#2a1418'); grd.addColorStop(1, '#14080a'); }
-    else { grd.addColorStop(0, '#fffdf7'); grd.addColorStop(0.55, '#f7f0e0'); grd.addColorStop(1, '#e6d9bc'); }
+    else { grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.55, '#faf4e6'); grd.addColorStop(1, '#eadfc6'); }
     g.fillStyle = grd;
     g.fillRect(0, 0, N, N);
     // fine grain of the material
@@ -101,7 +101,7 @@ function faceCanvas(v, dark, bump) {
     // an engraved pip: a dark hollow + a light edge at the bottom right
     const hole = g.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.1, x, y, r);
     if (dark) { hole.addColorStop(0, '#fffaf0'); hole.addColorStop(0.7, '#efe3c6'); hole.addColorStop(1, '#bfae88'); }
-    else { hole.addColorStop(0, '#0e0a08'); hole.addColorStop(0.7, '#2a1f18'); hole.addColorStop(1, '#4a3a2c'); }
+    else { hole.addColorStop(0, '#050302'); hole.addColorStop(0.65, '#231912'); hole.addColorStop(1, '#4d3c2e'); }
     g.fillStyle = hole;
     g.beginPath();
     g.arc(x, y, r, 0, Math.PI * 2);
@@ -116,7 +116,7 @@ function faceCanvas(v, dark, bump) {
 }
 
 // A cube with rounded edges: the vertices of the segmented cube "bulge" towards the corners.
-function roundedBox(THREE, radius = 0.12, seg = 6) {
+function roundedBox(THREE, radius = 0.14, seg = 8) {
   const geo = new THREE.BoxGeometry(1, 1, 1, seg, seg, seg);
   const pos = geo.attributes.position, nor = geo.attributes.normal;
   const inner = 0.5 - radius;
@@ -141,7 +141,7 @@ function setup({ THREE }) {
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.22;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
