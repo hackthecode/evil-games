@@ -1,33 +1,33 @@
-// The resting die (SVG, 58×58 box): the same look as the 3D die that lands on it –
-// rounded ivory body, bevelled edge, engraved pips.
+// The resting die (SVG, 58×58 box): the same look as the die of "Imoti i Imperii" and as
+// the 3D cube that tumbles onto it (.d3-face in css/tabla.css) – a cream body, a soft
+// highlight at the top left, dark slate pips on a 3×3 grid.
 export const DIE_PIPS = {
   1: [[29, 29]],
-  2: [[16, 16], [42, 42]],
-  3: [[15, 15], [29, 29], [43, 43]],
-  4: [[16, 16], [42, 16], [16, 42], [42, 42]],
-  5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]],
-  6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]],
+  2: [[14.7, 14.7], [43.3, 43.3]],
+  3: [[14.7, 14.7], [29, 29], [43.3, 43.3]],
+  4: [[14.7, 14.7], [43.3, 14.7], [14.7, 43.3], [43.3, 43.3]],
+  5: [[14.7, 14.7], [43.3, 14.7], [29, 29], [14.7, 43.3], [43.3, 43.3]],
+  6: [[14.7, 14.7], [43.3, 14.7], [14.7, 29], [43.3, 29], [14.7, 43.3], [43.3, 43.3]],
 };
 
 // Gradients for the dice; id – a prefix that keeps the ids unique per <svg>.
 export function dieDefs(id = 'die') {
   return `
-    <linearGradient id="${id}Lb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffefa"/><stop offset=".55" stop-color="#f4ecd9"/><stop offset="1" stop-color="#cdbf9f"/></linearGradient>
-    <radialGradient id="${id}Lf" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#faf4e6"/><stop offset="1" stop-color="#eadfc6"/></radialGradient>
-    <radialGradient id="${id}Lp" cx=".4" cy=".34" r=".75"><stop offset="0" stop-color="#050302"/><stop offset=".65" stop-color="#231912"/><stop offset="1" stop-color="#4d3c2e"/></radialGradient>
-    <linearGradient id="${id}Db" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a4048"/><stop offset=".5" stop-color="#2c171c"/><stop offset="1" stop-color="#0c0507"/></linearGradient>
-    <radialGradient id="${id}Df" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#553138"/><stop offset=".6" stop-color="#2e181d"/><stop offset="1" stop-color="#1b0c10"/></radialGradient>
-    <radialGradient id="${id}Dp" cx=".4" cy=".34" r=".75"><stop offset="0" stop-color="#cdbd98"/><stop offset=".6" stop-color="#f1e6cb"/><stop offset="1" stop-color="#fffaf0"/></radialGradient>
-    <linearGradient id="${id}Rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".75"/></linearGradient>
-    <linearGradient id="${id}Gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`;
+    <linearGradient id="${id}Body" x1=".1" y1="-.07" x2=".9" y2="1.07"><stop offset="0" stop-color="#fdf9ee"/><stop offset="1" stop-color="#e2d3af"/></linearGradient>
+    <radialGradient id="${id}Shine" cx=".28" cy=".22" r="1.06"><stop offset="0" stop-color="#fff" stop-opacity=".88"/><stop offset=".36" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${id}Edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset=".14" stop-color="#fff" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></linearGradient>
+    <radialGradient id="${id}Pip" cx=".35" cy=".3" r=".955"><stop offset="0" stop-color="#46525f"/><stop offset=".75" stop-color="#1a232d"/></radialGradient>
+    <linearGradient id="${id}PipIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".45" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <radialGradient id="${id}Shadow"><stop offset="0" stop-color="#000" stop-opacity=".36"/><stop offset=".8" stop-color="#000" stop-opacity="0"/></radialGradient>`;
 }
 
 // SVG markup of one die face showing `value` (0 – a blank face).
-export function dieMarkup(value, dark = false, id = 'die') {
-  const k = dark ? 'D' : 'L';
+export function dieMarkup(value, id = 'die') {
   const pips = (DIE_PIPS[value] || []).map(([x, y]) =>
-    `<circle cx="${x}" cy="${y}" r="5.7" fill="url(#${id}${k}p)"/><circle cx="${x}" cy="${y}" r="5.7" fill="none" stroke="url(#${id}Rim)" stroke-width="1.1" opacity="${dark ? 0.55 : 0.9}"/>`).join('');
-  return `<rect x=".5" y=".5" width="57" height="57" rx="12.5" fill="url(#${id}${k}b)" stroke="${dark ? '#050203' : '#b3a37f'}" stroke-width="1"/>
-    <rect x="3.6" y="3.2" width="50.8" height="50.8" rx="10" fill="url(#${id}${k}f)"/>
-    <rect x="6" y="4.6" width="46" height="13" rx="6.5" fill="url(#${id}Gl)" opacity="${dark ? 0.22 : 0.5}"/>${pips}`;
+    `<circle cx="${x}" cy="${y}" r="5.3" fill="url(#${id}Pip)"/><circle cx="${x}" cy="${y}" r="5.3" fill="url(#${id}PipIn)"/>`).join('');
+  return `<ellipse cx="29" cy="62.8" rx="22.6" ry="6.4" fill="url(#${id}Shadow)"/>
+    <rect width="58" height="58" rx="10.4" fill="url(#${id}Body)"/>
+    <rect width="58" height="58" rx="10.4" fill="url(#${id}Shine)"/>
+    <rect width="58" height="58" rx="10.4" fill="url(#${id}Edge)"/>
+    <rect x=".85" y=".85" width="56.3" height="56.3" rx="9.6" fill="none" stroke="rgba(36,48,63,.22)" stroke-width="1.7"/>${pips}`;
 }

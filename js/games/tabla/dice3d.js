@@ -1,390 +1,24 @@
-// 3D dice. Primary: real 3D (Three.js) with physics (cannon-es) – the dice
-// are thrown, bounce, roll and spin, and finally land exactly in place and with
-// the value from the game. Fallback (no internet/WebGL): CSS cubes.
-import { sound } from '../common.js';
-import { loadDiceSounds, diceShake, diceRollAudio } from '../dicesound.js';
+// 3D dice – the dice of "Imoti i Imperii" (initDice/setDie in imoti/static/js/game/board.js):
+// CSS cubes with six faces that hop and tumble in place and settle on the value from the game.
+import { diceSound } from '../dicesound.js';
 import { motion } from '../../ui.js';
-import { txt } from '../../i18n.js';
 
-// Pips on a face (in units of a 58 box) – the same as the SVG dice.
-const PIPS = {
-  1: [[29, 29]],
-  2: [[16, 16], [42, 42]],
-  3: [[15, 15], [29, 29], [43, 43]],
-  4: [[16, 16], [42, 16], [16, 42], [42, 42]],
-  5: [[16, 16], [42, 16], [29, 29], [16, 42], [42, 42]],
-  6: [[16, 15], [42, 15], [16, 29], [42, 29], [16, 43], [42, 43]],
-};
+const ROLL_MS = 1280;
+
+// The faces of the cube – opposite faces sum to 7, as on a real die.
+const FACES = [
+  { v: 1, t: 'translateZ(var(--hd))' },
+  { v: 6, t: 'rotateY(180deg) translateZ(var(--hd))' },
+  { v: 3, t: 'rotateY(90deg) translateZ(var(--hd))' },
+  { v: 4, t: 'rotateY(-90deg) translateZ(var(--hd))' },
+  { v: 5, t: 'rotateX(90deg) translateZ(var(--hd))' },
+  { v: 2, t: 'rotateX(-90deg) translateZ(var(--hd))' },
+];
+// The rotation of the cube that brings the given value to the front.
+const ORIENT = { 1: [0, 0], 2: [90, 0], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 6: [0, 180] };
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const rnd = (a, b) => a + Math.random() * (b - a);
-
-/**
- * Throws the dice. items: [{ value, dark, from: {x,y}, to: {x,y} }] in screen coordinates,
- * size – die size in px, rotZ – board rotation (0 or 90).
- * Returns a Promise resolved on landing; the dice disappear in the next frame,
- * after the SVG dice have been drawn in the same place.
- */
-export async function rollDice3d(opts) {
-  if (motion.fast) return;
-  // shaking in the hand (real recording; if that fails – a synthesized sound)
-  diceShake().then((ok) => { if (!ok) sound('dice'); });
-  if (reduced()) return;
-  const libs = await preloadDice();
-  if (libs) {
-    try {
-      return await rollGL(libs, opts);
-    } catch (e) {
-      console.warn(txt('3D dice'), e);
-    }
-  }
-  return rollCss(opts);
-}
-
-// ===================== real 3D =====================
-const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';
-const CANNON_URL = 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/+esm';
-let libsP = null;
-
-// Preloads the libraries (when the game opens) so there is no delay.
-export function preloadDice() {
-  loadDiceSounds();
-  if (!libsP) {
-    libsP = Promise.all([import(THREE_URL), import(CANNON_URL)])
-      .then(([THREE, CANNON]) => ({ THREE, CANNON }))
-      .catch((e) => { console.warn(txt('The 3D libraries did not load'), e); return null; });
-  }
-  return libsP;
-}
-
-let G3 = null; // the shared 3D scene (one for all throws)
-
-// The value of each face of the cube: [+x, -x, +y, -y, +z, -z] – opposite faces sum to 7.
-const FACE_VALUES = [2, 5, 3, 4, 1, 6];
-
-function faceCanvas(v, dark, bump) {
-  const N = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = N;
-  const g = c.getContext('2d');
-  if (bump) {
-    g.fillStyle = '#fff';
-    g.fillRect(0, 0, N, N);
-  } else {
-    const grd = g.createRadialGradient(N * 0.32, N * 0.28, N * 0.05, N * 0.5, N * 0.5, N * 0.78);
-    if (dark) { grd.addColorStop(0, '#4a2a30'); grd.addColorStop(0.55, '#2a1418'); grd.addColorStop(1, '#14080a'); }
-    else { grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.55, '#faf4e6'); grd.addColorStop(1, '#eadfc6'); }
-    g.fillStyle = grd;
-    g.fillRect(0, 0, N, N);
-    // fine grain of the material
-    const img = g.getImageData(0, 0, N, N);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const d = (Math.random() - 0.5) * (dark ? 10 : 7);
-      img.data[i] += d; img.data[i + 1] += d; img.data[i + 2] += d;
-    }
-    g.putImageData(img, 0, 0);
-  }
-  const r = N * 0.0965;
-  for (const [px, py] of PIPS[v]) {
-    const x = (px / 58) * N, y = (py / 58) * N;
-    if (bump) {
-      const b = g.createRadialGradient(x, y, r * 0.2, x, y, r * 1.08);
-      b.addColorStop(0, '#000');
-      b.addColorStop(0.75, '#333');
-      b.addColorStop(1, '#fff');
-      g.fillStyle = b;
-      g.beginPath();
-      g.arc(x, y, r * 1.08, 0, Math.PI * 2);
-      g.fill();
-      continue;
-    }
-    // an engraved pip: a dark hollow + a light edge at the bottom right
-    const hole = g.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.1, x, y, r);
-    if (dark) { hole.addColorStop(0, '#fffaf0'); hole.addColorStop(0.7, '#efe3c6'); hole.addColorStop(1, '#bfae88'); }
-    else { hole.addColorStop(0, '#050302'); hole.addColorStop(0.65, '#231912'); hole.addColorStop(1, '#4d3c2e'); }
-    g.fillStyle = hole;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = dark ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.8)';
-    g.lineWidth = 2;
-    g.beginPath();
-    g.arc(x, y, r, Math.PI * 0.05, Math.PI * 0.75);
-    g.stroke();
-  }
-  return c;
-}
-
-// A cube with rounded edges: the vertices of the segmented cube "bulge" towards the corners.
-function roundedBox(THREE, radius = 0.14, seg = 8) {
-  const geo = new THREE.BoxGeometry(1, 1, 1, seg, seg, seg);
-  const pos = geo.attributes.position, nor = geo.attributes.normal;
-  const inner = 0.5 - radius;
-  const v = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i);
-    c.set(Math.max(-inner, Math.min(inner, v.x)), Math.max(-inner, Math.min(inner, v.y)), Math.max(-inner, Math.min(inner, v.z)));
-    n.subVectors(v, c);
-    if (n.lengthSq() < 1e-9) continue;
-    n.normalize();
-    v.copy(c).addScaledVector(n, radius);
-    pos.setXYZ(i, v.x, v.y, v.z);
-    nor.setXYZ(i, n.x, n.y, n.z);
-  }
-  return geo;
-}
-
-function setup({ THREE }) {
-  const canvas = document.createElement('canvas');
-  canvas.className = 'd3-gl';
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.22;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(30, 1, 10, 10000);
-  scene.add(new THREE.HemisphereLight(0xfff2e0, 0x30261e, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 2.6);
-  key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
-  key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 0.6;
-  key.shadow.radius = 5;
-  scene.add(key, key.target);
-  const fill = new THREE.DirectionalLight(0xffd9a8, 0.6);
-  scene.add(fill);
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({ opacity: 0.42 }));
-  plane.receiveShadow = true;
-  scene.add(plane);
-  const geo = roundedBox(THREE);
-  const mats = {};
-  for (const dark of [false, true]) {
-    mats[dark] = FACE_VALUES.map((v) => {
-      const map = new THREE.CanvasTexture(faceCanvas(v, dark, false));
-      map.colorSpace = THREE.SRGBColorSpace;
-      map.anisotropy = 4;
-      const bumpMap = new THREE.CanvasTexture(faceCanvas(v, dark, true));
-      return new THREE.MeshPhysicalMaterial({
-        map, bumpMap, bumpScale: 2.2,
-        roughness: dark ? 0.32 : 0.38, metalness: 0,
-        clearcoat: 1, clearcoatRoughness: 0.14,
-        sheen: dark ? 0 : 0.25, sheenColor: new THREE.Color(0xfff4dc),
-      });
-    });
-  }
-  return { renderer, scene, camera, key, fill, plane, geo, mats, canvas };
-}
-
-// All 24 rotations of the cube (as quaternions).
-function cubeRotations(THREE) {
-  const out = [];
-  const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-  const m = new THREE.Matrix4();
-  for (const p of [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]) {
-    for (const sx of [1, -1]) for (const sy of [1, -1]) for (const sz of [1, -1]) {
-      const cols = [axes[p[0]].map((x) => x * sx), axes[p[1]].map((x) => x * sy), axes[p[2]].map((x) => x * sz)];
-      const det = cols[0][0] * (cols[1][1] * cols[2][2] - cols[1][2] * cols[2][1]) - cols[1][0] * (cols[0][1] * cols[2][2] - cols[0][2] * cols[2][1]) + cols[2][0] * (cols[0][1] * cols[1][2] - cols[0][2] * cols[1][1]);
-      if (det < 0) continue;
-      m.makeBasis(new THREE.Vector3(...cols[0]), new THREE.Vector3(...cols[1]), new THREE.Vector3(...cols[2]));
-      out.push(new THREE.Quaternion().setFromRotationMatrix(m));
-    }
-  }
-  return out;
-}
-
-// The normal and the texture "up" direction for each value (in cube coordinates).
-const NORMAL = { 2: [1, 0, 0], 5: [-1, 0, 0], 3: [0, 1, 0], 4: [0, -1, 0], 1: [0, 0, 1], 6: [0, 0, -1] };
-const TEX_UP = { 2: [0, 1, 0], 5: [0, 1, 0], 3: [0, 0, -1], 4: [0, 0, 1], 1: [0, 1, 0], 6: [0, 1, 0] };
-
-const GRAV = 260; // in "dice" per second squared (edge = 1)
-
-// The physics of one throw: frames at 60 per second and the moments of impact.
-function simulate({ CANNON }, start, target, power = 1) {
-  const world = new CANNON.World({ gravity: new CANNON.Vec3(0, 0, -GRAV) });
-  const mDie = new CANNON.Material(), mFloor = new CANNON.Material();
-  world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction: 0.32, restitution: 0.45 }));
-  const floor = new CANNON.Body({ mass: 0, material: mFloor });
-  floor.addShape(new CANNON.Plane());
-  world.addBody(floor);
-  const body = new CANNON.Body({ mass: 1, material: mDie, linearDamping: 0.1, angularDamping: 0.12 });
-  body.addShape(new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)));
-  const z0 = rnd(3.2, 4.4), vz = rnd(1, 4);
-  const tf = (vz + Math.sqrt(vz * vz + 2 * GRAV * z0)) / GRAV;
-  const dx = target[0] - start[0], dy = target[1] - start[1];
-  const k = (rnd(0.5, 0.62) * power) / tf;
-  body.position.set(start[0], start[1], z0);
-  body.velocity.set(dx * k, dy * k, vz);
-  body.angularVelocity.set(rnd(-28, 28), rnd(-28, 28), rnd(-10, 10));
-  body.quaternion.setFromEuler(rnd(0, 6.3), rnd(0, 6.3), rnd(0, 6.3));
-  world.addBody(body);
-  const hits = [];
-  body.addEventListener('collide', (e) => {
-    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
-    if (v > 4 && (!hits.length || world.time - hits[hits.length - 1].t > 0.06)) hits.push({ t: world.time, v });
-  });
-  const frames = [];
-  const dt = 1 / 240;
-  let still = 0;
-  for (let i = 0; i < 240 * 2.2; i++) {
-    world.step(dt);
-    if (i % 4 === 3) {
-      const p = body.position, q = body.quaternion;
-      frames.push([p.x, p.y, p.z, q.x, q.y, q.z, q.w]);
-      still = body.velocity.length() < 0.25 && body.angularVelocity.length() < 0.4 ? still + 1 : 0;
-      if (still > 8 && frames.length > 30) break;
-    }
-  }
-  return { frames, hits };
-}
-
-// Corrects the trajectory so the die lands exactly in place, with the value
-// and the same rotation as the SVG die (smoothly, at the end of the roll).
-function plan(L, sim, value, rotZ) {
-  const { THREE } = L;
-  const ROT = G3.rot || (G3.rot = cubeRotations(THREE));
-  const last = sim.frames[sim.frames.length - 1];
-  const qn = new THREE.Quaternion(last[3], last[4], last[5], last[6]);
-  // which face of the body is up
-  const up = new THREE.Vector3(0, 0, 1);
-  let best = null, bestDot = -2;
-  for (const n of Object.values(NORMAL)) {
-    const w = new THREE.Vector3(...n).applyQuaternion(qn);
-    if (w.z > bestDot) { bestDot = w.z; best = new THREE.Vector3(...n); }
-  }
-  const Nv = new THREE.Vector3(...NORMAL[value]), Uv = new THREE.Vector3(...TEX_UP[value]);
-  const ang = ((90 - rotZ) * Math.PI) / 180;
-  const want = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0);
-  let Q = null, res = Infinity;
-  for (const r of ROT) {
-    if (Nv.clone().applyQuaternion(r).distanceTo(best) > 1e-3) continue;
-    const uw = Uv.clone().applyQuaternion(r).applyQuaternion(qn);
-    uw.z = 0;
-    const a = Math.abs(uw.angleTo(want));
-    if (a < res) { res = a; Q = r; }
-  }
-  // the final pose: the value up, the texture – as on the SVG die
-  const bl = new THREE.Matrix4().makeBasis(Uv, Nv, Uv.clone().cross(Nv));
-  const bw = new THREE.Matrix4().makeBasis(want, up, want.clone().cross(up));
-  const qt = new THREE.Quaternion().setFromRotationMatrix(bw.multiply(bl.transpose()));
-  const Mn = qn.clone().multiply(Q);
-  const D = qt.clone().multiply(Mn.clone().invert());
-  const off = new THREE.Vector3(-last[0], -last[1], 0.5 - last[2]);
-  return { Q, D, off };
-}
-
-async function rollGL(L, { items, size, rotZ = 0 }) {
-  const { THREE } = L;
-  G3 ||= setup(L);
-  const { renderer, scene, camera, key, fill, plane, geo, mats, canvas } = G3;
-  const W = innerWidth, H = innerHeight;
-  renderer.setSize(W, H, false);
-  camera.aspect = W / H;
-  const hc = H / 2 / Math.tan((camera.fov * Math.PI) / 360);
-  camera.near = hc * 0.05;
-  camera.far = hc * 3;
-  camera.position.set(0, 0, hc);
-  camera.up.set(0, 1, 0);
-  camera.lookAt(0, 0, 0);
-  camera.updateProjectionMatrix();
-  plane.scale.set(W * 2, H * 2, 1);
-  const span = Math.max(W, H) * 0.6;
-  key.position.set(-W * 0.3, H * 0.4, hc * 0.7);
-  Object.assign(key.shadow.camera, { left: -span, right: span, top: span, bottom: -span, near: 1, far: hc * 2 });
-  key.shadow.camera.updateProjectionMatrix();
-  fill.position.set(W * 0.4, -H * 0.3, hc * 0.5);
-  document.body.append(canvas);
-
-  const edge = size * 0.9;
-  const toWorld = (p) => [p.x - W / 2, H / 2 - p.y];
-  const dice = items.map((it, i) => {
-    const to = toWorld(it.to), from = toWorld(it.from);
-    const start = [(from[0] - to[0]) / edge, (from[1] - to[1]) / edge];
-    // aiming: several tries, adjusting the force by where the die stopped
-    let sim = null, bestD = Infinity, power = 0.75;
-    const want = Math.hypot(start[0], start[1]) || 1;
-    for (let a = 0; a < 6; a++) {
-      const s1 = simulate(L, start, [0, 0], power);
-      const e = s1.frames[s1.frames.length - 1];
-      const miss = Math.hypot(e[0], e[1]);
-      if (miss < bestD) { bestD = miss; sim = s1; }
-      if (miss < 0.6) break;
-      const went = Math.hypot(e[0] - start[0], e[1] - start[1]) || want;
-      power = Math.min(2, Math.max(0.2, power * (want / went)));
-    }
-    const p = plan(L, sim, it.value, rotZ);
-    const holder = new THREE.Group();
-    const mesh = new THREE.Mesh(geo, mats[!!it.dark]);
-    mesh.castShadow = true;
-    mesh.quaternion.copy(p.Q);
-    holder.add(mesh);
-    holder.scale.setScalar(edge);
-    holder.visible = false;
-    scene.add(holder);
-    const delay = i * 0.09;
-    return { sim, p, holder, to, delay };
-  });
-
-  const qb = new THREE.Quaternion(), qd = new THREE.Quaternion(), I = new THREE.Quaternion();
-  const smooth = (x) => x * x * (3 - 2 * x);
-  const show = (d, t) => {
-    const fr = d.sim.frames;
-    const n = fr.length - 1;
-    const fi = Math.min(n, Math.max(0, (t - d.delay) * 60));
-    const i = Math.floor(fi), j = Math.min(n, i + 1), a = fi - i;
-    const A = fr[i], B = fr[j];
-    const w = smooth(Math.min(1, Math.max(0, (fi - n * 0.42) / (n * 0.58))));
-    const x = A[0] + (B[0] - A[0]) * a + d.p.off.x * w;
-    const y = A[1] + (B[1] - A[1]) * a + d.p.off.y * w;
-    const z = A[2] + (B[2] - A[2]) * a + d.p.off.z * w;
-    qb.set(A[3], A[4], A[5], A[6]).slerp(new THREE.Quaternion(B[3], B[4], B[5], B[6]), a);
-    qd.copy(I).slerp(d.p.D, w);
-    d.holder.quaternion.copy(qd).multiply(qb);
-    d.holder.position.set(d.to[0] + x * edge, d.to[1] + y * edge, z * edge);
-    d.holder.visible = t >= d.delay;
-    return fi >= n;
-  };
-
-  const total = Math.max(...dice.map((d) => d.delay + (d.sim.frames.length - 1) / 60));
-  // sound: the impacts from the physics (force and direction) and rolling on the board
-  const audio = dice.map((d) => {
-    const fr = d.sim.frames;
-    const at = (t) => fr[Math.min(fr.length - 1, Math.round(t * 60))];
-    const panOf = (t) => Math.max(-1, Math.min(1, ((d.to[0] + (at(t)[0] + d.p.off.x) * edge) / (W / 2)) * 0.7));
-    const roll = [];
-    for (let i = 1; i < fr.length; i += 2) {
-      const a = fr[i - 1], b = fr[i];
-      roll.push({ t: d.delay + i / 60, contact: b[2] < 0.62, speed: Math.hypot(b[0] - a[0], b[1] - a[1]) * 60 });
-    }
-    return { hits: d.sim.hits.map((h) => ({ t: d.delay + h.t, v: h.v, pan: panOf(h.t) })), roll };
-  });
-  diceRollAudio(audio, window.__diceSlow || 1);
-  await new Promise((resolve) => {
-    const t0 = performance.now();
-    const frame = () => {
-      const t = (performance.now() - t0) / 1000 / (window.__diceSlow || 1); // __diceSlow – for debugging
-      let done = true;
-      for (const d of dice) done = show(d, t) && done;
-      renderer.render(scene, camera);
-      if (done || t > total + 0.3) resolve();
-      else requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
-  });
-  // the dice stay one more frame until the game draws its own in the same place
-  if (window.__diceHold) await new Promise((r) => setTimeout(r, window.__diceHold));
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    for (const d of dice) scene.remove(d.holder);
-    renderer.render(scene, camera);
-    canvas.remove();
-  }));
-}
-
-// ===================== fallback: CSS cubes =====================
-const FACES = { 1: 'rotateY(0deg)', 6: 'rotateY(180deg)', 2: 'rotateY(90deg)', 5: 'rotateY(-90deg)', 3: 'rotateX(90deg)', 4: 'rotateX(-90deg)' };
-const SHOW = { 1: [0, 0], 6: [0, -180], 2: [0, -90], 5: [0, 90], 3: [-90, 0], 4: [90, 0] };
+const rnd = (a, b) => a + Math.round(Math.random() * (b - a));
 
 function div(cls, style) {
   const e = document.createElement('div');
@@ -393,61 +27,76 @@ function div(cls, style) {
   return e;
 }
 
-function dieEl(size, dark) {
-  const c = size * 0.9;
-  const root = div(`d3${dark ? ' dark' : ''}`, `--S:${size}px;--c:${c}px`);
-  const shadow = div('d3-shadow');
-  const lift = div('d3-lift');
+function dieEl(size) {
+  const root = div('d3', `--die:${size}px`);
+  const die = div('d3-die');
   const cube = div('d3-cube');
-  for (const v of [1, 2, 3, 4, 5, 6]) {
-    const f = div('d3-face', `transform:${FACES[v]} translateZ(${c / 2}px)`);
-    for (const [x, y] of PIPS[v]) f.append(div('d3-pip', `left:${(x / 58) * 100}%;top:${(y / 58) * 100}%`));
+  for (const face of FACES) {
+    const f = div('d3-face', `transform:${face.t}`);
+    f.dataset.v = face.v;
+    for (let i = 0; i < 9; i++) f.append(div('d3-pip'));
     cube.append(f);
   }
-  for (const r of ['none', 'rotateX(90deg)', 'rotateY(90deg)']) cube.append(div('d3-core', `transform:${r}`));
-  lift.append(cube);
-  root.append(shadow, lift);
-  return { root, shadow, lift, cube };
+  die.append(cube);
+  root.append(die);
+  return { root, die, cube };
 }
 
-function rollCss({ items, size, rotZ = 0, duration = 1100 }) {
+function nextAngle(current, target, fullTurns) {
+  const mod = (a) => ((a % 360) + 360) % 360;
+  let delta = mod(target) - mod(current);
+  if (delta <= 0) delta += 360;
+  return current + 360 * Math.max(0, fullTurns - 1) + delta;
+}
+
+/**
+ * Rolls the dice. items: [{ value, to: {x,y} }] – where each die rests, in screen coordinates,
+ * size – die size in px, rotZ – board rotation (0 or 90).
+ * Returns a Promise resolved when the dice settle; they disappear in the next frame,
+ * after the SVG dice have been drawn in the same place.
+ */
+export async function rollDice3d({ items, size, rotZ = 0 }) {
+  if (motion.fast) return;
+  diceSound();
+  if (reduced()) return;
   const layer = div('d3-layer');
   document.body.append(layer);
-  const P = [0, 0.6, 0.79, 0.9, 0.96, 1, 1];
-  const Hh = [1, 0, 0.32, 0, 0.1, 0, 0];
-  const O = [0, 0.36, 0.53, 0.67, 0.77, 0.86, 1];
-  const ease = (j) => (Hh[j + 1] < Hh[j] ? 'cubic-bezier(.55,0,1,.6)' : 'cubic-bezier(0,.45,.45,1)');
+  const k = Math.max(0.75, size / 52); // the hop is sized for a 52px die
   const anims = items.map((it, i) => {
-    const d = dieEl(size, it.dark);
+    const d = dieEl(size);
+    d.root.style.transform = `translate(${it.to.x - size / 2}px, ${it.to.y - size / 2}px)`;
     layer.append(d.root);
-    const delay = i * 90;
-    const opt = { duration, delay, fill: 'both' };
-    const dx = it.to.x - it.from.x, dy = it.to.y - it.from.y;
-    const pos = O.map((o, j) => ({ offset: o, easing: 'linear', transform: `translate(${it.from.x + dx * P[j] - size / 2}px, ${it.from.y + dy * P[j] - size / 2}px)` }));
-    const lift = O.map((o, j) => ({ offset: o, easing: ease(j), transform: `scale(${1 + 0.8 * Hh[j]})` }));
-    lift[0].opacity = 0;
-    lift.splice(1, 0, { offset: 0.07, opacity: 1 });
-    const shadow = O.map((o, j) => ({ offset: o, easing: ease(j), opacity: 0.6 - 0.4 * Hh[j], transform: `translate(${Hh[j] * 0.35 * size}px, ${Hh[j] * 0.6 * size}px) scale(${1 + 0.5 * Hh[j]})` }));
-    shadow[0].opacity = 0;
-    const [fx, fy] = SHOW[it.value];
-    const sx = Math.random() < 0.5 ? -1 : 1, sy = Math.random() < 0.5 ? -1 : 1;
-    const spin = [
-      { transform: `rotateZ(${rotZ + rnd(-120, 120)}deg) rotateX(${rnd(-180, 180)}deg) rotateY(${rnd(-180, 180)}deg)` },
-      { transform: `rotateZ(${rotZ}deg) rotateX(${fx + sx * 360 * 2}deg) rotateY(${fy + sy * 360 * (Math.random() < 0.5 ? 1 : 2)}deg)` },
-    ];
+    const side = i % 2 ? 1 : -1;
+    const opt = { duration: ROLL_MS, fill: 'both', delay: i % 2 ? 55 : 0 };
+    const tf = (rx, ry, rz) => `rotateZ(${rotZ}deg) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
+    // starts on a random face
+    const [sx, sy] = ORIENT[rnd(1, 6)];
+    const [tx, ty] = ORIENT[it.value] || [0, 0];
+    const turns = rnd(3, 5);
+    const fx = nextAngle(sx, tx, turns + 1), fy = nextAngle(sy, ty, turns + (i % 2 ? 2 : 1)), fz = nextAngle(0, 0, turns);
+    const wobbleX = side * rnd(16, 28);
+    const hop = rnd(34, 44) * k;
+    const drift = side * rnd(13, 25) * k;
     return Promise.all([
-      d.root.animate(pos, opt).finished,
-      d.lift.animate(lift, opt).finished,
-      d.shadow.animate(shadow, opt).finished,
-      d.cube.animate(spin, { ...opt, duration: duration * 0.84, easing: 'cubic-bezier(.2,.6,.3,1)' }).finished,
+      d.cube.animate([
+        { transform: tf(sx, sy, 0), offset: 0 },
+        { transform: tf(sx + 430 + wobbleX, sy - 260 * side, 185 * side), offset: 0.18 },
+        { transform: tf(sx + 840, sy + 540 * side, -280 * side), offset: 0.43 },
+        { transform: tf(fx - 250, fy + 180 * side, fz + 95 * side), offset: 0.68 },
+        { transform: tf(fx + 34 * side, fy - 28 * side, fz + 16 * side), offset: 0.98 },
+        { transform: tf(fx, fy, fz), offset: 1 },
+      ], { ...opt, easing: 'cubic-bezier(0.16, 0.78, 0.55, 1)' }).finished,
+      d.die.animate([
+        { transform: 'translate3d(0, 0, 0) rotateZ(0deg) scale(1)', offset: 0 },
+        { transform: `translate3d(${drift}px, -${hop}px, ${18 * k}px) rotateZ(${side * 18}deg) scale(1.16)`, offset: 0.18 },
+        { transform: `translate3d(${drift * 0.9}px, ${5 * k}px, 0) rotateZ(${-side * 11}deg) scale(0.94)`, offset: 0.44 },
+        { transform: `translate3d(${drift * 0.45}px, ${-17 * k}px, ${9 * k}px) rotateZ(${side * 7}deg) scale(1.07)`, offset: 0.62 },
+        { transform: `translate3d(${drift * 0.18}px, ${3 * k}px, 0) rotateZ(${-side * 3}deg) scale(0.985)`, offset: 0.80 },
+        { transform: 'translate3d(0, 0, 0) rotateZ(0deg) scale(1)', offset: 1 },
+      ], { ...opt, easing: 'cubic-bezier(0.24, 0.72, 0.52, 1)' }).finished,
     ]).catch(() => {});
   });
-  // impacts on landing and bounces
-  diceRollAudio(items.map((it, i) => ({
-    hits: [1, 3, 5].map((k, j) => ({ t: (i * 90 + O[k] * duration) / 1000, v: [18, 9, 5][j], pan: (it.to.x / innerWidth) * 1.4 - 0.7 })),
-    roll: [],
-  })));
-  return Promise.all(anims).then(() => {
-    requestAnimationFrame(() => requestAnimationFrame(() => layer.remove()));
-  });
+  await Promise.all(anims);
+  // the dice stay one more frame until the game draws its own in the same place
+  requestAnimationFrame(() => requestAnimationFrame(() => layer.remove()));
 }

@@ -2,7 +2,7 @@ import { h, s, sleep, toast, motion } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { offlineNet } from '../../net/room.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton } from '../common.js';
-import { rollDice3d, preloadDice } from '../tabla/dice3d.js';
+import { rollDice3d } from '../tabla/dice3d.js';
 import { START, TRACK, LANES, YARDS, ZONES, newGame, cell, cellAt, moves, apply, won, onTrack, aiChoose } from './engine.js';
 import { txt } from '../../i18n.js';
 import { dieDefs, dieMarkup } from '../dieface.js';
@@ -36,7 +36,6 @@ function tween(ms, fn) {
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
 export async function mount(root, ctx) {
-  preloadDice();
   const online = ctx.online || null;
   let destroyed = false;
   let matchId = 0;
@@ -160,7 +159,7 @@ export async function mount(root, ctx) {
 
     function drawDie(val, p) {
       dieEl.style.setProperty('--c', COLORS[p].main);
-      dieEl.innerHTML = `<svg viewBox="-4 -4 66 66" aria-hidden="true"><defs>${dieDefs('ldd')}</defs><rect x="-2.5" y="-2.5" width="63" height="63" rx="15" class="ld-ring"/>${dieMarkup(val, false, 'ldd')}</svg>`;
+      dieEl.innerHTML = `<svg viewBox="-4 -4 66 66" aria-hidden="true"><defs>${dieDefs('ldd')}</defs><rect x="-2.5" y="-2.5" width="63" height="63" rx="13" class="ld-ring"/>${dieMarkup(val, 'ldd')}</svg>`;
       dieEl.dataset.v = val || '';
     }
 
@@ -223,32 +222,18 @@ export async function mount(root, ctx) {
     }
 
     // ---------- die ----------
-    function screenPoint(bx, by) {
-      const m = board.getScreenCTM();
-      if (!m) return null;
-      const q = svg.createSVGPoint();
-      q.x = bx;
-      q.y = by;
-      const r = q.matrixTransform(m);
-      return { x: r.x, y: r.y };
-    }
     async function throwDie(val, p) {
-      // thrown from the player's yard into the tray
-      const [zx, zy] = ZONES[p];
-      const from = screenPoint((zx + 2) * CS, (zy + 2) * CS);
+      // tumbles in the tray
       const box = dieEl.getBoundingClientRect();
       dieEl.classList.add('rolling');
-      if (from && box.width) {
+      if (box.width) {
         await rollDice3d({
-          size: box.width,
-          rotZ: 0,
-          duration: 950,
-          items: [{ value: val, dark: false, from, to: { x: box.left + box.width / 2, y: box.top + box.height / 2 } }],
+          size: (box.width * 58) / 66, // the die is 58 of the 66 units of its svg
+          items: [{ value: val, to: { x: box.left + box.width / 2, y: box.top + box.height / 2 } }],
         });
       }
       drawDie(val, p);
       dieEl.classList.remove('rolling');
-      dieEl.animate?.([{ transform: 'scale(1.18)' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.3,1.6,.5,1)' });
     }
 
     async function rollPhase(p, again, left = 0) {
