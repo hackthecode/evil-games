@@ -2,7 +2,7 @@ import { h, s, sleep } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { setupScreen, showResult, confirmDialog, sound, muteButton, loadPrefs } from '../common.js';
 import { variantEngine } from './variants.js';
-import { rollDice3d, preloadDice } from './dice3d.js';
+import { rollDice3d } from './dice3d.js';
 import { dieDefs, dieMarkup } from '../dieface.js';
 import { offlineNet } from '../../net/room.js';
 import { txt } from '../../i18n.js';
@@ -42,7 +42,6 @@ function offXY(p, k) {
 }
 
 export async function mount(root, ctx) {
-  preloadDice();
   const online = ctx.online || null;
   const variant = VARIANTS[ctx.gameId] ? ctx.gameId : 'tabla';
   const E = variantEngine(variant);
@@ -78,7 +77,6 @@ export async function mount(root, ctx) {
     let moveDice = []; // the moves to play (4 with doubles; in Gulbara also escalating/passed ones)
     let turnHistory = [], movesMade = [], turnResolver = null, rollResolver = null;
     let gameNo = 0, rollNo = 0;
-    let openingColors = false; // when rolling for the first move the dice are white and black
     let popUntil = 0; // with doubles the other two dice "pop up"
 
     // ---------- DOM ----------
@@ -215,14 +213,13 @@ export async function mount(root, ctx) {
       const pop = performance.now() < popUntil;
       list.forEach((d, i) => {
         const [x, y] = diePos(i, list.length, turn);
-        const dark = openingColors ? i === 1 : turn === 1;
         const g = s('g', { class: `tb-die ${used[i] ? 'used' : ''} ${pop && (i === 0 || i === 3) ? 'pop' : ''}` });
-        g.innerHTML = dieMarkup(d, dark, 'tbd');
+        g.innerHTML = dieMarkup(d, 'tbd');
         diceLayer.append(s('g', { transform: `translate(${x} ${y})` }, g));
       });
     }
 
-    // A roll with 3D dice; items: [{ value, dark, slot: [x, y], thrower }].
+    // A roll with 3D dice; items: [{ value, slot: [x, y] }].
     async function throw3d(items) {
       diceLayer.replaceChildren();
       const m = boardG.getScreenCTM();
@@ -239,13 +236,7 @@ export async function mount(root, ctx) {
         rotZ: svg.classList.contains('rot') ? 90 : 0,
         items: items.map((it) => {
           const [x, y] = it.slot;
-          // thrown from the thrower's side (mine is at the bottom of the screen)
-          const dir = (it.thrower === me ? 1 : -1) * (flip ? -1 : 1);
-          return {
-            value: it.value, dark: it.dark,
-            to: toClient(x + 29, y + 29),
-            from: toClient(x + 29 + dir * (110 + Math.random() * 90), H / 2 + dir * (250 + Math.random() * 60)),
-          };
+          return { value: it.value, to: toClient(x + 29, y + 29) };
         }),
       });
     }
@@ -428,7 +419,7 @@ export async function mount(root, ctx) {
       used = [];
       const n = vals[0] === vals[1] ? 4 : 2;
       const slots = n === 4 ? [1, 2] : [0, 1];
-      await throw3d(vals.map((v, j) => ({ value: v, dark: turn === 1, slot: diePos(slots[j], n, turn), thrower: turn })));
+      await throw3d(vals.map((v, j) => ({ value: v, slot: diePos(slots[j], n, turn) })));
       dice = vals;
       moveDice = expand(vals);
       if (n === 4) popUntil = performance.now() + 400;
@@ -559,19 +550,17 @@ export async function mount(root, ctx) {
       } while (a === b);
       turn = a > b ? 0 : 1;
       await throw3d([
-        { value: a, dark: false, slot: diePos(0, 2, turn), thrower: 0 },
-        { value: b, dark: true, slot: diePos(1, 2, turn), thrower: 1 },
+        { value: a, slot: diePos(0, 2, turn) },
+        { value: b, slot: diePos(1, 2, turn) },
       ]);
       if (isGone()) return;
       dice = [a, b];
       moveDice = [a, b];
-      openingColors = true;
       renderScore();
       renderDice();
       statusEl.textContent = `${names[0]}: ${a}, ${names[1]}: ${b} – ${turn === me ? txt('you start') : txt('{0} starts', names[turn])}.`;
       await sleep(1300);
       if (isGone()) return;
-      openingColors = false;
       let first = true;
       let turnNo = 0;
       while (!isGone() && !over) {

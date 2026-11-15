@@ -166,11 +166,9 @@ project is not paused, and `.github/workflows/tests.yml` runs the tests on every
 - A Web Worker for the chess AI (negamax with alpha-beta, iterative deepening and quiescence search).
 - SharedWorker / Supabase Edge Function (Deno) for the referee server; Supabase Realtime for rooms, presence, invitations and the lobby chat.
 - Web Crypto (PBKDF2) for password hashing in local mode; Web Audio for sounds.
-- Three.js and cannon-es for the 3D dice; a Service Worker for offline support and installing as an app.
+- CSS 3D cubes for the dice; a Service Worker for offline support and installing as an app.
 
 ## Credits
 
 - Chess pieces: the *cburnett* set (Colin M.L. Burnett, GPLv2+/BSD) from the lichess project; additional sets from lichess (`assets/chess/`): *celtic* and *fantasy* (MIT), *rhosgfx* (CC0), *merida* (GPLv2+).
 - Face cards (jack, queen, king): *English pattern* by Dmitry Fomin (Wikimedia Commons, CC0), recoloured in the portal's palette (`assets/cards/`).
-- Dice sounds: Kenney "Casino Audio" (CC0).
-- Dice sounds: see `assets/sounds/CREDITS.txt` (CC0).

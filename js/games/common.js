@@ -139,7 +139,6 @@ export function sound(kind) {
       case 'card': noise(0.07, 0.35, 2600); break;
       case 'deal': noise(0.05, 0.25, 3200); break;
       case 'dice': for (let i = 0; i < 4; i++) noise(0.04, 0.3, 1200 + i * 300); break;
-      case 'dieHit': noise(0.035, 0.45, 1500 + Math.random() * 900); tone(900 + Math.random() * 400, 0.03, 'triangle', 0.05); break;
       case 'checker': tone(240, 0.07, 'triangle', 0.25, 0, 0.7); noise(0.03, 0.2, 1500); break;
       case 'notify': tone(740, 0.1, 'sine', 0.1); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.12, i * 0.11)); break;
